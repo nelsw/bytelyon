@@ -6,26 +6,27 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nelsw/bytelyon/internal/client/fetch"
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/rs/zerolog/log"
 )
 
-type Client struct {
+type Worker struct {
 	url   string
 	after time.Time
 }
 
-func NewClient(query string, after time.Time) *Client {
-	return &Client{
+func New(query string, after time.Time) *Worker {
+	return &Worker{
 		fmt.Sprintf("https://news.google.com/rss/search?q=%s", strings.ReplaceAll(query, ` `, `+`)),
 		after,
 	}
 }
 
-func (c *Client) Fetch() ([]*model.Article, error) {
+func (c *Worker) Work() ([]*model.Article, error) {
 
-	rss, err := NewRSS(c.url)
-	if err != nil {
+	var rss RSS
+	if err := fetch.New(c.url).XML(&rss); err != nil {
 		return nil, err
 	}
 
@@ -36,13 +37,12 @@ func (c *Client) Fetch() ([]*model.Article, error) {
 
 		wg.Go(func() {
 
-			t := time.Time(*i.Time)
-			if t.Before(c.after) {
+			if time.Time(*i.Time).Before(c.after) {
 				return
 			}
 
-			var u string
-			if u, err = decodeURL(i.URL); err != nil {
+			u, err := decodeURL(i.URL)
+			if err != nil {
 				log.Warn().Err(err).Send()
 				u = i.URL
 			}
@@ -51,7 +51,7 @@ func (c *Client) Fetch() ([]*model.Article, error) {
 				URL:       u,
 				Title:     strings.TrimSuffix(i.Title, " - "+i.Source),
 				Source:    i.Source,
-				Published: t,
+				Published: time.Time(*i.Time),
 			})
 		})
 	}

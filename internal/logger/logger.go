@@ -9,6 +9,15 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func Init(mode string) {
+	log.Logger = Make(mode)
+}
+
+func New(mode string) *zerolog.Logger {
+	l := Make(mode)
+	return &l
+}
+
 func Make(mode string) zerolog.Logger {
 
 	l := log.Output(zerolog.ConsoleWriter{

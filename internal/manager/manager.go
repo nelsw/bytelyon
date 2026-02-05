@@ -11,8 +11,9 @@ import (
 )
 
 type Manager struct {
-	db         *gorm.DB
-	stop, done bool
+	db   *gorm.DB
+	stop bool
+	done bool
 }
 
 func New(db *gorm.DB) *Manager {

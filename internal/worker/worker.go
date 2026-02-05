@@ -1,8 +1,9 @@
 package worker
 
 import (
-	"github.com/nelsw/bytelyon/internal/client/article"
 	"github.com/nelsw/bytelyon/internal/model"
+	"github.com/nelsw/bytelyon/internal/worker/article"
+	"github.com/nelsw/bytelyon/internal/worker/sitemap"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
@@ -33,16 +34,21 @@ func (w worker) Work() {
 }
 
 func (w worker) doArticleWork() {
-	arr, err := article.NewClient(w.Target, w.UpdatedAt).Fetch()
+	arr, err := article.New(w.Target, w.UpdatedAt).Work()
 	if err != nil {
-		log.Error().Err(err).Msg("failed to fetch article")
+		log.Error().Err(err).Msg("failed to do article work")
 		return
 	}
 	w.db.Save(arr)
 }
 
 func (w worker) doSitemapWork() {
-
+	m := sitemap.New(w.Target).Work()
+	if m == nil {
+		log.Error().Msg("failed to do sitemap work")
+		return
+	}
+	w.db.Save(m)
 }
 
 func (w worker) doSearchWork() {

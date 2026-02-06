@@ -22,6 +22,10 @@ func New(db *gorm.DB) *Manager {
 
 func (m *Manager) Start() {
 
+	if m.stop {
+		return
+	}
+
 	m.done = false
 
 	var jobs []*model.Job
@@ -34,21 +38,19 @@ func (m *Manager) Start() {
 		wg.Go(worker.New(m.db, job).Work)
 	}
 
-	time.Sleep(time.Minute)
-
-	m.done = true
-
-	if m.stop {
+	if m.done = true; m.stop {
 		return
 	}
+
+	time.Sleep(time.Minute)
 
 	m.Start()
 }
 
-func (m *Manager) Stop() {
+func (m *Manager) Stop() bool {
 	m.stop = true
-}
-
-func (m *Manager) Done() bool {
-	return m.stop && m.done
+	if !m.done {
+		time.Sleep(time.Second)
+	}
+	return m.Stop()
 }

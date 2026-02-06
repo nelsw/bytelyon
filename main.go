@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,55 +10,45 @@ import (
 
 	"github.com/nelsw/bytelyon/config"
 	"github.com/nelsw/bytelyon/internal/db"
-	"github.com/nelsw/bytelyon/internal/handler"
-	"github.com/nelsw/bytelyon/internal/logger"
-	"github.com/nelsw/bytelyon/internal/manager"
+	"github.com/nelsw/bytelyon/internal/server"
 	"github.com/rs/zerolog/log"
 )
 
 func main() {
 
-	mode := config.New().Mode
+	cfg := config.New()
 
-	logger.Init(mode)
+	DB := db.New(cfg.Mode)
+	//mgr := manager.New(DB)
+	srv := server.New(cfg.Mode, cfg.Port, DB)
 
-	DB := db.New(mode)
+	//go mgr.Start()
+	//log.Info().Int("port", cfg.Port).Msg("Manager started")
 
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", 8080),
-		Handler: handler.New(mode, DB),
-	}
+	go srv.Serve()
+	log.Info().Int("port", cfg.Port).Msg("Server listening")
 
-	mgr := manager.New(DB)
-
-	go func() {
-		mgr.Start()
-		// service connections
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatal().Msgf("listen: %s\n", err)
-		}
-	}()
-
-	// Wait for the interrupt signal to gracefully shut down the server with
-	// a timeout of 5 seconds.
+	// Wait for the interrupt signal to gracefully shut down the server with a timeout of 5 seconds.
 	quit := make(chan os.Signal, 1)
 	// kill (no params) by default sends syscall.SIGTERM
 	// kill -2 is syscall.SIGINT
 	// kill -9 is syscall.SIGKILL but can't be caught, so don't need to add it
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Info().Msg("Shutting down Server ...")
-
-	mgr.Stop()
-	for !mgr.Done() {
-		time.Sleep(time.Second)
-	}
+	fmt.Println() // Print a newline after the signal is received to escape cmd
+	//
+	//log.Info().Int("port", cfg.Port).Msg("Manager stopping")
+	//for !mgr.Stop() {
+	//	time.Sleep(time.Second)
+	//}
+	//log.Info().Int("port", cfg.Port).Msg("Manager stopped")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Err(err).Msg("Server Shutdown")
-	}
+
+	log.Info().Int("port", cfg.Port).Msg("Server stopping")
+	srv.Shutdown(ctx)
+
 	<-ctx.Done()
-	log.Info().Msg("Server exiting")
+	log.Info().Int("port", cfg.Port).Msg("Server exiting")
 }

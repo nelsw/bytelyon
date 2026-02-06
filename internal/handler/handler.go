@@ -19,10 +19,28 @@ func New(mode string, db *gorm.DB) http.Handler {
 	r.Static("/static", "./web/static")
 	r.LoadHTMLGlob("./web/templates/*")
 	{
-		r.GET("/", func(c *gin.Context) {
-			var data any
-			c.HTML(http.StatusOK, "page.gohtml", data)
+		r.GET("", func(c *gin.Context) {
+			c.HTML(http.StatusOK, "index.gohtml", nil)
 		})
+		{
+			x := r.Group("/articles")
+			x.GET("", func(c *gin.Context) {
+				c.HTML(http.StatusOK, "articles.gohtml", nil)
+			})
+		}
+		{
+			x := r.Group("/sitemaps")
+			x.GET("", func(c *gin.Context) {
+				c.HTML(http.StatusOK, "sitemaps.gohtml", nil)
+			})
+		}
+		{
+			x := r.Group("/searches")
+			x.GET("", func(c *gin.Context) {
+				c.HTML(http.StatusOK, "searches.gohtml", nil)
+			})
+		}
+
 	}
 	api := r.Group("/api")
 	{

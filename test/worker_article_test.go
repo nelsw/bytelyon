@@ -1,11 +1,11 @@
-package worker
+package test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/nelsw/bytelyon/internal/logger"
+	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/nelsw/bytelyon/internal/worker/article"
 	"github.com/rs/zerolog/log"
@@ -18,12 +18,12 @@ func init() {
 
 func TestArticle(t *testing.T) {
 
-	query := "ev fire blanket"
-	after := time.Now().Add(time.Hour * 24 * 365 * -2)
+	arr := article.New(&model.Job{
+		Enabled: true,
+		Type:    model.ArticleType,
+		Target:  "ev fire blanket",
+	}).Work()
 
-	arr, err := article.New(query, after).Work()
-
-	assert.Nil(t, err)
 	assert.True(t, len(arr) > 0)
 	util.PrettyPrintln(arr)
 }

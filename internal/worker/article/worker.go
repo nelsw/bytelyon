@@ -12,22 +12,22 @@ import (
 )
 
 type Worker struct {
-	url   string
-	after time.Time
+	*model.Job
 }
 
-func New(query string, after time.Time) *Worker {
-	return &Worker{
-		fmt.Sprintf("https://news.google.com/rss/search?q=%s", strings.ReplaceAll(query, ` `, `+`)),
-		after,
-	}
+func New(j *model.Job) *Worker {
+	return &Worker{j}
 }
 
-func (c *Worker) Work() ([]*model.Article, error) {
+func (c *Worker) Work() []*model.Article {
+
+	query := strings.ReplaceAll(c.Target, ` `, `+`)
+	url := fmt.Sprintf("https://news.google.com/rss/search?q=%s", query)
 
 	var rss RSS
-	if err := fetch.New(c.url).XML(&rss); err != nil {
-		return nil, err
+	if err := fetch.New(url).XML(&rss); err != nil {
+		log.Err(err).Send()
+		return nil
 	}
 
 	var articles []*model.Article
@@ -37,7 +37,7 @@ func (c *Worker) Work() ([]*model.Article, error) {
 
 		wg.Go(func() {
 
-			if time.Time(*i.Time).Before(c.after) {
+			if time.Time(*i.Time).Before(c.UpdatedAt) {
 				return
 			}
 
@@ -47,9 +47,17 @@ func (c *Worker) Work() ([]*model.Article, error) {
 				u = i.URL
 			}
 
+			title := strings.TrimSuffix(i.Title, " - "+i.Source)
+			parts := strings.Split(title, " ")
+			for _, p := range parts {
+				if _, ok := c.Ignore()[p]; ok {
+					continue
+				}
+			}
+
 			articles = append(articles, &model.Article{
 				URL:       u,
-				Title:     strings.TrimSuffix(i.Title, " - "+i.Source),
+				Title:     title,
 				Source:    i.Source,
 				Published: time.Time(*i.Time),
 			})
@@ -57,5 +65,5 @@ func (c *Worker) Work() ([]*model.Article, error) {
 	}
 	wg.Wait()
 
-	return articles, nil
+	return articles
 }

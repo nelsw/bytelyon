@@ -18,25 +18,24 @@ const (
 }`
 )
 
-func (c *Client) NewPage(ff ...func() error) (playwright.Page, error) {
+func (c *Client) NewPage(ff ...func() error) (page playwright.Page, err error) {
 
 	if len(ff) > 0 {
-		page, err := c.BrowserContext.ExpectPage(ff[0])
-		if err != nil {
+		if page, err = c.BrowserContext.ExpectPage(ff[0]); err != nil {
 			log.Warn().Err(err).Msg("Client - Failed to ExpectPage")
+		} else if err = page.BringToFront(); err != nil {
+			log.Warn().Err(err).Msg("Client - Failed to BringToFront")
 		}
-		page.BringToFront()
-		return page, err
+		return
 	}
 
-	page, err := c.BrowserContext.NewPage()
-	if err != nil {
+	if page, err = c.BrowserContext.NewPage(); err != nil {
 		log.Warn().Err(err).Msg("Client - Failed to NewPage")
 	} else if err = page.AddInitScript(playwright.Script{Content: Ptr(pageScriptContent)}); err != nil {
 		log.Warn().Err(err).Msg("Client - Failed to AddInitScript")
 	}
 
-	return page, err
+	return
 }
 
 func (c *Client) GoTo(page playwright.Page, url string) (playwright.Response, error) {

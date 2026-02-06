@@ -26,10 +26,6 @@ func New(mode string) *gorm.DB {
 	sqlDB.SetConnMaxLifetime(time.Hour)
 	sqlDB.SetConnMaxIdleTime(time.Hour * 24)
 
-	if mode == gin.ReleaseMode {
-		return db
-	}
-
 	if mode == gin.TestMode {
 		for _, t := range Migrations {
 			if err = db.Migrator().DropTable(&t); err != nil {

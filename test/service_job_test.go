@@ -7,25 +7,25 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
+	"github.com/nelsw/bytelyon/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestJob(t *testing.T) {
+func TestServiceJob(t *testing.T) {
 
-	DB := db.New(gin.TestMode)
+	svc := service.NewJobService(db.New(gin.TestMode))
 
-	DB.Save(&model.Job{
+	svc.Save(&model.Job{
 		Enabled:   true,
-		Type:      model.ArticleType,
+		Type:      model.SearchType,
 		Frequency: time.Hour * 24,
 		Target:    "ev fire blanket",
 		BlackList: []string{"firefibers.com"},
 	})
 
-	var jobs []*model.Job
+	jobs, err := svc.List()
 
-	DB.Find(&jobs)
-
+	assert.NoError(t, err)
 	assert.Equal(t, len(jobs), 1)
 	assert.True(t, jobs[0].Enabled)
 	assert.Equal(t, jobs[0].Type, model.ArticleType)

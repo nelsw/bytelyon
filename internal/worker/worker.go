@@ -3,6 +3,7 @@ package worker
 import (
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/worker/article"
+	"github.com/nelsw/bytelyon/internal/worker/search"
 	"github.com/nelsw/bytelyon/internal/worker/sitemap"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
@@ -13,7 +14,7 @@ type Worker interface {
 }
 
 type worker struct {
-	db *gorm.DB
+	*gorm.DB
 	*model.Job
 }
 
@@ -29,28 +30,25 @@ func (w worker) Work() {
 		w.doSitemapWork()
 	case model.SearchType:
 		w.doSearchWork()
+	default:
+		log.Warn().Msg("unknown job type")
 	}
-	log.Warn().Msg("unknown job type")
 }
 
 func (w worker) doArticleWork() {
-	arr, err := article.New(w.Target, w.UpdatedAt).Work()
-	if err != nil {
-		log.Error().Err(err).Msg("failed to do article work")
-		return
+	if arr := article.New(w.Job).Work(); len(arr) > 0 {
+		w.Save(arr)
 	}
-	w.db.Save(arr)
 }
 
 func (w worker) doSitemapWork() {
-	m := sitemap.New(w.Target).Work()
-	if m == nil {
-		log.Error().Msg("failed to do sitemap work")
-		return
+	if m := sitemap.New(w.Job).Work(); m != nil {
+		w.Save(m)
 	}
-	w.db.Save(m)
 }
 
 func (w worker) doSearchWork() {
-
+	if a := search.New(w.Job).Work(); a != nil {
+		w.Save(a)
+	}
 }

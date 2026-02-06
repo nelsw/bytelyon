@@ -1,10 +1,11 @@
-package worker
+package test
 
 import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/nelsw/bytelyon/internal/logger"
+	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/nelsw/bytelyon/internal/worker/sitemap"
 	"github.com/rs/zerolog/log"
@@ -15,7 +16,10 @@ func init() {
 }
 
 func TestSitemap(t *testing.T) {
-	url := "https://www.ubicquia.com"
-	m := sitemap.New(url).Work()
+	m := sitemap.New(&model.Job{
+		Enabled: true,
+		Type:    model.SitemapType,
+		Target:  "https://www.ubicquia.com",
+	}).Work()
 	util.PrettyPrintln(m)
 }

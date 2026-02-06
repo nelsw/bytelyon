@@ -14,3 +14,11 @@ type Job struct {
 	Target    string   `gorm:"type:varchar(255)"`
 	BlackList []string `gorm:"serializer:json"`
 }
+
+func (j Job) Ignore() map[string]bool {
+	m := map[string]bool{}
+	for _, s := range j.BlackList {
+		m[s] = true
+	}
+	return m
+}

@@ -12,25 +12,23 @@ import (
 
 	"github.com/nelsw/bytelyon/config"
 	"github.com/nelsw/bytelyon/internal/db"
+	"github.com/nelsw/bytelyon/internal/handler"
 	"github.com/nelsw/bytelyon/internal/logger"
 	"github.com/nelsw/bytelyon/internal/manager"
-	"github.com/nelsw/bytelyon/internal/router"
 	"github.com/rs/zerolog/log"
 )
 
 func main() {
 
-	cfg := config.New()
+	mode := config.New().Mode
 
-	logger.Init(cfg.Mode)
+	logger.Init(mode)
 
-	DB := db.New(cfg.Mode)
-
-	r := router.New(cfg.Mode, DB)
+	DB := db.New(mode)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", 8080),
-		Handler: r.Handler(),
+		Handler: handler.New(mode, DB),
 	}
 
 	mgr := manager.New(DB)

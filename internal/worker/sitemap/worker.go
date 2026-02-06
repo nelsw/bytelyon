@@ -6,23 +6,24 @@ import (
 )
 
 type Worker struct {
-	url string
+	*model.Job
 }
 
-func New(url string) Worker {
-	return Worker{url}
+func New(j *model.Job) *Worker {
+	return &Worker{j}
 }
 
-func (w Worker) Work() *model.Sitemap {
+func (w *Worker) Work() *model.Sitemap {
 
-	m := NewMapper(&fetcher{}, w.url)
+	m := NewMapper(&fetcher{}, w.Target)
 	m.Add()
-	m.Map(w.url, 3)
+	m.Map(w.Target, 3)
 	m.Wait()
 
 	return &model.Sitemap{
-		URL:      w.url,
-		Domain:   util.Domain(w.url),
+		JobID:    w.ID,
+		URL:      w.Target,
+		Domain:   util.Domain(w.Target),
 		Relative: m.Relative(),
 		Remote:   m.Remote(),
 	}

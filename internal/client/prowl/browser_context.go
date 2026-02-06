@@ -1,7 +1,9 @@
 package prowl
 
 import (
+	"encoding/json"
 	"math/rand"
+	"os"
 
 	. "github.com/nelsw/bytelyon/internal/util"
 
@@ -77,6 +79,7 @@ func (c *Client) NewBrowserContext() (err error) {
 		ReducedMotion:     playwright.ReducedMotionNoPreference,
 		TimezoneId:        Ptr("America/New_York"),
 		UserAgent:         Ptr(userAgents[rand.Intn(len(userAgents))]),
+		StorageState:      c.getState(),
 	})
 	if err == nil {
 		c.BrowserContext.SetDefaultTimeout(60_000)
@@ -86,4 +89,34 @@ func (c *Client) NewBrowserContext() (err error) {
 	log.Err(err).Msg("Client - NewBrowserContext")
 
 	return
+}
+
+func (c *Client) getState() *playwright.OptionalStorageState {
+
+	state := playwright.OptionalStorageState{
+		Cookies: []playwright.OptionalCookie{},
+		Origins: []playwright.Origin{},
+	}
+
+	if b, err := os.ReadFile("state.json"); err != nil {
+		log.Err(err).Msg("Client - Failed to read state.json")
+		return &state
+	} else if err = json.Unmarshal(b, &state); err != nil {
+		log.Err(err).Msg("Client - Failed to unmarshal state.json")
+		return &state
+	}
+	return &state
+}
+
+func (c *Client) SetState() {
+	var b []byte
+	if state, err := c.BrowserContext.StorageState(); err != nil {
+		log.Err(err).Msg("Client - Failed to get StorageState")
+		return
+	} else if b, err = json.Marshal(&state); err != nil {
+		log.Err(err).Msg("Client - Failed to marshal StorageState")
+		return
+	} else if err = os.WriteFile("state.json", b, 0644); err != nil {
+		log.Err(err).Msg("Client - Failed to write state.json")
+	}
 }

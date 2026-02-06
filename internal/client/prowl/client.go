@@ -6,7 +6,7 @@ import (
 	"regexp"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nelsw/bytelyon/internal/logger"
+	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
 	slogzerolog "github.com/samber/slog-zerolog/v2"
@@ -36,7 +36,7 @@ func Init(mode string) {
 	err := playwright.Install(&playwright.RunOptions{
 		Logger: slog.New(slogzerolog.Option{
 			Level:  sl,
-			Logger: logger.New(mode),
+			Logger: util.Ptr(log.Logger),
 		}.NewZerologHandler()),
 	})
 	if err != nil {

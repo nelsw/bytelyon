@@ -10,6 +10,7 @@ import (
 
 	"github.com/nelsw/bytelyon/config"
 	"github.com/nelsw/bytelyon/internal/db"
+	"github.com/nelsw/bytelyon/internal/manager"
 	"github.com/nelsw/bytelyon/internal/server"
 	"github.com/rs/zerolog/log"
 )
@@ -19,11 +20,11 @@ func main() {
 	cfg := config.New()
 
 	DB := db.New(cfg.Mode)
-	//mgr := manager.New(DB)
+	mgr := manager.New(DB)
 	srv := server.New(cfg.Mode, cfg.Port, DB)
 
-	//go mgr.Start()
-	//log.Info().Int("port", cfg.Port).Msg("Manager started")
+	go mgr.Start()
+	log.Info().Int("port", cfg.Port).Msg("Manager started")
 
 	go srv.Serve()
 	log.Info().Int("port", cfg.Port).Msg("Server listening")
@@ -36,12 +37,12 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	fmt.Println() // Print a newline after the signal is received to escape cmd
-	//
-	//log.Info().Int("port", cfg.Port).Msg("Manager stopping")
-	//for !mgr.Stop() {
-	//	time.Sleep(time.Second)
-	//}
-	//log.Info().Int("port", cfg.Port).Msg("Manager stopped")
+
+	log.Info().Int("port", cfg.Port).Msg("Manager stopping")
+	for !mgr.Stop() {
+		time.Sleep(time.Second)
+	}
+	log.Info().Int("port", cfg.Port).Msg("Manager stopped")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

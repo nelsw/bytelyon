@@ -11,6 +11,7 @@ import (
 
 type SitemapController interface {
 	Delete(c *gin.Context)
+	Find(c *gin.Context)
 }
 
 type sitemapController struct {
@@ -22,13 +23,25 @@ func NewSitemapController(db *gorm.DB) SitemapController {
 }
 
 func (ctl sitemapController) Delete(c *gin.Context) {
-	if c.Param("id") == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing id parameter"})
-	} else if id, err := strconv.Atoi(c.Param("id")); err != nil {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-	} else if err = ctl.Where("id = ?", uint(id)).Delete(&model.Sitemap{}).Error; err != nil {
+	}
+
+	ctl.Where("id = ?", uint(id)).Delete(&model.Sitemap{})
+	c.Status(http.StatusNoContent)
+}
+
+func (ctl sitemapController) Find(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+
+	var a model.Sitemap
+	if ctl.DB.First(&a, id); a.ID == 0 {
+		c.Status(http.StatusNoContent)
 	} else {
-		c.JSON(http.StatusOK, gin.H{"message": "sitemap deleted successfully"})
+		c.JSON(http.StatusOK, &a)
 	}
 }

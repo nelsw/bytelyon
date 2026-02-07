@@ -5,30 +5,46 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nelsw/bytelyon/internal/service"
+	"github.com/nelsw/bytelyon/internal/model"
 	"gorm.io/gorm"
 )
 
 type SearchController interface {
 	Delete(c *gin.Context)
+	Find(c *gin.Context)
 }
 
 type searchController struct {
-	service.SearchService
+	*gorm.DB
 }
 
 func NewSearchController(db *gorm.DB) SearchController {
-	return &searchController{service.NewSearchService(db)}
+	return &searchController{db}
 }
 
-func (ctl searchController) Delete(c *gin.Context) {
-	if c.Param("id") == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing id parameter"})
-	} else if id, err := strconv.Atoi(c.Param("id")); err != nil {
+func (ctl *searchController) Delete(c *gin.Context) {
+
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-	} else if err = ctl.SearchService.Delete(uint(id)); err != nil {
+		return
+	}
+
+	ctl.DB.Select("Pages").Where("id = ?", uint(id)).Delete(&model.Search{})
+	c.Status(http.StatusNoContent)
+}
+
+func (ctl *searchController) Find(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var a model.Search
+	if ctl.DB.Preload("Pages").First(&a, id); a.ID == 0 {
+		c.Status(http.StatusNoContent)
 	} else {
-		c.JSON(http.StatusOK, gin.H{"message": "search deleted successfully"})
+		c.JSON(http.StatusOK, &a)
 	}
 }

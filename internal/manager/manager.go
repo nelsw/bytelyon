@@ -29,13 +29,14 @@ func (m *Manager) Start() {
 	m.done = false
 
 	var jobs []*model.Job
-	if err := m.db.Where("enabled = ?", true).Find(&jobs).Error; err != nil {
-		log.Warn().Err(err).Msg("failed to find enabled jobs")
-	}
-
-	var wg sync.WaitGroup
-	for _, job := range jobs {
-		wg.Go(worker.New(m.db, job).Work)
+	if err := m.db.Find(&jobs).Error; err != nil {
+		log.Warn().Err(err).Msg("failed to find jobs!")
+	} else {
+		var wg sync.WaitGroup
+		for _, job := range jobs {
+			wg.Go(worker.New(m.db, job).Work)
+		}
+		wg.Wait()
 	}
 
 	if m.done = true; m.stop {
@@ -48,8 +49,7 @@ func (m *Manager) Start() {
 }
 
 func (m *Manager) Stop() bool {
-	m.stop = true
-	if !m.done {
+	if m.stop = true; !m.done {
 		time.Sleep(time.Second)
 	}
 	return m.Stop()

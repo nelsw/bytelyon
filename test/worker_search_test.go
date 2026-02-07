@@ -21,7 +21,6 @@ func init() {
 func TestSearch(t *testing.T) {
 
 	a := search.New(&model.Job{
-		Enabled:   true,
 		Type:      model.SearchType,
 		Frequency: time.Hour * 24,
 		Target:    "ev fire blanket",

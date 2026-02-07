@@ -19,9 +19,8 @@ func init() {
 func TestArticle(t *testing.T) {
 
 	arr := article.New(&model.Job{
-		Enabled: true,
-		Type:    model.ArticleType,
-		Target:  "ev fire blanket",
+		Type:   model.ArticleType,
+		Target: "ev fire blanket",
 	}).Work()
 
 	assert.True(t, len(arr) > 0)

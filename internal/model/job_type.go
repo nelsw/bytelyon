@@ -3,6 +3,11 @@ package model
 import (
 	"database/sql/driver"
 	"errors"
+	"regexp"
+)
+
+var (
+	validationRegex = regexp.MustCompile(`^(search|article|sitemap)$`)
 )
 
 type JobType string
@@ -27,4 +32,15 @@ func (t *JobType) Scan(src any) error {
 
 func (t *JobType) Value() (driver.Value, error) {
 	return string(*t), nil
+}
+
+func NewJobType(s string) (JobType, error) {
+	if !validationRegex.MatchString(s) {
+		return "", errors.New("invalid job type, must be one of: search, article, sitemap")
+	}
+	return JobType(s), nil
+}
+
+func (t JobType) String() string {
+	return string(t)
 }

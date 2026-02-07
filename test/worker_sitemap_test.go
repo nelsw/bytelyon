@@ -17,9 +17,8 @@ func init() {
 
 func TestSitemap(t *testing.T) {
 	m := sitemap.New(&model.Job{
-		Enabled: true,
-		Type:    model.SitemapType,
-		Target:  "https://www.ubicquia.com",
+		Type:   model.SitemapType,
+		Target: "https://www.ubicquia.com",
 	}).Work()
 	util.PrettyPrintln(m)
 }

@@ -25,30 +25,25 @@ func New(db *gorm.DB, job *model.Job) Worker {
 func (w worker) Work() {
 	switch w.Type {
 	case model.ArticleType:
-		w.doArticleWork()
+		if arr := article.New(w.Job).Work(); len(arr) > 0 {
+			w.Save(arr)
+		}
 	case model.SitemapType:
-		w.doSitemapWork()
+		if m := sitemap.New(w.Job).Work(); m != nil {
+			w.Save(m)
+		}
 	case model.SearchType:
-		w.doSearchWork()
+		if a := search.New(w.Job).Work(); a != nil {
+			w.Save(a)
+		}
 	default:
 		log.Warn().Msg("unknown job type")
+		return
 	}
-}
-
-func (w worker) doArticleWork() {
-	if arr := article.New(w.Job).Work(); len(arr) > 0 {
-		w.Save(arr)
+	// a frequency of 1 means to only work the job once;
+	// it's been worked, reset the frequency to 0 (pause).
+	if w.Frequency == 1 {
+		w.Frequency = 0
 	}
-}
-
-func (w worker) doSitemapWork() {
-	if m := sitemap.New(w.Job).Work(); m != nil {
-		w.Save(m)
-	}
-}
-
-func (w worker) doSearchWork() {
-	if a := search.New(w.Job).Work(); a != nil {
-		w.Save(a)
-	}
+	w.Save(w.Job)
 }

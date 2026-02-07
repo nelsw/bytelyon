@@ -33,9 +33,7 @@ func (w worker) Work() {
 			w.Save(m)
 		}
 	case model.SearchType:
-		if a := search.New(w.Job).Work(); a != nil {
-			w.Save(a)
-		}
+		search.New(w.DB, w.Job).Work()
 	default:
 		log.Warn().Msg("unknown job type")
 		return

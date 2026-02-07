@@ -9,6 +9,7 @@ import (
 	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
+	"gorm.io/gorm"
 )
 
 var (
@@ -24,34 +25,37 @@ var (
 )
 
 type Worker struct {
+	*gorm.DB
 	*model.Job
 }
 
-func New(job *model.Job) *Worker {
-	return &Worker{job}
+func New(db *gorm.DB, job *model.Job) *Worker {
+	return &Worker{db, job}
 }
 
-func (w *Worker) Work() *model.Search {
-	arr, err := w.work(true)
-	if err != nil {
-		log.Err(err).Msgf("Failed to work with headless: %t", true)
-		if arr, err = w.work(false); err != nil {
-			log.Err(err).Msgf("Failed to work with headless: %t", false)
-		}
+func (w *Worker) Work() {
+
+	err := w.work(true)
+	if err == nil {
+		return
 	}
-	return arr
+	log.Err(err).Msgf("Failed to work with headless: %t", true)
+
+	if err = w.work(false); err != nil {
+		log.Err(err).Msgf("Failed to work with headless: %t", false)
+	}
 }
 
-func (w *Worker) work(headless bool) (*model.Search, error) {
+func (w *Worker) work(headless bool) error {
 	c, err := prowl.New(headless)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer c.Close()
 
 	var google playwright.Page
 	if google, err = w.VisitGoogle(c); err != nil {
-		return nil, err
+		return err
 	}
 	defer google.Close()
 
@@ -59,16 +63,20 @@ func (w *Worker) work(headless bool) (*model.Search, error) {
 		Pages: []*model.SearchPage{w.toModel(google)},
 	}
 
+	if err = w.DB.Create(a).Error; err != nil {
+		return err
+	}
+
 	var locators []playwright.Locator
 	if locators, err = google.Locator(fmt.Sprintf(`[data-dtld]`), playwright.PageLocatorOptions{}).All(); err != nil {
 		log.Warn().Err(err).Msg("No Target Locators Found")
-		return a, nil
+		return nil
 	} else if len(locators) == 0 {
 		log.Warn().Msg("No Target Locators Found")
-		return a, nil
+		return nil
 	} else if w.Job.Ignore()["*"] {
 		log.Info().Msg("Ignoring all targets")
-		return a, nil
+		return nil
 	}
 
 	var att string
@@ -100,9 +108,12 @@ func (w *Worker) work(headless bool) (*model.Search, error) {
 		}
 
 		a.Pages = append(a.Pages, w.toModel(targetPage))
+		if err = w.DB.Save(a).Error; err != nil {
+			log.Warn().Err(err).Msg("Failed to Save Search")
+		}
 	}
 
-	return a, nil
+	return nil
 }
 
 func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) {

@@ -18,7 +18,7 @@ type Job struct {
 	Target    string         `gorm:"index:idx_job_type_target_deleted,unique"`
 	DeletedAt gorm.DeletedAt `gorm:"index:idx_job_type_target_deleted,unique"`
 	CreatedAt int
-	UpdatedAt int `gorm:"<-:false"`
+	UpdatedAt int
 	Frequency time.Duration
 	BlackList []string `gorm:"serializer:json"`
 }

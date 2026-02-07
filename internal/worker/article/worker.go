@@ -56,6 +56,7 @@ func (c *Worker) Work() []*model.Article {
 			}
 
 			articles = append(articles, &model.Article{
+				JobID:     c.Job.ID,
 				URL:       u,
 				Title:     title,
 				Source:    i.Source,

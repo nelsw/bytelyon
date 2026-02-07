@@ -23,6 +23,20 @@ func New(db *gorm.DB, job *model.Job) Worker {
 }
 
 func (w worker) Work() {
+
+	if !w.ReadyToWork() {
+		log.Info().
+			Str("job_type", w.Type.String()).
+			Str("target", w.Target).
+			Msg("job not ready to work")
+		return
+	}
+
+	log.Info().
+		Str("job_type", w.Type.String()).
+		Str("target", w.Target).
+		Msg("working job")
+
 	switch w.Type {
 	case model.ArticleType:
 		if arr := article.New(w.Job).Work(); len(arr) > 0 {
@@ -43,5 +57,11 @@ func (w worker) Work() {
 	if w.Frequency == 1 {
 		w.Frequency = 0
 	}
+
 	w.Save(w.Job)
+
+	log.Info().
+		Str("job_type", w.Type.String()).
+		Str("target", w.Target).
+		Msg("working job")
 }

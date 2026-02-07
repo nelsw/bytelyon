@@ -3,28 +3,30 @@ package sitemap
 import (
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/util"
+	"gorm.io/gorm"
 )
 
 type Worker struct {
-	*model.Job
+	*gorm.DB
+	*model.Bot
 }
 
-func New(j *model.Job) *Worker {
-	return &Worker{j}
+func New(db *gorm.DB, b *model.Bot) *Worker {
+	return &Worker{db, b}
 }
 
-func (w *Worker) Work() *model.Sitemap {
+func (w *Worker) Work() {
 
 	m := NewMapper(&fetcher{}, w.Target)
 	m.Add()
 	m.Map(w.Target, 3)
 	m.Wait()
 
-	return &model.Sitemap{
-		JobID:    w.ID,
+	w.Create(&model.Sitemap{
+		BotID:    w.ID,
 		URL:      w.Target,
 		Domain:   util.Domain(w.Target),
 		Relative: m.Relative(),
 		Remote:   m.Remote(),
-	}
+	})
 }

@@ -4,7 +4,7 @@ import "gorm.io/gorm"
 
 type Search struct {
 	gorm.Model
-	JobID uint
-	Job   Job
+	Bot   Bot
+	BotID uint
 	Pages []*SearchPage
 }

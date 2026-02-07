@@ -26,10 +26,10 @@ var (
 
 type Worker struct {
 	*gorm.DB
-	*model.Job
+	*model.Bot
 }
 
-func New(db *gorm.DB, job *model.Job) *Worker {
+func New(db *gorm.DB, job *model.Bot) *Worker {
 	return &Worker{db, job}
 }
 
@@ -60,7 +60,7 @@ func (w *Worker) work(headless bool) error {
 	defer google.Close()
 
 	a := &model.Search{
-		JobID: w.Job.ID,
+		BotID: w.Bot.ID,
 		Pages: []*model.SearchPage{w.toModel(google)},
 	}
 
@@ -75,7 +75,7 @@ func (w *Worker) work(headless bool) error {
 	} else if len(locators) == 0 {
 		log.Warn().Msg("No Target Locators Found")
 		return nil
-	} else if w.Job.Ignore()["*"] {
+	} else if w.Bot.Ignore()["*"] {
 		log.Info().Msg("Ignoring all targets")
 		return nil
 	}
@@ -91,7 +91,7 @@ func (w *Worker) work(headless bool) error {
 		}
 
 		log.Debug().Str("found", att).Msg("Locator")
-		if _, ok := w.Job.Ignore()[att]; ok {
+		if _, ok := w.Bot.Ignore()[att]; ok {
 			continue
 		}
 

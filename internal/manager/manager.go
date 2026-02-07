@@ -5,52 +5,92 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/internal/model"
-	"github.com/nelsw/bytelyon/internal/worker"
+	"github.com/nelsw/bytelyon/internal/worker/article"
+	"github.com/nelsw/bytelyon/internal/worker/search"
+	"github.com/nelsw/bytelyon/internal/worker/sitemap"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
 
 type Manager struct {
-	db   *gorm.DB
-	stop bool
-	done bool
+	*gorm.DB
+	stop, done bool
 }
 
 func New(db *gorm.DB) *Manager {
-	return &Manager{db: db}
+	return &Manager{DB: db}
 }
 
 func (m *Manager) Start() {
+
+	log.Info().Msg("bot manager started")
 
 	if m.stop {
 		return
 	}
 
 	m.done = false
+	m.work()
+	m.done = true
 
-	var jobs []*model.Job
-	if err := m.db.Find(&jobs).Error; err != nil {
-		log.Warn().Err(err).Msg("failed to find jobs!")
-	} else {
-		var wg sync.WaitGroup
-		for _, job := range jobs {
-			wg.Go(worker.New(m.db, job).Work)
-		}
-		wg.Wait()
-	}
-
-	if m.done = true; m.stop {
+	if m.stop {
 		return
 	}
 
+	log.Info().Msg("bot manager sleeping")
 	time.Sleep(time.Minute)
-
 	m.Start()
 }
 
-func (m *Manager) Stop() bool {
-	if m.stop = true; !m.done {
+func (m *Manager) work() {
+
+	var bots []*model.Bot
+	if err := m.Where("frequency > 0").Find(&bots).Error; err != nil {
+		log.Panic().Err(err).Send()
+	}
+
+	log.Info().Msgf("bots found [%d]", len(bots))
+	if len(bots) == 0 {
+		return
+	}
+
+	var ready int
+	for _, job := range bots {
+		if job.ReadyToWork() {
+			ready++
+		}
+	}
+
+	log.Info().Msgf("bots ready [%d]", ready)
+	if ready == 0 {
+		return
+	}
+
+	var wg sync.WaitGroup
+	for _, bot := range bots {
+		wg.Go(func() {
+			switch bot.Type {
+			case model.ArticleBotType:
+				article.New(m.DB, bot).Work()
+			case model.SitemapBotType:
+				sitemap.New(m.DB, bot).Work()
+			case model.SearchBotType:
+				search.New(m.DB, bot).Work()
+			default:
+				log.Warn().Msg("unknown bot type")
+				return
+			}
+		})
+	}
+	wg.Wait()
+
+	log.Info().Msg("bots deployed")
+}
+
+func (m *Manager) Stop() {
+	log.Info().Msg("bot manager stopping")
+	for m.stop = true; !m.done; {
 		time.Sleep(time.Second)
 	}
-	return m.Stop()
+	log.Info().Msg("bot manager stopped")
 }

@@ -4,8 +4,8 @@ import "gorm.io/gorm"
 
 type Sitemap struct {
 	gorm.Model
-	JobID    uint
-	Job      Job
+	Bot      Bot
+	BotID    uint
 	URL      string
 	Domain   string
 	Relative []string `gorm:"serializer:json"`

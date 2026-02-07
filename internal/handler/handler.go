@@ -16,11 +16,14 @@ func New(mode string, db *gorm.DB) http.Handler {
 
 	r := gin.New()
 	r.Use(gin.Recovery(), gin.Logger(), cors.Default())
-
+	r.Static("/static", "./web/static")
 	api := r.Group("/api")
 	{
+		api.GET("/ping", func(c *gin.Context) { c.String(200, "pong") })
+	}
+	{
 		ctl := controller.NewJobController(db)
-		grp := api.Group("/jobs")
+		grp := api.Group("/bots")
 		grp.GET("", ctl.List)
 		grp.PUT("", ctl.Save)
 		grp.DELETE("/id/:id", ctl.Delete)
@@ -30,19 +33,19 @@ func New(mode string, db *gorm.DB) http.Handler {
 		ctl := controller.NewArticleController(db)
 		grp := api.Group("/articles")
 		grp.DELETE("/id/:id", ctl.Delete)
-		grp.GET("/job/:job", ctl.Find)
+		grp.GET("/bot/:bot", ctl.Find)
 	}
 	{
 		ctl := controller.NewSitemapController(db)
 		grp := api.Group("/sitemaps")
 		grp.DELETE("/id/:id", ctl.Delete)
-		grp.GET("/job/:job", ctl.Find)
+		grp.GET("/bot/:bot", ctl.Find)
 	}
 	{
 		ctl := controller.NewSearchController(db)
 		grp := api.Group("/searches")
 		grp.DELETE("/id/:id", ctl.Delete)
-		grp.GET("/job/:job", ctl.Find)
+		grp.GET("/bot/:bot", ctl.Find)
 		{
 			// todo - pages
 		}

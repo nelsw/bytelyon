@@ -9,17 +9,19 @@ import (
 	"github.com/nelsw/bytelyon/internal/client/fetch"
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/rs/zerolog/log"
+	"gorm.io/gorm"
 )
 
 type Worker struct {
-	*model.Job
+	*gorm.DB
+	*model.Bot
 }
 
-func New(j *model.Job) *Worker {
-	return &Worker{j}
+func New(db *gorm.DB, b *model.Bot) *Worker {
+	return &Worker{db, b}
 }
 
-func (c *Worker) Work() []*model.Article {
+func (c *Worker) Work() {
 
 	query := strings.ReplaceAll(c.Target, ` `, `+`)
 	url := fmt.Sprintf("https://news.google.com/rss/search?q=%s", query)
@@ -27,10 +29,8 @@ func (c *Worker) Work() []*model.Article {
 	var rss RSS
 	if err := fetch.New(url).XML(&rss); err != nil {
 		log.Err(err).Send()
-		return nil
+		return
 	}
-
-	var articles []*model.Article
 
 	var wg sync.WaitGroup
 	for _, i := range rss.Channel.Items {
@@ -55,8 +55,8 @@ func (c *Worker) Work() []*model.Article {
 				}
 			}
 
-			articles = append(articles, &model.Article{
-				JobID:     c.Job.ID,
+			c.Create(&model.Article{
+				BotID:     c.Bot.ID,
 				URL:       u,
 				Title:     title,
 				Source:    i.Source,
@@ -65,6 +65,4 @@ func (c *Worker) Work() []*model.Article {
 		})
 	}
 	wg.Wait()
-
-	return articles
 }

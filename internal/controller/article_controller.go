@@ -33,17 +33,16 @@ func (ctl *articleController) Delete(c *gin.Context) {
 }
 
 func (ctl *articleController) Find(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
+	botID, err := strconv.Atoi(c.Param("bot"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	var a model.Article
 
-	if ctl.Where("id = ?", uint(id)).First(&a); a.ID == 0 {
+	var arr []model.Article
+	if ctl.Where("job_id = ?", uint(botID)).Find(&arr); len(arr) == 0 {
 		c.Status(http.StatusNoContent)
 	} else {
-		c.JSON(http.StatusOK, a)
+		c.JSON(http.StatusOK, arr)
 	}
-
 }

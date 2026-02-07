@@ -26,7 +26,7 @@ func NewJobController(db *gorm.DB) JobController {
 
 func (ctl jobController) List(c *gin.Context) {
 
-	var arr []*model.Job
+	var arr []*model.Bot
 	if err := ctl.DB.Find(&arr).Error; err != nil {
 		panic(err)
 	}
@@ -39,26 +39,22 @@ func (ctl jobController) List(c *gin.Context) {
 }
 
 func (ctl jobController) ListWhereType(c *gin.Context) {
-	jt, err := model.NewJobType(c.Param("type"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
 
-	var arr []*model.Job
-	if err = ctl.DB.Where("type = ?", jt).Find(&arr).Error; err != nil {
+	var arr []*model.Bot
+	if err := ctl.DB.Scopes(Type(c.Param("type"))).Find(&arr).Error; err != nil {
 		panic(err)
 	}
 
 	if len(arr) == 0 {
 		c.Status(http.StatusNoContent)
-	} else {
-		c.JSON(http.StatusOK, arr)
+		return
 	}
+
+	c.JSON(http.StatusOK, arr)
 }
 
 func (ctl jobController) Save(c *gin.Context) {
-	var a model.Job
+	var a model.Bot
 	if err := c.Bind(&a); err != nil {
 		return
 	}
@@ -78,9 +74,15 @@ func (ctl jobController) Delete(c *gin.Context) {
 		return
 	}
 
-	if err = ctl.DB.Where("id = ?", id).Delete(&model.Job{}).Error; err != nil {
+	if err = ctl.DB.Where("id = ?", id).Delete(&model.Bot{}).Error; err != nil {
 		panic(err)
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func Type(s string) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where("type = ?", model.BotType(s))
+	}
 }

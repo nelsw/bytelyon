@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,7 +12,7 @@ import (
 
 	"github.com/nelsw/bytelyon/config"
 	"github.com/nelsw/bytelyon/internal/db"
-	"github.com/nelsw/bytelyon/internal/server"
+	"github.com/nelsw/bytelyon/internal/handler"
 	"github.com/rs/zerolog/log"
 )
 
@@ -18,14 +20,17 @@ func main() {
 
 	cfg := config.New()
 
-	DB := db.New(cfg.Mode)
-	//mgr := manager.New(DB)
-	srv := server.New(cfg.Mode, cfg.Port, DB)
+	gdb := db.New(cfg.Mode)
+	svr := &http.Server{
+		Addr:    fmt.Sprintf(":%d", cfg.Port),
+		Handler: handler.New(cfg.Mode, gdb),
+	}
 
-	//go mgr.Start()
-	//log.Info().Int("port", cfg.Port).Msg("Manager started")
-
-	go srv.Serve()
+	go func() {
+		if err := svr.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal().Int("port", cfg.Port).Msg("Server failure")
+		}
+	}()
 	log.Info().Int("port", cfg.Port).Msg("Server listening")
 
 	// Wait for the interrupt signal to gracefully shut down the server with a timeout of 5 seconds.
@@ -37,17 +42,13 @@ func main() {
 	<-quit
 	fmt.Println() // Print a newline after the signal is received to escape cmd
 
-	//log.Info().Int("port", cfg.Port).Msg("Manager stopping")
-	//for !mgr.Stop() {
-	//	time.Sleep(time.Second)
-	//}
-	//log.Info().Int("port", cfg.Port).Msg("Manager stopped")
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	log.Info().Int("port", cfg.Port).Msg("Server stopping")
-	srv.Shutdown(ctx)
+	if err := svr.Shutdown(ctx); err != nil {
+		log.Err(err).Int("port", cfg.Port).Msg("Server Shutdown")
+	}
 
 	<-ctx.Done()
 	log.Info().Int("port", cfg.Port).Msg("Server exiting")

@@ -60,6 +60,7 @@ func (w *Worker) work(headless bool) error {
 	defer google.Close()
 
 	a := &model.Search{
+		JobID: w.Job.ID,
 		Pages: []*model.SearchPage{w.toModel(google)},
 	}
 
@@ -69,8 +70,8 @@ func (w *Worker) work(headless bool) error {
 
 	var locators []playwright.Locator
 	if locators, err = google.Locator(fmt.Sprintf(`[data-dtld]`), playwright.PageLocatorOptions{}).All(); err != nil {
-		log.Warn().Err(err).Msg("No Target Locators Found")
-		return nil
+		log.Err(err).Msg("Err finding Locators")
+		return err
 	} else if len(locators) == 0 {
 		log.Warn().Msg("No Target Locators Found")
 		return nil
@@ -112,7 +113,7 @@ func (w *Worker) work(headless bool) error {
 			log.Warn().Err(err).Msg("Failed to Save Search")
 		}
 	}
-
+	log.Info().Msg("Finished Search")
 	return nil
 }
 

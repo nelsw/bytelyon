@@ -44,6 +44,8 @@ func New(mode string, db *gorm.DB) http.Handler {
 		grp.DELETE("/:id", ctl.Delete)
 		grp.GET("/:id", ctl.Find)
 	}
-
+	{
+		// todo - settings
+	}
 	return r.Handler()
 }

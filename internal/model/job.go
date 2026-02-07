@@ -14,9 +14,12 @@ var (
 
 type Job struct {
 	gorm.Model
-	Type      JobType
+	Type      JobType        `gorm:"index:idx_job_type_target_deleted,unique"`
+	Target    string         `gorm:"index:idx_job_type_target_deleted,unique"`
+	DeletedAt gorm.DeletedAt `gorm:"index:idx_job_type_target_deleted,unique"`
+	CreatedAt int
+	UpdatedAt int `gorm:"<-:false"`
 	Frequency time.Duration
-	Target    string   `gorm:"type:varchar(255)"`
 	BlackList []string `gorm:"serializer:json"`
 }
 
@@ -44,5 +47,6 @@ func (j *Job) ReadyToWork() bool {
 	if j.Frequency == 0 {
 		return false
 	}
-	return j.UpdatedAt.Add(j.Frequency).Before(time.Now())
+
+	return time.Unix(int64(j.UpdatedAt), 0).Add(j.Frequency).Before(time.Now())
 }

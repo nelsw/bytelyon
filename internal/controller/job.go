@@ -27,14 +27,14 @@ func NewJobController(db *gorm.DB) JobController {
 func (ctl jobController) List(c *gin.Context) {
 
 	var arr []*model.Job
-	if err := ctl.DB.Find(arr).Error; err != nil {
+	if err := ctl.DB.Find(&arr).Error; err != nil {
 		panic(err)
 	}
 
 	if len(arr) == 0 {
 		c.Status(http.StatusNoContent)
 	} else {
-		c.JSON(http.StatusOK, &arr)
+		c.JSON(http.StatusOK, arr)
 	}
 }
 

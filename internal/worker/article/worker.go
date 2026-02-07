@@ -37,7 +37,7 @@ func (c *Worker) Work() []*model.Article {
 
 		wg.Go(func() {
 
-			if time.Time(*i.Time).Before(c.UpdatedAt) {
+			if time.Time(*i.Time).Before(time.Unix(int64(c.UpdatedAt), 0)) {
 				return
 			}
 

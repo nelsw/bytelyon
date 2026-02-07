@@ -29,20 +29,23 @@ func New(mode string, db *gorm.DB) http.Handler {
 	{
 		ctl := controller.NewArticleController(db)
 		grp := api.Group("/articles")
-		grp.DELETE("/:id", ctl.Delete)
-		grp.GET("/:id", ctl.Find)
+		grp.DELETE("/id/:id", ctl.Delete)
+		grp.GET("/job/:job", ctl.Find)
 	}
 	{
 		ctl := controller.NewSitemapController(db)
 		grp := api.Group("/sitemaps")
-		grp.DELETE("/:id", ctl.Delete)
-		grp.GET("/:id", ctl.Find)
+		grp.DELETE("/id/:id", ctl.Delete)
+		grp.GET("/job/:job", ctl.Find)
 	}
 	{
 		ctl := controller.NewSearchController(db)
 		grp := api.Group("/searches")
-		grp.DELETE("/:id", ctl.Delete)
-		grp.GET("/:id", ctl.Find)
+		grp.DELETE("/id/:id", ctl.Delete)
+		grp.GET("/job/:job", ctl.Find)
+		{
+			// todo - pages
+		}
 	}
 	{
 		// todo - settings

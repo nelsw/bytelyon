@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/internal/model"
-	"github.com/nelsw/bytelyon/internal/worker/article"
+	"github.com/nelsw/bytelyon/internal/worker/news"
 	"github.com/nelsw/bytelyon/internal/worker/search"
 	"github.com/nelsw/bytelyon/internal/worker/sitemap"
 	"github.com/rs/zerolog/log"
@@ -45,7 +45,7 @@ func (m *Manager) Start() {
 func (m *Manager) work() {
 
 	var bots []*model.Bot
-	if err := m.Where("frequency > 0").Find(&bots).Error; err != nil {
+	if err := m.Where("frequency > ?", 0).Find(&bots).Error; err != nil {
 		log.Panic().Err(err).Send()
 	}
 
@@ -70,8 +70,8 @@ func (m *Manager) work() {
 	for _, bot := range bots {
 		wg.Go(func() {
 			switch bot.Type {
-			case model.ArticleBotType:
-				article.New(m.DB, bot).Work()
+			case model.NewsBotType:
+				news.New(m.DB, bot).Work()
 			case model.SitemapBotType:
 				sitemap.New(m.DB, bot).Work()
 			case model.SearchBotType:
@@ -80,10 +80,15 @@ func (m *Manager) work() {
 				log.Warn().Msg("unknown bot type")
 				return
 			}
+			// A frequency of 1 means the bot runs once
+			// Reset it to 0 so it doesn't run again
+			if bot.Frequency == 1 {
+				bot.Frequency = 0
+			}
+			m.Save(&bot)
 		})
 	}
 	wg.Wait()
-
 	log.Info().Msg("bots deployed")
 }
 

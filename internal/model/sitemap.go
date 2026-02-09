@@ -1,10 +1,8 @@
 package model
 
-import "gorm.io/gorm"
-
 type Sitemap struct {
-	gorm.Model
-	Bot      Bot
+	Model
+	Bot      *Bot `json:",omitempty"`
 	BotID    uint
 	URL      string
 	Domain   string

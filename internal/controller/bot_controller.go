@@ -59,6 +59,11 @@ func (ctl jobController) Save(c *gin.Context) {
 		return
 	}
 
+	if err := a.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	if err := ctl.DB.Save(&a).Error; err != nil {
 		panic(err)
 	}
@@ -74,7 +79,7 @@ func (ctl jobController) Delete(c *gin.Context) {
 		return
 	}
 
-	if err = ctl.DB.Where("id = ?", id).Delete(&model.Bot{}).Error; err != nil {
+	if err = ctl.DB.Where("id = ?", uint(id)).Delete(&model.Bot{}).Error; err != nil {
 		panic(err)
 	}
 

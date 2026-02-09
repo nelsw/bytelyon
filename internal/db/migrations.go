@@ -6,7 +6,7 @@ import (
 
 var Migrations = []any{
 	&model.Bot{},
-	&model.Article{},
+	&model.News{},
 	&model.Sitemap{},
 	&model.Search{},
 	&model.SearchPage{},

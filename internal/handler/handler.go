@@ -16,7 +16,7 @@ func New(mode string, db *gorm.DB) http.Handler {
 
 	r := gin.New()
 	r.Use(gin.Recovery(), gin.Logger(), cors.Default())
-	r.Static("/static", "./web/static")
+	r.Static("/static", "./web")
 	api := r.Group("/api")
 	{
 		api.GET("/ping", func(c *gin.Context) { c.String(200, "pong") })
@@ -30,25 +30,25 @@ func New(mode string, db *gorm.DB) http.Handler {
 		grp.GET("/type/:type", ctl.ListWhereType)
 	}
 	{
-		ctl := controller.NewArticleController(db)
-		grp := api.Group("/articles")
-		grp.DELETE("/id/:id", ctl.Delete)
-		grp.GET("/bot/:bot", ctl.Find)
-	}
-	{
-		ctl := controller.NewSitemapController(db)
-		grp := api.Group("/sitemaps")
-		grp.DELETE("/id/:id", ctl.Delete)
-		grp.GET("/bot/:bot", ctl.Find)
-	}
-	{
 		ctl := controller.NewSearchController(db)
-		grp := api.Group("/searches")
+		grp := api.Group("/search")
 		grp.DELETE("/id/:id", ctl.Delete)
-		grp.GET("/bot/:bot", ctl.Find)
+		grp.GET("/bot/:id", ctl.Find)
 		{
 			// todo - pages
 		}
+	}
+	{
+		ctl := controller.NewArticleController(db)
+		grp := api.Group("/news")
+		grp.DELETE("/id/:id", ctl.Delete)
+		grp.GET("/bot/:id", ctl.Find)
+	}
+	{
+		ctl := controller.NewSitemapController(db)
+		grp := api.Group("/sitemap")
+		grp.DELETE("/id/:id", ctl.Delete)
+		grp.GET("/bot/:id", ctl.Find)
 	}
 	{
 		// todo - settings

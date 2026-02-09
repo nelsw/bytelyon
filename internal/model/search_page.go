@@ -1,14 +1,12 @@
 package model
 
-import "gorm.io/gorm"
-
 type SearchPage struct {
-	gorm.Model
+	Model
 	SearchID uint
-	Search   Search
+	Search   *Search `json:",omitempty"`
 	URL      string
 	Title    string
-	IMG      []byte
+	IMG      string
 	HTML     string
 	JSON     any `gorm:"serializer:json"`
 }

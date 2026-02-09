@@ -27,7 +27,6 @@ func (ctl *searchController) Delete(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
 	}
 
 	ctl.DB.Select("Pages").Where("id = ?", uint(id)).Delete(&model.Search{})
@@ -38,13 +37,18 @@ func (ctl *searchController) Find(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
 	}
 
-	var a model.Search
-	if ctl.DB.Preload("Pages").First(&a, id); a.ID == 0 {
+	var arr []model.Search
+	ctl.Preload("Bot").
+		Preload("Pages").
+		Where("bot_id = ?", id).
+		Order("created_at desc").
+		Find(&arr)
+
+	if len(arr) == 0 {
 		c.Status(http.StatusNoContent)
 	} else {
-		c.JSON(http.StatusOK, &a)
+		c.JSON(http.StatusOK, arr)
 	}
 }

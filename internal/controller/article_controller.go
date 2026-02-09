@@ -28,19 +28,24 @@ func (ctl *articleController) Delete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	ctl.Where("id = ?", uint(id)).Delete(&model.Article{})
+	ctl.Where("id = ?", uint(id)).Delete(&model.News{})
 	c.Status(http.StatusNoContent)
 }
 
 func (ctl *articleController) Find(c *gin.Context) {
-	botID, err := strconv.Atoi(c.Param("bot"))
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	var arr []model.Article
-	if ctl.Where("job_id = ?", uint(botID)).Find(&arr); len(arr) == 0 {
+	var arr []model.News
+
+	ctl.Where("bot_id = ?", uint(id)).
+		Order("published desc").
+		Find(&arr)
+
+	if len(arr) == 0 {
 		c.Status(http.StatusNoContent)
 	} else {
 		c.JSON(http.StatusOK, arr)

@@ -13,12 +13,10 @@ var (
 )
 
 type Bot struct {
-	ID        uint
-	Type      BotType        `gorm:"index:idx_job_type_target_deleted,unique"`
-	Target    string         `gorm:"index:idx_job_type_target_deleted,unique"`
-	DeletedAt gorm.DeletedAt `gorm:"index:idx_job_type_target_deleted,unique"`
-	CreatedAt int
-	UpdatedAt int
+	Model
+	Type      BotType        `gorm:"index:idx_bot_type_target_deleted,unique"`
+	Target    string         `gorm:"index:idx_bot_type_target_deleted,unique"`
+	DeletedAt gorm.DeletedAt `gorm:"index:idx_bot_type_target_deleted,unique"`
 	Frequency time.Duration
 	BlackList []string `gorm:"serializer:json"`
 }
@@ -32,8 +30,8 @@ func (b *Bot) Ignore() map[string]bool {
 }
 
 func (b *Bot) Validate() error {
-	if b.Type != ArticleBotType {
-		if err := urlValidationRegex.MatchString(b.Target); err {
+	if b.Type == SitemapBotType {
+		if ok := urlValidationRegex.MatchString(b.Target); !ok {
 			return fmt.Errorf("bad url, must begin with https://")
 		}
 	}

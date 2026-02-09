@@ -6,14 +6,14 @@ import (
 	"regexp"
 )
 
-var validationRegex = regexp.MustCompile(`^(search|article|sitemap)$`)
+var validationRegex = regexp.MustCompile(`^(search|news|sitemap)$`)
 
 type BotType string
 
 const (
 	SearchBotType  BotType = "search"
 	SitemapBotType BotType = "sitemap"
-	ArticleBotType BotType = "article"
+	NewsBotType    BotType = "news"
 )
 
 func (t *BotType) Scan(src any) error {
@@ -31,7 +31,7 @@ func (t *BotType) Scan(src any) error {
 func (t *BotType) Value() (driver.Value, error) {
 	s := string(*t)
 	if !validationRegex.MatchString(s) {
-		return "", errors.New("invalid bot type; must be one of [search, article, or sitemap]; got: [" + s + "]")
+		return "", errors.New("invalid bot type; must be one of [search, news, or sitemap]; got: [" + s + "]")
 	}
 	return s, nil
 }

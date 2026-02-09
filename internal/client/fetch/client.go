@@ -47,7 +47,6 @@ func (c client) Bytes() ([]byte, error) {
 
 	var b []byte
 	if b, err = io.ReadAll(body); err != nil {
-		log.Err(err).Send()
 		return nil, err
 	}
 	return b, nil

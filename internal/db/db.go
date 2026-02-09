@@ -11,7 +11,7 @@ import (
 
 func New(mode string) *gorm.DB {
 
-	db, err := gorm.Open(sqlite.Open(mode+".sqlite"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(mode+".v2.sqlite"), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}

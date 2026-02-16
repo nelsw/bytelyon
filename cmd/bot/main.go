@@ -6,16 +6,19 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/nelsw/bytelyon/config"
+	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/manager"
 )
 
+func init() {
+	config.Init("Bot Manager")
+	db.Init()
+}
+
 func main() {
 
-	cfg := config.New()
-	gdb := db.New(cfg.Mode)
-	mgr := manager.New(gdb)
+	mgr := manager.New()
 
 	go mgr.Start()
 

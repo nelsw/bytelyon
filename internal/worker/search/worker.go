@@ -3,14 +3,15 @@ package search
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/nelsw/bytelyon/internal/client/prowl"
+	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
-	"gorm.io/gorm"
 )
 
 var googleSearchInputSelectors = []string{
@@ -24,12 +25,11 @@ var googleSearchInputSelectors = []string{
 }
 
 type Worker struct {
-	*gorm.DB
 	*model.Bot
 }
 
-func New(db *gorm.DB, job *model.Bot) *Worker {
-	return &Worker{db, job}
+func New(job *model.Bot) *Worker {
+	return &Worker{job}
 }
 
 func (w *Worker) Work() {
@@ -59,11 +59,11 @@ func (w *Worker) work(headless bool) error {
 	defer google.Close()
 
 	search := &model.Search{Bot: w.Bot}
-	if err = w.DB.Create(search).Error; err != nil {
+	if err = db.Create(search); err != nil {
 		return err
 	}
 
-	if err = w.savePage(search, google); err != nil {
+	if err = w.save(&model.SearchPage{Search: search}, google, c); err != nil {
 		log.Warn().Err(err).Msg("Failed to Save Search Page (Google)")
 		return err
 	}
@@ -108,7 +108,7 @@ func (w *Worker) work(headless bool) error {
 			continue
 		}
 
-		if err = w.savePage(search, targetPage); err != nil {
+		if err = w.save(&model.SearchPage{Search: search}, targetPage, c); err != nil {
 			log.Warn().Err(err).Msg("Failed to Save Search Page (Target)")
 		}
 	}
@@ -152,47 +152,42 @@ func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) 
 	return
 }
 
-func (w *Worker) savePage(s *model.Search, page playwright.Page) (err error) {
+func (w *Worker) save(s *model.SearchPage, page playwright.Page, c *prowl.Client) error {
 
-	var title string
-	if title, err = page.Title(); err != nil {
-		log.Warn().Err(err).Msg("Failed to get SearchPage Title")
+	s.URL = page.URL()
+	if err := db.Create(s); err != nil {
+		log.Err(err).Msgf("Failed to Save SearchPage [%s]", s.URL)
+		return err
 	}
 
-	p := &model.SearchPage{
-		Search: s,
-		URL:    page.URL(),
-		Title:  title,
-	}
-
-	if err = w.DB.Create(p).Error; err != nil {
-		return
+	if title, err := page.Title(); err != nil {
+		log.Warn().Err(err).Msg("Failed to get page Title")
+	} else {
+		s.Title = strings.TrimSpace(title)
 	}
 
 	wd, _ := os.Getwd()
-	name := fmt.Sprintf("%s/web/bot/search/%d-%d.", wd, s.ID, p.ID)
+	serverPath := fmt.Sprintf("%s/web/bot/search/%d-%d.", wd, s.Search.ID, s.ID)
+	staticPath := fmt.Sprintf("/static/bot/search/%d-%d.", s.Search.ID, s.ID)
 
-	var img []byte
-	if img, err = page.Screenshot(playwright.PageScreenshotOptions{FullPage: util.Ptr(true)}); err != nil {
+	if img, err := page.Screenshot(playwright.PageScreenshotOptions{FullPage: util.Ptr(true)}); err != nil {
 		log.Warn().Err(err).Msg("Failed to Screenshot SearchPage")
-	} else if imgErr := os.WriteFile(name+"png", img, os.ModePerm); imgErr != nil {
+	} else if imgErr := os.WriteFile(serverPath+"png", img, os.ModePerm); imgErr != nil {
 		log.Warn().Err(imgErr).Msg("Failed to write SearchPage screenshot")
+	} else {
+		s.IMG = staticPath + "png"
 	}
 
-	var content string
-	if content, err = page.Content(); err != nil {
+	if content, err := page.Content(); err != nil {
 		log.Warn().Err(err).Msg("Failed to get SearchPage Content")
-	} else if htmlErr := os.WriteFile(name+"html", []byte(content), os.ModePerm); htmlErr != nil {
+	} else if htmlErr := os.WriteFile(serverPath+"html", []byte(content), os.ModePerm); htmlErr != nil {
 		log.Warn().Err(htmlErr).Msg("Failed to write SearchPage html")
+	} else {
+		s.HTML = staticPath + "html"
+		if strings.Contains(s.URL, "google.com") {
+			s.JSON = c.Data(s.URL, content)
+		}
 	}
 
-	err = w.DB.
-		Model(&model.SearchPage{}).
-		Where("id = ?", p.ID).
-		Updates(&model.SearchPage{
-			IMG:  p.IMG,
-			HTML: p.HTML,
-		}).Error
-
-	return
+	return db.Save(s)
 }

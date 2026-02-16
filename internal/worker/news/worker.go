@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/internal/client/fetch"
+	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/rs/zerolog/log"
-	"gorm.io/gorm"
 )
 
 var (
@@ -19,12 +19,11 @@ var (
 )
 
 type Worker struct {
-	*gorm.DB
 	*model.Bot
 }
 
-func New(db *gorm.DB, b *model.Bot) *Worker {
-	return &Worker{db, b}
+func New(b *model.Bot) *Worker {
+	return &Worker{b}
 }
 
 func (c *Worker) Work() {
@@ -102,14 +101,14 @@ func (c *Worker) workUrl(url string) {
 				i.Title = title
 			}
 
-			err = c.Create(&model.News{
+			err = db.Create(&model.News{
 				Bot:         c.Bot,
 				URL:         i.URL,
 				Title:       i.Title,
 				Source:      i.Source,
 				Published:   time.Time(*i.Time),
 				Description: i.Description,
-			}).Error
+			})
 
 			if err != nil {
 				log.Warn().Err(err).Msg("failed to save news article")

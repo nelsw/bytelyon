@@ -2,56 +2,112 @@ package handler
 
 import (
 	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/nelsw/bytelyon/internal/controller"
+	"github.com/nelsw/bytelyon/internal/db"
+	"github.com/nelsw/bytelyon/internal/model"
 	"gorm.io/gorm"
 )
 
-func New(mode string, db *gorm.DB) http.Handler {
+var (
+	urlValidationRegex = regexp.MustCompile(`https?://(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)`)
+)
 
-	gin.SetMode(mode)
-	gin.ForceConsoleColor()
+func Delete[T any](c *gin.Context) {
+	db.MustDelete[T](func(db *gorm.Statement) { db.Where("id = ?", c.MustGet("ID").(uint)) })
+}
 
-	r := gin.New()
-	r.Use(gin.Recovery(), gin.Logger(), cors.Default())
-	r.Static("/static", "./web")
-	api := r.Group("/api")
-	{
-		api.GET("/ping", func(c *gin.Context) { c.String(200, "pong") })
+func FindSearch(c *gin.Context) {
+
+	arr, err := db.Builder[model.Search]().
+		Preload("Bot", nil).
+		Preload("Pages", nil).
+		Where("bot_id = ?", c.MustGet("ID").(uint)).
+		Order("created_at desc").
+		Find(c)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
-	{
-		ctl := controller.NewJobController(db)
-		grp := api.Group("/bots")
-		grp.GET("", ctl.List)
-		grp.PUT("", ctl.Save)
-		grp.DELETE("/id/:id", ctl.Delete)
-		grp.GET("/type/:type", ctl.ListWhereType)
+
+	c.JSON(http.StatusOK, arr)
+}
+
+func FindSitemap(c *gin.Context) {
+
+	arr, err := db.Builder[model.Search]().
+		Preload("Bot", nil).
+		Where("bot_id = ?", c.MustGet("ID").(uint)).
+		Order("created_at desc").
+		Find(c)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
-	{
-		ctl := controller.NewSearchController(db)
-		grp := api.Group("/search")
-		grp.DELETE("/id/:id", ctl.Delete)
-		grp.GET("/bot/:id", ctl.Find)
-		{
-			// todo - pages
+
+	c.JSON(http.StatusOK, arr)
+}
+
+func FindNews(c *gin.Context) {
+	c.JSON(http.StatusOK, db.MustFind[model.News](func(db *gorm.DB) *gorm.DB {
+		return db.
+			Where("bot_id = ?", c.MustGet("ID").(uint)).
+			Order("published desc")
+	}))
+}
+
+func ListBots(c *gin.Context) {
+	c.JSON(http.StatusOK, db.MustFind[*model.Bot]())
+}
+
+func ListBotsByType(c *gin.Context) {
+	t := model.BotType(c.Param("type"))
+	if err := t.Validate(); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+	c.JSON(http.StatusOK, db.MustFind[*model.Bot](func(db *gorm.DB) *gorm.DB { return db.Where("type = ?", t) }))
+}
+
+func SaveBot(c *gin.Context) {
+	db.MustSave(c.MustGet("bot").(*model.Bot))
+	c.JSON(http.StatusCreated, c.MustGet("bot").(*model.Bot))
+}
+
+func ValidateBot(c *gin.Context) {
+	var bot model.Bot
+	if err := c.Bind(&bot); err != nil {
+		return
+	}
+
+	if bot.Type == model.SitemapBotType {
+		if ok := urlValidationRegex.MatchString(bot.Target); !ok {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "bad url, must begin with https://"})
+			return
 		}
 	}
-	{
-		ctl := controller.NewArticleController(db)
-		grp := api.Group("/news")
-		grp.DELETE("/id/:id", ctl.Delete)
-		grp.GET("/bot/:id", ctl.Find)
+
+	c.Set("bot", &bot)
+	c.Next()
+}
+
+func ValidateID(c *gin.Context) {
+
+	if !strings.Contains(c.FullPath(), "/id/:id") {
+		c.Next()
+		return
 	}
-	{
-		ctl := controller.NewSitemapController(db)
-		grp := api.Group("/sitemap")
-		grp.DELETE("/id/:id", ctl.Delete)
-		grp.GET("/bot/:id", ctl.Find)
+
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
-	{
-		// todo - settings
-	}
-	return r.Handler()
+
+	c.Set("ID", id)
+	c.Next()
 }

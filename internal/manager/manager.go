@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/worker/news"
 	"github.com/nelsw/bytelyon/internal/worker/search"
@@ -13,12 +14,11 @@ import (
 )
 
 type Manager struct {
-	*gorm.DB
 	stop, done bool
 }
 
-func New(db *gorm.DB) *Manager {
-	return &Manager{DB: db}
+func New() *Manager {
+	return &Manager{}
 }
 
 func (m *Manager) Start() {
@@ -44,10 +44,9 @@ func (m *Manager) Start() {
 
 func (m *Manager) work() {
 
-	var bots []*model.Bot
-	if err := m.Where("frequency > ?", 0).Find(&bots).Error; err != nil {
-		log.Panic().Err(err).Send()
-	}
+	bots, _ := db.Find[*model.Bot](func(db *gorm.DB) *gorm.DB {
+		return db.Where("frequency > ?", 0)
+	})
 
 	log.Info().Msgf("bots found [%d]", len(bots))
 	if len(bots) == 0 {
@@ -71,11 +70,11 @@ func (m *Manager) work() {
 		wg.Go(func() {
 			switch bot.Type {
 			case model.NewsBotType:
-				news.New(m.DB, bot).Work()
+				news.New(bot).Work()
 			case model.SitemapBotType:
-				sitemap.New(m.DB, bot).Work()
+				sitemap.New(bot).Work()
 			case model.SearchBotType:
-				search.New(m.DB, bot).Work()
+				search.New(bot).Work()
 			default:
 				log.Warn().Msg("unknown bot type")
 				return
@@ -85,7 +84,7 @@ func (m *Manager) work() {
 			if bot.Frequency == 1 {
 				bot.Frequency = 0
 			}
-			m.Save(&bot)
+			db.Save(&bot)
 		})
 	}
 	wg.Wait()

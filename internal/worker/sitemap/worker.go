@@ -3,18 +3,17 @@ package sitemap
 import (
 	"sort"
 
+	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/util"
-	"gorm.io/gorm"
 )
 
 type Worker struct {
-	*gorm.DB
 	*model.Bot
 }
 
-func New(db *gorm.DB, b *model.Bot) *Worker {
-	return &Worker{db, b}
+func New(b *model.Bot) *Worker {
+	return &Worker{b}
 }
 
 func (w *Worker) Work() {
@@ -27,7 +26,7 @@ func (w *Worker) Work() {
 	sort.Strings(m.Relative())
 	sort.Strings(m.Remote())
 
-	w.Create(&model.Sitemap{
+	db.Create(&model.Sitemap{
 		Bot:      w.Bot,
 		URL:      w.Target,
 		Domain:   util.Domain(w.Target),

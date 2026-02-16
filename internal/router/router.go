@@ -26,24 +26,25 @@ func New() *gin.Engine {
 	{
 		api.Group("/bots").
 			GET("", ListBots).
-			PUT("", ValidateBot, SaveBot).
+			POST("", CreateBot).
+			PUT("", UpdateBot).
 			DELETE("/id/:id", Delete[model.Bot]).
 			GET("/type/:type", ListBotsByType)
 	}
 	{
-		api.Group("/searches").
+		api.Group("/search").
 			DELETE("/id/:id", Delete[model.Search]).
-			GET("/id/:id", FindSearch)
+			GET("/bot/:id", ListSearches)
+	}
+	{
+		api.Group("/sitemap").
+			DELETE("/id/:id", Delete[model.Sitemap]).
+			GET("/bot/:id", ListSitemaps)
 	}
 	{
 		api.Group("/news").
 			DELETE("/id/:id", Delete[model.News]).
-			GET("/id/:id", FindNews)
-	}
-	{
-		api.Group("/sitemaps").
-			DELETE("/id/:id", Delete[model.Sitemap]).
-			GET("/id/:id", FindSitemap)
+			GET("/bot/:id", ListNews)
 	}
 	{
 		// todo - settings

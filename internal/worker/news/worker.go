@@ -1,6 +1,7 @@
 package news
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
 	"regexp"
@@ -68,8 +69,7 @@ func (c *Worker) workUrl(url string) {
 
 			// if this job is brand new, save all the articles found
 			// else persist articles published after the last update
-			if c.CreatedAt != c.UpdatedAt &&
-				time.Time(*i.Time).Before(time.Unix(int64(c.UpdatedAt), 0)) {
+			if c.CreatedAt != c.UpdatedAt && time.Time(*i.Time).Before(c.UpdatedAt) {
 				log.Debug().Msgf("Skipping old article %s", i.Title)
 				return
 			}
@@ -101,8 +101,8 @@ func (c *Worker) workUrl(url string) {
 				i.Title = title
 			}
 
-			err = db.Create(&model.News{
-				Bot:         c.Bot,
+			err = db.Builder[model.News]().Create(context.Background(), &model.News{
+				BotID:       c.Bot.ID,
 				URL:         i.URL,
 				Title:       i.Title,
 				Source:      i.Source,

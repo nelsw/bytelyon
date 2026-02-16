@@ -1,8 +1,10 @@
 package model
 
+import "gorm.io/gorm"
+
 type Search struct {
-	Model
-	Bot   *Bot `json:",omitempty"`
-	BotID uint
+	gorm.Model
+	Bot   *Bot
 	Pages []*SearchPage
+	BotID uint
 }

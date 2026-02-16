@@ -2,11 +2,13 @@ package model
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type News struct {
-	*Model
-	Bot         *Bot `json:",omitempty"`
+	gorm.Model
+	Bot         *Bot
 	BotID       uint
 	URL         string `gorm:"index:idx_news_url,unique"`
 	Title       string

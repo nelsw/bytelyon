@@ -1,11 +1,13 @@
 package sitemap
 
 import (
+	"context"
 	"sort"
 
 	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/util"
+	"github.com/rs/zerolog/log"
 )
 
 type Worker struct {
@@ -26,11 +28,15 @@ func (w *Worker) Work() {
 	sort.Strings(m.Relative())
 	sort.Strings(m.Remote())
 
-	db.Create(&model.Sitemap{
-		Bot:      w.Bot,
+	err := db.Builder[model.Sitemap]().Create(context.Background(), &model.Sitemap{
+		BotID:    w.Bot.ID,
 		URL:      w.Target,
 		Domain:   util.Domain(w.Target),
 		Relative: m.Relative(),
 		Remote:   m.Remote(),
 	})
+
+	if err != nil {
+		log.Err(err).Msg("Failed to create sitemap")
+	}
 }

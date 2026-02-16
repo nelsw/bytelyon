@@ -4,7 +4,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -38,12 +37,10 @@ func Make() zerolog.Logger {
 		},
 	})
 
-	switch config.Mode() {
-	case gin.ReleaseMode:
+	if config.IsReleaseMode() {
 		return l.Level(zerolog.InfoLevel)
-	case gin.DebugMode:
+	} else if config.IsDebugMode() {
 		return l.Level(zerolog.DebugLevel)
 	}
-
 	return l.Level(zerolog.TraceLevel).With().Caller().Logger()
 }

@@ -1,6 +1,7 @@
 package search
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -58,12 +59,12 @@ func (w *Worker) work(headless bool) error {
 	}
 	defer google.Close()
 
-	search := &model.Search{Bot: w.Bot}
-	if err = db.Create(search); err != nil {
+	search := model.Search{BotID: w.Bot.ID}
+	if err = db.Builder[model.Search]().Create(context.Background(), &search); err != nil {
 		return err
 	}
 
-	if err = w.save(&model.SearchPage{Search: search}, google, c); err != nil {
+	if err = w.save(model.SearchPage{SearchID: search.ID}, google, c); err != nil {
 		log.Warn().Err(err).Msg("Failed to Save Search Page (Google)")
 		return err
 	}
@@ -108,7 +109,7 @@ func (w *Worker) work(headless bool) error {
 			continue
 		}
 
-		if err = w.save(&model.SearchPage{Search: search}, targetPage, c); err != nil {
+		if err = w.save(model.SearchPage{SearchID: search.ID}, targetPage, c); err != nil {
 			log.Warn().Err(err).Msg("Failed to Save Search Page (Target)")
 		}
 	}
@@ -152,10 +153,10 @@ func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) 
 	return
 }
 
-func (w *Worker) save(s *model.SearchPage, page playwright.Page, c *prowl.Client) error {
+func (w *Worker) save(s model.SearchPage, page playwright.Page, c *prowl.Client) error {
 
 	s.URL = page.URL()
-	if err := db.Create(s); err != nil {
+	if err := db.Builder[model.SearchPage]().Create(context.Background(), &s); err != nil {
 		log.Err(err).Msgf("Failed to Save SearchPage [%s]", s.URL)
 		return err
 	}
@@ -167,8 +168,8 @@ func (w *Worker) save(s *model.SearchPage, page playwright.Page, c *prowl.Client
 	}
 
 	wd, _ := os.Getwd()
-	serverPath := fmt.Sprintf("%s/web/bot/search/%d-%d.", wd, s.Search.ID, s.ID)
-	staticPath := fmt.Sprintf("/static/bot/search/%d-%d.", s.Search.ID, s.ID)
+	serverPath := fmt.Sprintf("%s/web/bot/search/%d-%d.", wd, s.SearchID, s.ID)
+	staticPath := fmt.Sprintf("/static/bot/search/%d-%d.", s.SearchID, s.ID)
 
 	if img, err := page.Screenshot(playwright.PageScreenshotOptions{FullPage: util.Ptr(true)}); err != nil {
 		log.Warn().Err(err).Msg("Failed to Screenshot SearchPage")
@@ -189,5 +190,9 @@ func (w *Worker) save(s *model.SearchPage, page playwright.Page, c *prowl.Client
 		}
 	}
 
-	return db.Save(s)
+	_, err := db.Builder[model.SearchPage]().
+		Where("id = ?", s.ID).
+		Updates(context.Background(), s)
+
+	return err
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
-	"gorm.io/gorm"
 )
 
 var (
@@ -17,10 +16,12 @@ var (
 )
 
 func Delete[T any](c *gin.Context) {
-	db.MustDelete[T](func(db *gorm.Statement) { db.Where("id = ?", c.MustGet("ID").(uint)) })
+	if _, err := db.Builder[T]().Where("id = ?", c.MustGet("ID").(uint)).Delete(c); err != nil {
+		panic(err)
+	}
 }
 
-func FindSearch(c *gin.Context) {
+func ListSearches(c *gin.Context) {
 
 	arr, err := db.Builder[model.Search]().
 		Preload("Bot", nil).
@@ -37,9 +38,9 @@ func FindSearch(c *gin.Context) {
 	c.JSON(http.StatusOK, arr)
 }
 
-func FindSitemap(c *gin.Context) {
+func ListSitemaps(c *gin.Context) {
 
-	arr, err := db.Builder[model.Search]().
+	arr, err := db.Builder[model.Sitemap]().
 		Preload("Bot", nil).
 		Where("bot_id = ?", c.MustGet("ID").(uint)).
 		Order("created_at desc").
@@ -53,16 +54,33 @@ func FindSitemap(c *gin.Context) {
 	c.JSON(http.StatusOK, arr)
 }
 
-func FindNews(c *gin.Context) {
-	c.JSON(http.StatusOK, db.MustFind[model.News](func(db *gorm.DB) *gorm.DB {
-		return db.
-			Where("bot_id = ?", c.MustGet("ID").(uint)).
-			Order("published desc")
-	}))
+func ListNews(c *gin.Context) {
+
+	arr, err := db.Builder[model.News]().
+		Where("bot_id = ?", c.MustGet("ID").(uint)).
+		Order("published desc").
+		Find(c)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, arr)
 }
 
 func ListBots(c *gin.Context) {
-	c.JSON(http.StatusOK, db.MustFind[*model.Bot]())
+
+	arr, err := db.Builder[model.Bot]().
+		Order("target asc").
+		Find(c)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, arr)
 }
 
 func ListBotsByType(c *gin.Context) {
@@ -70,20 +88,25 @@ func ListBotsByType(c *gin.Context) {
 	if err := t.Validate(); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
-	c.JSON(http.StatusOK, db.MustFind[*model.Bot](func(db *gorm.DB) *gorm.DB { return db.Where("type = ?", t) }))
+
+	arr, err := db.Builder[model.Bot]().
+		Where("type = ?", t).
+		Order("target asc").
+		Find(c)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, arr)
 }
 
-func SaveBot(c *gin.Context) {
-	db.MustSave(c.MustGet("bot").(*model.Bot))
-	c.JSON(http.StatusCreated, c.MustGet("bot").(*model.Bot))
-}
-
-func ValidateBot(c *gin.Context) {
+func CreateBot(c *gin.Context) {
 	var bot model.Bot
 	if err := c.Bind(&bot); err != nil {
 		return
 	}
-
 	if bot.Type == model.SitemapBotType {
 		if ok := urlValidationRegex.MatchString(bot.Target); !ok {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "bad url, must begin with https://"})
@@ -91,13 +114,35 @@ func ValidateBot(c *gin.Context) {
 		}
 	}
 
-	c.Set("bot", &bot)
-	c.Next()
+	if err := db.Builder[model.Bot]().Create(c, &bot); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, bot)
+}
+
+func UpdateBot(c *gin.Context) {
+	var bot model.Bot
+	if err := c.Bind(&bot); err != nil {
+		return
+	}
+
+	_, err := db.Builder[model.Bot]().
+		Where("id = ?", bot.ID).
+		Updates(c, bot)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, bot)
 }
 
 func ValidateID(c *gin.Context) {
 
-	if !strings.Contains(c.FullPath(), "/id/:id") {
+	if !strings.Contains(c.FullPath(), ":id") {
 		c.Next()
 		return
 	}
@@ -108,6 +153,6 @@ func ValidateID(c *gin.Context) {
 		return
 	}
 
-	c.Set("ID", id)
+	c.Set("ID", uint(id))
 	c.Next()
 }

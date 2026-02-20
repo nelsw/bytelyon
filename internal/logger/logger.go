@@ -4,21 +4,16 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gin-gonic/gin"
+	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
-func Init(mode string) {
-	log.Logger = Make(mode)
+func Init() {
+	log.Logger = Make()
 }
 
-func New(mode string) *zerolog.Logger {
-	l := Make(mode)
-	return &l
-}
-
-func Make(mode string) zerolog.Logger {
+func Make() zerolog.Logger {
 
 	l := log.Output(zerolog.ConsoleWriter{
 		Out: os.Stdout,
@@ -42,12 +37,10 @@ func Make(mode string) zerolog.Logger {
 		},
 	})
 
-	switch mode {
-	case gin.ReleaseMode:
+	if config.IsReleaseMode() {
 		return l.Level(zerolog.InfoLevel)
-	case gin.DebugMode:
+	} else if config.IsDebugMode() {
 		return l.Level(zerolog.DebugLevel)
 	}
-
 	return l.Level(zerolog.TraceLevel).With().Caller().Logger()
 }

@@ -2,56 +2,157 @@ package handler
 
 import (
 	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/nelsw/bytelyon/internal/controller"
-	"gorm.io/gorm"
+	"github.com/nelsw/bytelyon/internal/db"
+	"github.com/nelsw/bytelyon/internal/model"
 )
 
-func New(mode string, db *gorm.DB) http.Handler {
+var (
+	urlValidationRegex = regexp.MustCompile(`https?://(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)`)
+)
 
-	gin.SetMode(mode)
-	gin.ForceConsoleColor()
+func Delete[T any](c *gin.Context) {
+	if _, err := db.Builder[T]().Where("id = ?", c.MustGet("ID").(uint)).Delete(c); err != nil {
+		panic(err)
+	}
+}
 
-	r := gin.New()
-	r.Use(gin.Recovery(), gin.Logger(), cors.Default())
-	r.Static("/static", "./web")
-	api := r.Group("/api")
-	{
-		api.GET("/ping", func(c *gin.Context) { c.String(200, "pong") })
+func ListSearches(c *gin.Context) {
+
+	arr, err := db.Builder[model.Search]().
+		Preload("Bot", nil).
+		Preload("Pages", nil).
+		Where("bot_id = ?", c.MustGet("ID").(uint)).
+		Order("created_at desc").
+		Find(c)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
-	{
-		ctl := controller.NewJobController(db)
-		grp := api.Group("/bots")
-		grp.GET("", ctl.List)
-		grp.PUT("", ctl.Save)
-		grp.DELETE("/id/:id", ctl.Delete)
-		grp.GET("/type/:type", ctl.ListWhereType)
+
+	c.JSON(http.StatusOK, arr)
+}
+
+func ListSitemaps(c *gin.Context) {
+
+	arr, err := db.Builder[model.Sitemap]().
+		Preload("Bot", nil).
+		Where("bot_id = ?", c.MustGet("ID").(uint)).
+		Order("created_at desc").
+		Find(c)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
-	{
-		ctl := controller.NewSearchController(db)
-		grp := api.Group("/search")
-		grp.DELETE("/id/:id", ctl.Delete)
-		grp.GET("/bot/:id", ctl.Find)
-		{
-			// todo - pages
+
+	c.JSON(http.StatusOK, arr)
+}
+
+func ListNews(c *gin.Context) {
+
+	arr, err := db.Builder[model.News]().
+		Where("bot_id = ?", c.MustGet("ID").(uint)).
+		Order("published desc").
+		Find(c)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, arr)
+}
+
+func ListBots(c *gin.Context) {
+
+	arr, err := db.Builder[model.Bot]().
+		Order("target asc").
+		Find(c)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, arr)
+}
+
+func ListBotsByType(c *gin.Context) {
+	t := model.BotType(c.Param("type"))
+	if err := t.Validate(); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+
+	arr, err := db.Builder[model.Bot]().
+		Where("type = ?", t).
+		Order("target asc").
+		Find(c)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, arr)
+}
+
+func CreateBot(c *gin.Context) {
+	var bot model.Bot
+	if err := c.Bind(&bot); err != nil {
+		return
+	}
+	if bot.Type == model.SitemapBotType {
+		if ok := urlValidationRegex.MatchString(bot.Target); !ok {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "bad url, must begin with https://"})
+			return
 		}
 	}
-	{
-		ctl := controller.NewArticleController(db)
-		grp := api.Group("/news")
-		grp.DELETE("/id/:id", ctl.Delete)
-		grp.GET("/bot/:id", ctl.Find)
+
+	if err := db.Builder[model.Bot]().Create(c, &bot); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
-	{
-		ctl := controller.NewSitemapController(db)
-		grp := api.Group("/sitemap")
-		grp.DELETE("/id/:id", ctl.Delete)
-		grp.GET("/bot/:id", ctl.Find)
+
+	c.JSON(http.StatusCreated, bot)
+}
+
+func UpdateBot(c *gin.Context) {
+	var bot model.Bot
+	if err := c.Bind(&bot); err != nil {
+		return
 	}
-	{
-		// todo - settings
+
+	_, err := db.Builder[model.Bot]().
+		Where("id = ?", bot.ID).
+		Updates(c, bot)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
-	return r.Handler()
+
+	c.JSON(http.StatusOK, bot)
+}
+
+func ValidateID(c *gin.Context) {
+
+	if !strings.Contains(c.FullPath(), ":id") {
+		c.Next()
+		return
+	}
+
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Set("ID", uint(id))
+	c.Next()
 }

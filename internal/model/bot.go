@@ -13,10 +13,10 @@ var (
 )
 
 type Bot struct {
-	Model
-	Type      BotType        `gorm:"index:idx_bot_type_target_deleted,unique"`
-	Target    string         `gorm:"index:idx_bot_type_target_deleted,unique"`
-	DeletedAt gorm.DeletedAt `gorm:"index:idx_bot_type_target_deleted,unique"`
+	gorm.Model
+	DeletedAt gorm.DeletedAt `gorm:"index:idx_bot_deleted_at_type_target,unique"`
+	Type      BotType        `gorm:"index:idx_bot_deleted_at_type_target,unique"`
+	Target    string         `gorm:"index:idx_bot_deleted_at_type_target,unique"`
 	Frequency time.Duration
 	BlackList []string `gorm:"serializer:json"`
 }
@@ -36,8 +36,4 @@ func (b *Bot) Validate() error {
 		}
 	}
 	return nil
-}
-
-func (b *Bot) ReadyToWork() bool {
-	return time.Unix(int64(b.UpdatedAt), 0).Add(b.Frequency).Before(time.Now())
 }

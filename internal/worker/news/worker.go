@@ -1,6 +1,7 @@
 package news
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
 	"regexp"
@@ -9,9 +10,9 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/internal/client/fetch"
+	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/rs/zerolog/log"
-	"gorm.io/gorm"
 )
 
 var (
@@ -19,12 +20,11 @@ var (
 )
 
 type Worker struct {
-	*gorm.DB
 	*model.Bot
 }
 
-func New(db *gorm.DB, b *model.Bot) *Worker {
-	return &Worker{db, b}
+func New(b *model.Bot) *Worker {
+	return &Worker{b}
 }
 
 func (c *Worker) Work() {
@@ -69,8 +69,7 @@ func (c *Worker) workUrl(url string) {
 
 			// if this job is brand new, save all the articles found
 			// else persist articles published after the last update
-			if c.CreatedAt != c.UpdatedAt &&
-				time.Time(*i.Time).Before(time.Unix(int64(c.UpdatedAt), 0)) {
+			if c.CreatedAt != c.UpdatedAt && time.Time(*i.Time).Before(c.UpdatedAt) {
 				log.Debug().Msgf("Skipping old article %s", i.Title)
 				return
 			}
@@ -95,21 +94,28 @@ func (c *Worker) workUrl(url string) {
 				}
 			}
 
-			// scrub the source off the title and
-			// use it if the item source is blank
-			if title, source, ok := strings.Cut(i.Title, " - "); ok && i.Source == "" {
-				i.Source = source
-				i.Title = title
+			// scrub the source off the title and use it if the item source is blank
+			if l, r, ok := strings.Cut(i.Title, " - "); ok {
+				i.Title = l
+				if i.Source == "" {
+					i.Source = r
+				}
 			}
 
-			err = c.Create(&model.News{
-				Bot:         c.Bot,
+			// check if the description is HTML
+			if idx := strings.Index(i.Description, `</a>`); idx > 0 {
+				i.Description = i.Description[:idx]
+				i.Description = i.Description[strings.LastIndex(i.Description, ">")+1:]
+			}
+
+			err = db.Builder[model.News]().Create(context.Background(), &model.News{
+				BotID:       c.Bot.ID,
 				URL:         i.URL,
 				Title:       i.Title,
 				Source:      i.Source,
 				Published:   time.Time(*i.Time),
 				Description: i.Description,
-			}).Error
+			})
 
 			if err != nil {
 				log.Warn().Err(err).Msg("failed to save news article")

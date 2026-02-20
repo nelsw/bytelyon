@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"regexp"
 
-	"github.com/gin-gonic/gin"
+	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
@@ -23,14 +23,13 @@ type Client struct {
 	playwright.BrowserContext
 }
 
-func Init(mode string) {
+func Init() {
 	var sl slog.Level
-	switch mode {
-	case gin.ReleaseMode:
+	if config.IsReleaseMode() {
 		sl = slog.LevelError
-	case gin.DebugMode:
+	} else if config.IsDebugMode() {
 		sl = slog.LevelInfo
-	default:
+	} else {
 		sl = slog.LevelDebug
 	}
 	err := playwright.Install(&playwright.RunOptions{
@@ -40,7 +39,7 @@ func Init(mode string) {
 		}.NewZerologHandler()),
 	})
 	if err != nil {
-		log.Panic().Err(err).Msg("prowl install")
+		panic(err)
 	}
 }
 

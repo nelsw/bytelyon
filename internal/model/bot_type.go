@@ -20,22 +20,27 @@ func (t *BotType) Scan(src any) error {
 	if src == nil {
 		return errors.New("nil bot type")
 	}
-	str, ok := src.(string)
-	if !ok {
-		return errors.New("invalid src; must be string")
+	*t = BotType(src.(string))
+	if err := t.Validate(); err != nil {
+		return err
 	}
-	*t = BotType(str)
 	return nil
-}
-
-func (t *BotType) Value() (driver.Value, error) {
-	s := string(*t)
-	if !validationRegex.MatchString(s) {
-		return "", errors.New("invalid bot type; must be one of [search, news, or sitemap]; got: [" + s + "]")
-	}
-	return s, nil
 }
 
 func (t BotType) String() string {
 	return string(t)
+}
+
+func (t *BotType) Validate() error {
+	if !validationRegex.MatchString(t.String()) {
+		return errors.New("invalid bot type; must be one of [search, news, or sitemap]; got: [" + t.String() + "]")
+	}
+	return nil
+}
+
+func (t *BotType) Value() (driver.Value, error) {
+	if err := t.Validate(); err != nil {
+		return nil, err
+	}
+	return t.String(), nil
 }

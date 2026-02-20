@@ -1,16 +1,18 @@
 package search
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
-	"time"
+	"strings"
 
 	"github.com/nelsw/bytelyon/internal/client/prowl"
+	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
-	"gorm.io/gorm"
 )
 
 var googleSearchInputSelectors = []string{
@@ -24,12 +26,11 @@ var googleSearchInputSelectors = []string{
 }
 
 type Worker struct {
-	*gorm.DB
 	*model.Bot
 }
 
-func New(db *gorm.DB, job *model.Bot) *Worker {
-	return &Worker{db, job}
+func New(job *model.Bot) *Worker {
+	return &Worker{job}
 }
 
 func (w *Worker) Work() {
@@ -56,64 +57,38 @@ func (w *Worker) work(headless bool) error {
 	if google, err = w.VisitGoogle(c); err != nil {
 		return err
 	}
-	defer google.Close()
 
-	search := &model.Search{Bot: w.Bot}
-	if err = w.DB.Create(search).Error; err != nil {
+	search := model.Search{BotID: w.Bot.ID}
+	if err = db.Builder[model.Search]().Create(context.Background(), &search); err != nil {
 		return err
 	}
 
-	if err = w.savePage(search, google); err != nil {
+	if err = w.save(model.SearchPage{SearchID: search.ID}, google, c); err != nil {
 		log.Warn().Err(err).Msg("Failed to Save Search Page (Google)")
 		return err
 	}
 
-	var locators []playwright.Locator
-	if locators, err = google.Locator(fmt.Sprintf(`[data-dtld]`), playwright.PageLocatorOptions{}).All(); err != nil {
-		log.Err(err).Msg("Err finding Locators")
+	var locatorCount int
+	if locatorCount, err = google.Locator(fmt.Sprintf(`[data-rw]`)).Count(); err != nil {
+		log.Err(err).Msg("Err finding Locator Count")
 		return err
-	} else if len(locators) == 0 {
-		log.Warn().Msg("No Target Locators Found")
-		return nil
-	} else if w.Bot.Ignore()["*"] {
+	}
+
+	log.Debug().Int("locators", locatorCount).Msg("Locators Found")
+
+	if w.Bot.Ignore()["*"] {
 		log.Info().Msg("Ignoring all targets")
 		return nil
 	}
 
-	var att string
-	for _, l := range locators {
-
-		if att, err = l.GetAttribute("data-dtld", playwright.LocatorGetAttributeOptions{
-			Timeout: util.Ptr(5_000.0),
-		}); err != nil {
-			log.Warn().Err(err).Msg("Failed to get Target Locator Attribute")
-			continue
-		}
-
-		log.Debug().Str("found", att).Msg("Locator")
-		if _, ok := w.Bot.Ignore()[att]; ok {
-			continue
-		}
-
-		log.Info().Msgf("Target Found [%s]", att)
-
-		if err = l.Click(playwright.LocatorClickOptions{Timeout: util.Ptr(5_000.0)}); err != nil {
-			log.Warn().Err(err).Msg("Failed to Click Target Locator")
-			continue
-		}
-
-		targetPage, pageErr := c.NewPage(func() error { return l.Click() })
-		if pageErr != nil {
-			log.Warn().Err(pageErr).Msg("Failed to Click Target")
-			continue
-		}
-
-		if err = w.savePage(search, targetPage); err != nil {
-			log.Warn().Err(err).Msg("Failed to Save Search Page (Target)")
+	for i := 0; i < locatorCount; i++ {
+		e := w.HandleLocator(c, google, i, search.ID)
+		if e != nil {
+			err = errors.Join(err, e)
 		}
 	}
 	log.Info().Msg("Finished Search")
-	return nil
+	return err
 }
 
 func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) {
@@ -134,15 +109,8 @@ func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) 
 		return
 	} else if err = c.WaitForLoadState(page); err != nil {
 		return
-	}
-
-	if err = c.IsBlocked(page); err != nil && *c.Headless {
+	} else if err = c.IsBlocked(page); err != nil && *c.Headless {
 		return
-	} else if !*c.Headless {
-		time.Sleep(time.Second * 15)
-		if err = c.IsBlocked(page); err != nil {
-			return
-		}
 	}
 
 	log.Info().Msgf("Visited Google with query: %s", w.Target)
@@ -152,47 +120,95 @@ func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) 
 	return
 }
 
-func (w *Worker) savePage(s *model.Search, page playwright.Page) (err error) {
+func (w *Worker) HandleLocator(c *prowl.Client, page playwright.Page, idx int, searchID uint) (err error) {
 
-	var title string
-	if title, err = page.Title(); err != nil {
-		log.Warn().Err(err).Msg("Failed to get SearchPage Title")
-	}
-
-	p := &model.SearchPage{
-		Search: s,
-		URL:    page.URL(),
-		Title:  title,
-	}
-
-	if err = w.DB.Create(p).Error; err != nil {
+	l := page.Locator(`[data-rw]`).Nth(idx)
+	var att string
+	if att, err = l.GetAttribute("data-dtld"); err != nil {
+		log.Warn().Err(err).Msg("Failed to get Target Locator Attribute")
 		return
 	}
 
-	wd, _ := os.Getwd()
-	name := fmt.Sprintf("%s/web/bot/search/%d-%d.", wd, s.ID, p.ID)
-
-	var img []byte
-	if img, err = page.Screenshot(playwright.PageScreenshotOptions{FullPage: util.Ptr(true)}); err != nil {
-		log.Warn().Err(err).Msg("Failed to Screenshot SearchPage")
-	} else if imgErr := os.WriteFile(name+"png", img, os.ModePerm); imgErr != nil {
-		log.Warn().Err(imgErr).Msg("Failed to write SearchPage screenshot")
+	log.Debug().Msgf("Handling Locator [%d] [%s]\n[%s]", idx, att, page.URL())
+	if _, ok := w.Bot.Ignore()[att]; ok {
+		return
 	}
 
-	var content string
-	if content, err = page.Content(); err != nil {
-		log.Warn().Err(err).Msg("Failed to get SearchPage Content")
-	} else if htmlErr := os.WriteFile(name+"html", []byte(content), os.ModePerm); htmlErr != nil {
-		log.Warn().Err(htmlErr).Msg("Failed to write SearchPage html")
+	var targetPage playwright.Page
+	if targetPage, err = c.BrowserContext.ExpectPage(func() error {
+		return l.Click(playwright.LocatorClickOptions{
+			Force: util.Ptr(true),
+			Modifiers: []playwright.KeyboardModifier{
+				*playwright.KeyboardModifierMeta,
+			},
+			Timeout: util.Ptr(0.0),
+		})
+	}, playwright.BrowserContextExpectPageOptions{
+		Predicate: func(p playwright.Page) bool {
+			return true
+		},
+	}); err != nil {
+		log.Warn().Err(err).Msg("Client - Failed to ExpectPage")
+		return err
+	} else if err = page.BringToFront(); err != nil {
+		log.Warn().Err(err).Msg("Client - Failed to BringToFront")
+		return err
 	}
 
-	err = w.DB.
-		Model(&model.SearchPage{}).
-		Where("id = ?", p.ID).
-		Updates(&model.SearchPage{
-			IMG:  p.IMG,
-			HTML: p.HTML,
-		}).Error
+	if err = c.WaitForLoadState(targetPage, *playwright.LoadStateDomcontentloaded); err != nil {
+		log.Warn().Err(err).Msg("Client - Failed to WaitForLoadState")
+	}
 
+	log.Debug().Int("pages", len(c.BrowserContext.Pages())).Msg("Pages")
+	if err = w.save(model.SearchPage{SearchID: searchID}, targetPage, c); err != nil {
+		log.Warn().Err(err).Msg("Failed to Save Search Page (Target)")
+	} else {
+		log.Info().Msgf("Saved Search Page [%s]", targetPage.URL())
+	}
+	err = targetPage.Close()
 	return
+}
+
+func (w *Worker) save(s model.SearchPage, page playwright.Page, c *prowl.Client) error {
+
+	s.URL = page.URL()
+	if err := db.Builder[model.SearchPage]().Create(context.Background(), &s); err != nil {
+		log.Err(err).Msgf("Failed to Save SearchPage [%s]", s.URL)
+		return err
+	}
+
+	if title, err := page.Title(); err != nil {
+		log.Warn().Err(err).Msg("Failed to get page Title")
+	} else {
+		s.Title = strings.TrimSpace(title)
+	}
+
+	wd, _ := os.Getwd()
+	serverPath := fmt.Sprintf("%s/web/bot/search/%d-%d.", wd, s.SearchID, s.ID)
+	staticPath := fmt.Sprintf("/static/bot/search/%d-%d.", s.SearchID, s.ID)
+
+	if img, err := page.Screenshot(playwright.PageScreenshotOptions{FullPage: util.Ptr(true)}); err != nil {
+		log.Warn().Err(err).Msg("Failed to Screenshot SearchPage")
+	} else if imgErr := os.WriteFile(serverPath+"png", img, os.ModePerm); imgErr != nil {
+		log.Warn().Err(imgErr).Msg("Failed to write SearchPage screenshot")
+	} else {
+		s.IMG = staticPath + "png"
+	}
+
+	if content, err := page.Content(); err != nil {
+		log.Warn().Err(err).Msg("Failed to get SearchPage Content")
+	} else if htmlErr := os.WriteFile(serverPath+"html", []byte(content), os.ModePerm); htmlErr != nil {
+		log.Warn().Err(htmlErr).Msg("Failed to write SearchPage html")
+	} else {
+		s.HTML = staticPath + "html"
+		if strings.Contains(s.URL, "google.com") {
+			s.JSON = c.Data(s.URL, content)
+		}
+	}
+
+	_, err := db.Builder[model.SearchPage]().
+		Where("id = ?", s.ID).
+		Updates(context.Background(), s)
+
+	return err
 }

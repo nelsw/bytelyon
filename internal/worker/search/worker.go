@@ -35,7 +35,7 @@ func New(job *model.Bot) *Worker {
 
 func (w *Worker) Work() {
 
-	err := w.work(false)
+	err := w.work(true)
 	if err == nil {
 		return
 	}
@@ -57,7 +57,6 @@ func (w *Worker) work(headless bool) error {
 	if google, err = w.VisitGoogle(c); err != nil {
 		return err
 	}
-	defer google.Close()
 
 	search := model.Search{BotID: w.Bot.ID}
 	if err = db.Builder[model.Search]().Create(context.Background(), &search); err != nil {
@@ -155,7 +154,11 @@ func (w *Worker) HandleLocator(c *prowl.Client, page playwright.Page, idx int, s
 		log.Warn().Err(err).Msg("Client - Failed to BringToFront")
 		return err
 	}
-	c.WaitForLoadState(targetPage, *playwright.LoadStateDomcontentloaded)
+
+	if err = c.WaitForLoadState(targetPage, *playwright.LoadStateDomcontentloaded); err != nil {
+		log.Warn().Err(err).Msg("Client - Failed to WaitForLoadState")
+	}
+
 	log.Debug().Int("pages", len(c.BrowserContext.Pages())).Msg("Pages")
 	if err = w.save(model.SearchPage{SearchID: searchID}, targetPage, c); err != nil {
 		log.Warn().Err(err).Msg("Failed to Save Search Page (Target)")

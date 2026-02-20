@@ -14,8 +14,9 @@ var (
 
 type Bot struct {
 	gorm.Model
-	Type      BotType `gorm:"index:idx_bot_type_target,unique"`
-	Target    string  `gorm:"index:idx_bot_type_target,unique"`
+	DeletedAt gorm.DeletedAt `gorm:"index:idx_bot_deleted_at_type_target,unique"`
+	Type      BotType        `gorm:"index:idx_bot_deleted_at_type_target,unique"`
+	Target    string         `gorm:"index:idx_bot_deleted_at_type_target,unique"`
 	Frequency time.Duration
 	BlackList []string `gorm:"serializer:json"`
 }

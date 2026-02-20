@@ -94,11 +94,18 @@ func (c *Worker) workUrl(url string) {
 				}
 			}
 
-			// scrub the source off the title and
-			// use it if the item source is blank
-			if title, source, ok := strings.Cut(i.Title, " - "); ok && i.Source == "" {
-				i.Source = source
-				i.Title = title
+			// scrub the source off the title and use it if the item source is blank
+			if l, r, ok := strings.Cut(i.Title, " - "); ok {
+				i.Title = l
+				if i.Source == "" {
+					i.Source = r
+				}
+			}
+
+			// check if the description is HTML
+			if idx := strings.Index(i.Description, `</a>`); idx > 0 {
+				i.Description = i.Description[:idx]
+				i.Description = i.Description[strings.LastIndex(i.Description, ">")+1:]
 			}
 
 			err = db.Builder[model.News]().Create(context.Background(), &model.News{

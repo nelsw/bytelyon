@@ -9,8 +9,8 @@ import (
 type News struct {
 	gorm.Model
 	Bot         *Bot
-	BotID       uint
-	URL         string `gorm:"index:idx_news_url,unique"`
+	BotID       uint   `gorm:"index:idx_news_bot_id_url,unique"`
+	URL         string `gorm:"index:idx_news_bot_id_url,unique"`
 	Title       string
 	Source      string
 	Description string

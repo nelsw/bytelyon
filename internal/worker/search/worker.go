@@ -2,10 +2,10 @@ package search
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/nelsw/bytelyon/internal/client/prowl"
 	"github.com/nelsw/bytelyon/internal/db"
@@ -35,7 +35,7 @@ func New(job *model.Bot) *Worker {
 
 func (w *Worker) Work() {
 
-	err := w.work(true)
+	err := w.work(false)
 	if err == nil {
 		return
 	}
@@ -69,52 +69,27 @@ func (w *Worker) work(headless bool) error {
 		return err
 	}
 
-	var locators []playwright.Locator
-	if locators, err = google.Locator(fmt.Sprintf(`[data-dtld]`), playwright.PageLocatorOptions{}).All(); err != nil {
-		log.Err(err).Msg("Err finding Locators")
+	var locatorCount int
+	if locatorCount, err = google.Locator(fmt.Sprintf(`[data-rw]`)).Count(); err != nil {
+		log.Err(err).Msg("Err finding Locator Count")
 		return err
-	} else if len(locators) == 0 {
-		log.Warn().Msg("No Target Locators Found")
-		return nil
-	} else if w.Bot.Ignore()["*"] {
+	}
+
+	log.Debug().Int("locators", locatorCount).Msg("Locators Found")
+
+	if w.Bot.Ignore()["*"] {
 		log.Info().Msg("Ignoring all targets")
 		return nil
 	}
 
-	var att string
-	for _, l := range locators {
-
-		if att, err = l.GetAttribute("data-dtld", playwright.LocatorGetAttributeOptions{
-			Timeout: util.Ptr(5_000.0),
-		}); err != nil {
-			log.Warn().Err(err).Msg("Failed to get Target Locator Attribute")
-			continue
-		}
-
-		log.Debug().Str("found", att).Msg("Locator")
-		if _, ok := w.Bot.Ignore()[att]; ok {
-			continue
-		}
-
-		log.Info().Msgf("Target Found [%s]", att)
-
-		if err = l.Click(playwright.LocatorClickOptions{Timeout: util.Ptr(5_000.0)}); err != nil {
-			log.Warn().Err(err).Msg("Failed to Click Target Locator")
-			continue
-		}
-
-		targetPage, pageErr := c.NewPage(func() error { return l.Click() })
-		if pageErr != nil {
-			log.Warn().Err(pageErr).Msg("Failed to Click Target")
-			continue
-		}
-
-		if err = w.save(model.SearchPage{SearchID: search.ID}, targetPage, c); err != nil {
-			log.Warn().Err(err).Msg("Failed to Save Search Page (Target)")
+	for i := 0; i < locatorCount; i++ {
+		e := w.HandleLocator(c, google, i, search.ID)
+		if e != nil {
+			err = errors.Join(err, e)
 		}
 	}
 	log.Info().Msg("Finished Search")
-	return nil
+	return err
 }
 
 func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) {
@@ -135,21 +110,59 @@ func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) 
 		return
 	} else if err = c.WaitForLoadState(page); err != nil {
 		return
-	}
-
-	if err = c.IsBlocked(page); err != nil && *c.Headless {
+	} else if err = c.IsBlocked(page); err != nil && *c.Headless {
 		return
-	} else if !*c.Headless {
-		time.Sleep(time.Second * 15)
-		if err = c.IsBlocked(page); err != nil {
-			return
-		}
 	}
 
 	log.Info().Msgf("Visited Google with query: %s", w.Target)
 
 	c.SetState()
 
+	return
+}
+
+func (w *Worker) HandleLocator(c *prowl.Client, page playwright.Page, idx int, searchID uint) (err error) {
+
+	l := page.Locator(`[data-rw]`).Nth(idx)
+	var att string
+	if att, err = l.GetAttribute("data-dtld"); err != nil {
+		log.Warn().Err(err).Msg("Failed to get Target Locator Attribute")
+		return
+	}
+
+	log.Debug().Msgf("Handling Locator [%d] [%s]\n[%s]", idx, att, page.URL())
+	if _, ok := w.Bot.Ignore()[att]; ok {
+		return
+	}
+
+	var targetPage playwright.Page
+	if targetPage, err = c.BrowserContext.ExpectPage(func() error {
+		return l.Click(playwright.LocatorClickOptions{
+			Force: util.Ptr(true),
+			Modifiers: []playwright.KeyboardModifier{
+				*playwright.KeyboardModifierMeta,
+			},
+			Timeout: util.Ptr(0.0),
+		})
+	}, playwright.BrowserContextExpectPageOptions{
+		Predicate: func(p playwright.Page) bool {
+			return true
+		},
+	}); err != nil {
+		log.Warn().Err(err).Msg("Client - Failed to ExpectPage")
+		return err
+	} else if err = page.BringToFront(); err != nil {
+		log.Warn().Err(err).Msg("Client - Failed to BringToFront")
+		return err
+	}
+	c.WaitForLoadState(targetPage, *playwright.LoadStateDomcontentloaded)
+	log.Debug().Int("pages", len(c.BrowserContext.Pages())).Msg("Pages")
+	if err = w.save(model.SearchPage{SearchID: searchID}, targetPage, c); err != nil {
+		log.Warn().Err(err).Msg("Failed to Save Search Page (Target)")
+	} else {
+		log.Info().Msgf("Saved Search Page [%s]", targetPage.URL())
+	}
+	err = targetPage.Close()
 	return
 }
 

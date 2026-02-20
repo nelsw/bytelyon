@@ -1,7 +1,5 @@
 package logger
 
-type Foreground string
-
 const (
 	Default = "\033[0m"
 

@@ -34,6 +34,18 @@ func Port() int {
 	return i
 }
 
+func DBLogMode() int {
+	switch mode {
+	case "release":
+		return 1
+	case "debug":
+		return 2
+	case "test":
+		return 3
+	}
+	return 4
+}
+
 func Init() {
 
 	if flag.Parsed() {

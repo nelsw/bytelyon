@@ -1,3 +1,5 @@
 /.idea/
 *.sqlite
 state.json
+/bin/
+web/bot/search/*

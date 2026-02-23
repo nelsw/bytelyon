@@ -18,6 +18,7 @@ var models = []any{
 	&model.Sitemap{},
 	&model.Search{},
 	&model.SearchPage{},
+	&model.Settings{},
 }
 
 func Init() {

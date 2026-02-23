@@ -49,6 +49,7 @@ func New() *gin.Engine {
 	{
 		api.Group("/settings").
 			GET("", FindSettings).
+			POST("", CreateSettings).
 			PUT("", UpdateSettings)
 	}
 

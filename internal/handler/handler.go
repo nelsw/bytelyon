@@ -166,6 +166,21 @@ func FindSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, val)
 }
 
+func CreateSettings(c *gin.Context) {
+
+	var val model.Settings
+	if err := c.Bind(&val); err != nil {
+		return
+	}
+
+	if err := db.Builder[model.Settings]().Create(c, &val); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, val)
+}
+
 func UpdateSettings(c *gin.Context) {
 	var val model.Settings
 	if err := c.Bind(&val); err != nil {

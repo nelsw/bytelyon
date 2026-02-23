@@ -1,8 +1,11 @@
 package model
 
+import (
+	"github.com/aws/aws-sdk-go-v2/aws"
+)
+
 type AWS struct {
-	AccessKeyID     string `gorm:"size:255"`
-	SecretAccessKey string `gorm:"size:255"`
-	Bucket          string `gorm:"size:255"`
-	Region          string `gorm:"size:255"`
+	aws.Credentials
+	Bucket string `gorm:"size:255"`
+	Region string `gorm:"size:255"`
 }

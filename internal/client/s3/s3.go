@@ -1,4 +1,4 @@
-package db
+package s3
 
 import (
 	"bytes"
@@ -8,76 +8,81 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	_s3 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/rs/zerolog/log"
 )
 
 type S3 interface {
-	Delete(context.Context, string, string) error
-	Get(context.Context, string, string) ([]byte, error)
-	Put(context.Context, string, string, []byte) error
-	URL(context.Context, string, string, int64) (string, error)
+	Delete(string) error
+	Get(string) ([]byte, error)
+	Put(string, []byte) error
+	URL(string, int64) (string, error)
 }
 
 type s3 struct {
+	bucket string
+	context.Context
 	*_s3.Client
 	*_s3.PresignClient
 }
 
-func (s3 *s3) Delete(ctx context.Context, bucket, key string) error {
+func (s3 *s3) Delete(key string) error {
 
-	_, err := s3.DeleteObject(ctx, &_s3.DeleteObjectInput{
-		Bucket: &bucket,
+	_, err := s3.DeleteObject(s3.Context, &_s3.DeleteObjectInput{
+		Bucket: &s3.bucket,
 		Key:    &key,
 	})
 
 	log.Debug().
 		Err(err).
-		Str("bucket", bucket).
+		Str("bucket", s3.bucket).
 		Str("key", key).
 		Msg("Delete")
 
 	return err
 }
 
-func (s3 *s3) Get(ctx context.Context, bucket, key string) ([]byte, error) {
+func (s3 *s3) Get(key string) ([]byte, error) {
 
-	out, err := s3.GetObject(ctx, &_s3.GetObjectInput{
-		Bucket: &bucket,
+	l := log.With().
+		Str("bucket", s3.bucket).
+		Str("key", key).
+		Logger()
+
+	out, err := s3.GetObject(s3.Context, &_s3.GetObjectInput{
+		Bucket: &s3.bucket,
 		Key:    &key,
 	})
+
 	if err != nil {
-		log.Warn().Err(err).Msg("Get - Failed to read body")
+		l.Warn().Err(err).Msg("Get - Failed to read body")
 		return nil, err
 	}
-	var body []byte
 	defer out.Body.Close()
+
+	var body []byte
 	if body, err = io.ReadAll(out.Body); err != nil {
-		log.Warn().Err(err).Msg("Get - Failed to read body")
+		l.Warn().Err(err).Msg("Get - Failed to read body")
 		return nil, err
 	}
 
-	log.Trace().
-		Err(err).
-		Str("bucket", bucket).
-		Str("key", key).
-		Bytes("body", body).
-		Msg("Get")
+	l.Debug().Err(err).Bytes("body", body).Msg("Get")
 
 	return body, err
 }
 
-func (s3 *s3) Put(ctx context.Context, bucket, key string, b []byte) (err error) {
+func (s3 *s3) Put(key string, b []byte) (err error) {
 
-	_, err = s3.PutObject(ctx, &_s3.PutObjectInput{
-		Bucket: &bucket,
+	_, err = s3.PutObject(s3.Context, &_s3.PutObjectInput{
+		Bucket: &s3.bucket,
 		Key:    &key,
 		Body:   bytes.NewReader(b),
 	})
 
-	log.Trace().
+	log.Debug().
 		Err(err).
-		Str("bucket", bucket).
+		Str("bucket", s3.bucket).
 		Str("key", key).
 		Bytes("body", b).
 		Msg("Put")
@@ -85,10 +90,10 @@ func (s3 *s3) Put(ctx context.Context, bucket, key string, b []byte) (err error)
 	return
 }
 
-func (s3 *s3) URL(ctx context.Context, bucket, key string, i int64) (string, error) {
+func (s3 *s3) URL(key string, i int64) (string, error) {
 
-	out, err := s3.PresignGetObject(ctx, &_s3.GetObjectInput{
-		Bucket: &bucket,
+	out, err := s3.PresignGetObject(s3.Context, &_s3.GetObjectInput{
+		Bucket: &s3.bucket,
 		Key:    &key,
 	}, _s3.WithPresignExpires(time.Duration(i)*time.Hour))
 
@@ -97,9 +102,9 @@ func (s3 *s3) URL(ctx context.Context, bucket, key string, i int64) (string, err
 		url = out.URL
 	}
 
-	log.Trace().
+	log.Debug().
 		Err(err).
-		Str("bucket", bucket).
+		Str("bucket", s3.bucket).
 		Str("key", key).
 		Int64("exp", i).
 		Str("url", url).
@@ -108,19 +113,19 @@ func (s3 *s3) URL(ctx context.Context, bucket, key string, i int64) (string, err
 	return url, err
 }
 
-// NewS3 returns a new S3 client with a background context.
-// An optional variadic set of Config values can be provided as
-// input that will be prepended to the configs slice.
-func NewS3(optFns ...func(*config.LoadOptions) error) S3 {
-	return NewS3WithContext(context.Background(), optFns...)
+// New returns a new S3 client with a background context.
+func New(settings *model.Settings) S3 {
+	return NewWithContext(context.Background(), settings)
 }
 
-// NewS3WithContext returns a new S3 client with the provided context.
-// An optional variadic set of Config values can be provided as
-// input that will be prepended to the configs slice.
-func NewS3WithContext(ctx context.Context, optFns ...func(*config.LoadOptions) error) S3 {
-	cfg := util.Must(config.LoadDefaultConfig(ctx, optFns...))
+// NewWithContext returns a new S3 client with the provided context.
+func NewWithContext(ctx context.Context, settings *model.Settings) S3 {
+	cfg := util.Must(config.LoadDefaultConfig(ctx, func(options *config.LoadOptions) error {
+		options.Credentials = settings
+		options.Region = settings.Region
+		return nil
+	}))
 	cc := _s3.NewFromConfig(cfg)
 	pc := _s3.NewPresignClient(cc)
-	return &s3{cc, pc}
+	return &s3{settings.Bucket, ctx, cc, pc}
 }

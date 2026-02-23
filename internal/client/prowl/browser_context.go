@@ -103,7 +103,7 @@ func (c *Client) getState() *playwright.OptionalStorageState {
 
 	var state playwright.OptionalStorageState
 
-	b, err := os.ReadFile("state.json")
+	b, err := os.ReadFile(BinDir("state.json"))
 	if err != nil {
 		log.Err(err).Msg("Client - Failed to read state.json")
 		return &state
@@ -135,7 +135,7 @@ func (c *Client) SetState() {
 	}
 	log.Debug().Msg("Client - Marshalled StorageState")
 
-	if err = os.WriteFile("state.json", b, 0644); err != nil {
+	if err = os.WriteFile(BinDir("state.json"), b, 0644); err != nil {
 		log.Err(err).Msg("Client - Failed to write state.json")
 		return
 	}

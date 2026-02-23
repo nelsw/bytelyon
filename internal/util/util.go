@@ -44,20 +44,24 @@ func Must[T any](t T, err error) T {
 	return t
 }
 
-func RootDir() string {
+func RootDir(parts ...string) string {
 	dir := Must(os.Getwd())
 	for !strings.HasSuffix(dir, "bytelyon") {
 		dir = dir[:strings.LastIndex(dir, "/")]
 	}
-
+	if len(parts) > 0 {
+		dir += "/" + strings.Join(parts, "/")
+	}
 	return dir
 }
 
 func BinDir(parts ...string) string {
-	dir := RootDir() + "/bin"
+	dir := RootDir("bin")
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		Check(os.Mkdir(dir, fs.ModePerm))
 	}
-
-	return dir + strings.Join(parts, "/")
+	if len(parts) > 0 {
+		dir += "/" + strings.Join(parts, "/")
+	}
+	return dir
 }

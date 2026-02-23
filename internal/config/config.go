@@ -12,7 +12,11 @@ import (
 	"regexp"
 )
 
-var cfg map[string]any
+var initialized bool
+var cfg = map[string]any{
+	"MODE": "debug",
+	"PORT": 8085,
+}
 
 func Get[T any](key string) T { return cfg[key].(T) }
 func Mode() string            { return Get[string]("MODE") }
@@ -56,6 +60,10 @@ func loadFromEnv() {
 		}
 	}
 
+	if err != nil {
+		return
+	}
+
 	var i int
 	for k, v := range m {
 		if i, err = strconv.Atoi(v); err == nil {
@@ -67,18 +75,6 @@ func loadFromEnv() {
 }
 
 func validateCfg() {
-
-	keys := []string{
-		"MODE",
-		"PORT",
-	}
-
-	for _, k := range keys {
-		if _, ok := cfg[k]; !ok {
-			panic(fmt.Sprintf("missing config key: [%s]", k))
-		}
-	}
-
 	if !regexp.MustCompile(`^(debug|release|test)$`).MatchString(Mode()) {
 		panic(fmt.Sprintf("bad mode: [%s] (modes: debug release test)", Mode()))
 	} else if port := Port(); port < 10 || port > 9999 {
@@ -88,11 +84,9 @@ func validateCfg() {
 
 func Init() {
 
-	if len(cfg) > 0 {
+	if initialized {
 		return
 	}
-
-	cfg = make(map[string]any)
 
 	if !loadFromCli() {
 		loadFromEnv()
@@ -108,4 +102,6 @@ func Init() {
 ██████╔╝   ██║      ██║   ███████╗███████╗██║   ╚██████╔╝██║ ╚████║
 ╚═════╝    ╚═╝      ╚═╝   ╚══════╝╚══════╝╚═╝    ╚═════╝ ╚═╝  ╚═══╝
 ` + "\u001B[0m")
+
+	initialized = true
 }

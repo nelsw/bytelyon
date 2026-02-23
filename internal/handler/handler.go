@@ -156,3 +156,27 @@ func ValidateID(c *gin.Context) {
 	c.Set("ID", uint(id))
 	c.Next()
 }
+
+func FindSettings(c *gin.Context) {
+	val, err := db.Builder[model.Settings]().First(c)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, val)
+}
+
+func UpdateSettings(c *gin.Context) {
+	var val model.Settings
+	if err := c.Bind(&val); err != nil {
+		return
+	}
+	_, err := db.Builder[model.Settings]().
+		Where("id = ?", val.ID).
+		Updates(c, val)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, val)
+}

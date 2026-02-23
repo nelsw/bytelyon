@@ -7,56 +7,92 @@ import (
 	"strconv"
 
 	"github.com/joho/godotenv"
+	"github.com/nelsw/bytelyon/internal/util"
 
 	"regexp"
 )
 
-var mode, port string
-
-func Mode() string {
-	return mode
+var initialized bool
+var cfg = map[string]any{
+	"MODE": "debug",
+	"PORT": 8085,
 }
 
-func IsReleaseMode() bool {
-	return mode == "release"
+func Get[T any](key string) T { return cfg[key].(T) }
+func Mode() string            { return Get[string]("MODE") }
+func IsReleaseMode() bool     { return Mode() == "release" }
+func IsDebugMode() bool       { return Mode() == "debug" }
+func IsTestMode() bool        { return Mode() == "test" }
+func Port() int               { return Get[int]("PORT") }
+
+func loadFromCli() bool {
+
+	if len(flag.Args()) == 0 {
+		return false
+	}
+
+	cfg["MODE"] = *flag.String("mode", "debug", "The mode of this app")
+	cfg["PORT"] = *flag.Int("port", 8085, "The port to listen on")
+	flag.Parse()
+
+	return true
 }
 
-func IsDebugMode() bool {
-	return mode == "debug"
+func loadFromEnv() {
+
+	env := os.Getenv("APP_ENV")
+	if env == "" {
+		env = "test"
+	}
+
+	files := []string{
+		".env." + env + ".local",
+		".env.local",
+		".env." + env,
+		".env",
+	}
+
+	var m map[string]string
+	var err error
+	for _, f := range files {
+		if m, err = godotenv.Read(util.RootDir(f)); err == nil {
+			break
+		}
+	}
+
+	if err != nil {
+		return
+	}
+
+	var i int
+	for k, v := range m {
+		if i, err = strconv.Atoi(v); err == nil {
+			cfg[k] = i
+			continue
+		}
+		cfg[k] = v
+	}
 }
 
-func IsTestMode() bool {
-	return mode == "test"
-}
-
-func Port() int {
-	i, _ := strconv.Atoi(port)
-	return i
+func validateCfg() {
+	if !regexp.MustCompile(`^(debug|release|test)$`).MatchString(Mode()) {
+		panic(fmt.Sprintf("bad mode: [%s] (modes: debug release test)", Mode()))
+	} else if port := Port(); port < 10 || port > 9999 {
+		panic(fmt.Sprintf("bad port: [%d] (ports: 10-9999)", port))
+	}
 }
 
 func Init() {
 
-	if flag.Parsed() {
+	if initialized {
 		return
 	}
 
-	flag.StringVar(&mode, "mode", "debug", "The mode of this app")
-	flag.StringVar(&port, "port", "8080", "The port to listen on")
-	flag.Parse()
-
-	godotenv.Load()
-	if str, ok := os.LookupEnv("MODE"); ok {
-		mode = str
-	}
-	if str, ok := os.LookupEnv("PORT"); ok {
-		port = str
+	if !loadFromCli() {
+		loadFromEnv()
 	}
 
-	if !regexp.MustCompile(`^(debug|release|test)$`).MatchString(mode) {
-		panic(fmt.Sprintf("bad mode: [%s] (modes: debug release test)", mode))
-	} else if !regexp.MustCompile(`^([1-9][0-9]{1,3})$`).MatchString(port) {
-		panic(fmt.Sprintf("bad port: [%s] (ports: 10-9999)", port))
-	}
+	validateCfg()
 
 	fmt.Println("\u001B[0;36m" + `
 ██████╗ ██╗   ██╗████████╗███████╗██╗  ██╗   ██╗ ██████╗ ███╗   ██╗
@@ -66,4 +102,6 @@ func Init() {
 ██████╔╝   ██║      ██║   ███████╗███████╗██║   ╚██████╔╝██║ ╚████║
 ╚═════╝    ╚═╝      ╚═╝   ╚══════╝╚══════╝╚═╝    ╚═════╝ ╚═╝  ╚═══╝
 ` + "\u001B[0m")
+
+	initialized = true
 }

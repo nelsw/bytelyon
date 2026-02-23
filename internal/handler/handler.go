@@ -17,7 +17,7 @@ var (
 
 func Delete[T any](c *gin.Context) {
 	if _, err := db.Builder[T]().Where("id = ?", c.MustGet("ID").(uint)).Delete(c); err != nil {
-		panic(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
 }
 
@@ -127,7 +127,12 @@ func UpdateBot(c *gin.Context) {
 	if err := c.Bind(&bot); err != nil {
 		return
 	}
-
+	if bot.Type == model.SitemapBotType {
+		if ok := urlValidationRegex.MatchString(bot.Target); !ok {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "bad url, must begin with https://"})
+			return
+		}
+	}
 	_, err := db.Builder[model.Bot]().
 		Where("id = ?", bot.ID).
 		Updates(c, bot)
@@ -155,4 +160,43 @@ func ValidateID(c *gin.Context) {
 
 	c.Set("ID", uint(id))
 	c.Next()
+}
+
+func FindSettings(c *gin.Context) {
+	val, err := db.Builder[model.Settings]().First(c)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, val)
+}
+
+func CreateSettings(c *gin.Context) {
+
+	var val model.Settings
+	if err := c.Bind(&val); err != nil {
+		return
+	}
+
+	if err := db.Builder[model.Settings]().Create(c, &val); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, val)
+}
+
+func UpdateSettings(c *gin.Context) {
+	var val model.Settings
+	if err := c.Bind(&val); err != nil {
+		return
+	}
+	_, err := db.Builder[model.Settings]().
+		Where("id = ?", val.ID).
+		Updates(c, val)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, val)
 }

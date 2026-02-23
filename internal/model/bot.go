@@ -19,6 +19,7 @@ type Bot struct {
 	Target    string         `gorm:"index:idx_bot_deleted_at_type_target,unique"`
 	Frequency time.Duration
 	BlackList []string `gorm:"serializer:json"`
+	Headless  bool
 }
 
 func (b *Bot) Ignore() map[string]bool {

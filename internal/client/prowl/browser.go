@@ -7,10 +7,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func (c *Client) NewBrowser() (err error) {
+func (c *Client) NewBrowser(headless bool) (err error) {
 
 	c.Browser, err = c.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
-		Headless: c.Headless,
+		Headless: &headless,
 		Timeout:  Ptr(2 * 60_000.0),
 		Args: []string{
 			"--disable-accelerated-2d-canvas",
@@ -47,12 +47,4 @@ func (c *Client) NewBrowser() (err error) {
 	log.Err(err).Msg("Client - NewBrowser")
 
 	return
-}
-
-func (c *Client) Close() {
-	if err := c.BrowserContext.Close(); err != nil {
-		log.Warn().Err(err).Msg("Failed to close Client Context")
-	} else if err = c.Browser.Close(); err != nil {
-		log.Warn().Err(err).Msg("Failed to close Client Browser")
-	}
 }

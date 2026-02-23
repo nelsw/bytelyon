@@ -1,6 +1,7 @@
 package prowl
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -13,19 +14,19 @@ type PageData map[DatumType][]*Datum
 
 func MakePageData() PageData {
 	return map[DatumType][]*Datum{
-		SponsoredDatumType:       {},
-		OrganicDatumType:         {},
-		VideoDatumType:           {},
-		ForumDatumType:           {},
-		ArticleDatumType:         {},
-		PopularProductsDatumType: {},
-		MoreProductsDatumType:    {},
-		RelatedQueryDatumType:    {},
-		AlsoAskedDatumType:       {},
+		SponsoredDatumType:           {},
+		OrganicDatumType:             {},
+		VideoDatumType:               {},
+		ForumDatumType:               {},
+		ArticleDatumType:             {},
+		PopularProductsDatumType:     {},
+		MoreProductsDatumType:        {},
+		PeopleAlsoAskDatumType:       {},
+		PeopleAlsoSearchForDatumType: {},
 	}
 }
 
-func (c *Client) Data(url, content string) any {
+func NewPageData(url, content string) any {
 	if !strings.HasPrefix(url, "https://www.google.com") {
 		return nil
 	}
@@ -38,7 +39,13 @@ func (c *Client) Data(url, content string) any {
 
 	fillSponsoredData(doc, content, m)
 	fillOrganicData(content, m)
+	fillPeopleAlsoAskData(doc, m)
+	fillPeopleAlsoSearchForData(doc, m)
 	return m
+}
+
+func (c *Client) Data(url, content string) any {
+	return NewPageData(url, content)
 }
 
 func fillOrganicData(content string, m map[DatumType][]*Datum) {
@@ -200,6 +207,51 @@ func fillSponsoredData(doc *goquery.Document, content string, m map[DatumType][]
 
 		m[SponsoredDatumType] = append(m[SponsoredDatumType], datum)
 	}
+}
+
+func fillPeopleAlsoAskData(doc *goquery.Document, m map[DatumType][]*Datum) {
+	doc.Find("div[class*='related-question-pair']").Each(func(i int, sel *goquery.Selection) {
+		if sel == nil {
+			return
+		}
+		m[PeopleAlsoAskDatumType] = append(m[PeopleAlsoAskDatumType], &Datum{
+			Position: len(m[PeopleAlsoAskDatumType]) + 1,
+			Title:    sel.AttrOr("data-q", ""),
+			Source:   "Google",
+		})
+	})
+}
+
+func fillPeopleAlsoSearchForData(doc *goquery.Document, m map[DatumType][]*Datum) {
+	doc.Find("span").Each(func(i int, sel *goquery.Selection) {
+		if sel == nil || sel.Text() != "People also search for" {
+			return
+		}
+
+		log.Trace().Msg("found people also search for span")
+
+		parent := sel.Parent()
+		if parent == nil {
+			log.Trace().Msg("no parent found")
+			return
+		}
+
+		next := parent.Next()
+		if next == nil {
+			log.Trace().Msg("no next found")
+			return
+		}
+
+		next.Find("a").Each(func(i int, sel *goquery.Selection) {
+
+			m[PeopleAlsoSearchForDatumType] = append(m[PeopleAlsoSearchForDatumType], &Datum{
+				Position: len(m[PeopleAlsoSearchForDatumType]) + 1,
+				Link:     fmt.Sprintf("https://www.google.com%s", sel.AttrOr("href", "")),
+				Title:    sel.Text(),
+				Source:   "Google",
+			})
+		})
+	})
 }
 
 // products: <product-viewer-entrypoint

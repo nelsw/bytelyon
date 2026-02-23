@@ -35,50 +35,41 @@ func New(job *model.Bot) *Worker {
 
 func (w *Worker) Work() {
 
-	err := w.work(true)
-	if err == nil {
-		return
-	}
-	log.Err(err).Msgf("Failed to work with headless: %t", true)
-
-	if err = w.work(false); err != nil {
-		log.Err(err).Msgf("Failed to work with headless: %t", false)
-	}
-}
-
-func (w *Worker) work(headless bool) error {
-	c, err := prowl.New(headless)
+	c, err := prowl.New(w.Headless)
 	if err != nil {
-		return err
+		log.Err(err).Msg("Failed to create Prowl Client")
+		return
 	}
 	defer c.Close()
 
 	var google playwright.Page
 	if google, err = w.VisitGoogle(c); err != nil {
-		return err
+		log.Err(err).Msg("Failed to Visit Google")
+		return
 	}
 
 	search := model.Search{BotID: w.Bot.ID}
 	if err = db.Builder[model.Search]().Create(context.Background(), &search); err != nil {
-		return err
+		log.Err(err).Msg("Failed to Create Search")
+		return
 	}
 
 	if err = w.save(model.SearchPage{SearchID: search.ID}, google, c); err != nil {
-		log.Warn().Err(err).Msg("Failed to Save Search Page (Google)")
-		return err
+		log.Err(err).Msg("Failed to Save Search Page (Google)")
+		return
 	}
 
 	var locatorCount int
 	if locatorCount, err = google.Locator(fmt.Sprintf(`[data-rw]`)).Count(); err != nil {
 		log.Err(err).Msg("Err finding Locator Count")
-		return err
+		return
 	}
 
 	log.Debug().Int("locators", locatorCount).Msg("Locators Found")
 
 	if w.Bot.Ignore()["*"] {
-		log.Info().Msg("Ignoring all targets")
-		return nil
+		log.Info().Msg("Ignoring all targets; Finished Search")
+		return
 	}
 
 	for i := 0; i < locatorCount; i++ {
@@ -87,8 +78,8 @@ func (w *Worker) work(headless bool) error {
 			err = errors.Join(err, e)
 		}
 	}
-	log.Info().Msg("Finished Search")
-	return err
+
+	log.Err(err).Msg("Finished Search")
 }
 
 func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) {
@@ -109,7 +100,7 @@ func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) 
 		return
 	} else if err = c.WaitForLoadState(page); err != nil {
 		return
-	} else if err = c.IsBlocked(page); err != nil && *c.Headless {
+	} else if err = c.IsBlocked(page); err != nil {
 		return
 	}
 

@@ -1,11 +1,12 @@
 package db
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/nelsw/bytelyon/internal/config"
+	"github.com/nelsw/bytelyon/internal/logger"
 	"github.com/nelsw/bytelyon/internal/model"
+	. "github.com/nelsw/bytelyon/internal/util"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -21,16 +22,11 @@ var models = []any{
 
 func Init() {
 
-	var err error
-	if db, err = gorm.Open(sqlite.Open(config.Mode()+".sqlite"), &gorm.Config{}); err != nil {
-		panic(err)
-	}
+	db = Must(gorm.Open(sqlite.Open(BinDir(config.Mode()+".sqlite")), &gorm.Config{
+		Logger: logger.NewGorm(),
+	}))
 
-	var sqlDB *sql.DB
-	if sqlDB, err = db.DB(); err != nil || sqlDB.Ping() != nil {
-		panic(err)
-	}
-
+	sqlDB := Must(db.DB())
 	sqlDB.SetMaxIdleConns(25)
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetConnMaxLifetime(time.Hour)
@@ -38,15 +34,11 @@ func Init() {
 
 	if config.IsTestMode() {
 		for _, t := range models {
-			if err = db.Migrator().DropTable(&t); err != nil {
-				panic(err)
-			}
+			Check(db.Migrator().DropTable(&t))
 		}
 	}
 
-	if err = db.AutoMigrate(models...); err != nil {
-		panic(err)
-	}
+	Check(db.AutoMigrate(models...))
 }
 
 func Builder[T any]() gorm.Interface[T] {

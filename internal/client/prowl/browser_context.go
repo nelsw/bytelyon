@@ -81,42 +81,63 @@ func (c *Client) NewBrowserContext() (err error) {
 		UserAgent:         Ptr(userAgents[rand.Intn(len(userAgents))]),
 		StorageState:      c.getState(),
 	})
-	if err == nil {
-		c.BrowserContext.SetDefaultTimeout(60_000)
-		err = c.BrowserContext.AddInitScript(playwright.Script{Content: Ptr(browserContextScript)})
+
+	if err != nil {
+		log.Warn().Err(err).Msg("Client - Failed to NewBrowserContext")
+		return
 	}
 
-	log.Err(err).Msg("Client - NewBrowserContext")
+	if err = c.BrowserContext.AddInitScript(playwright.Script{Content: Ptr(browserContextScript)}); err != nil {
+		log.Warn().Err(err).Msg("Client - Failed to AddInitScript")
+		return
+	}
+
+	c.BrowserContext.SetDefaultTimeout(60_000)
+
+	log.Info().Msg("Client - NewBrowserContext")
 
 	return
 }
 
 func (c *Client) getState() *playwright.OptionalStorageState {
 
-	state := playwright.OptionalStorageState{
-		Cookies: []playwright.OptionalCookie{},
-		Origins: []playwright.Origin{},
-	}
+	var state playwright.OptionalStorageState
 
-	if b, err := os.ReadFile("state.json"); err != nil {
+	b, err := os.ReadFile("state.json")
+	if err != nil {
 		log.Err(err).Msg("Client - Failed to read state.json")
 		return &state
-	} else if err = json.Unmarshal(b, &state); err != nil {
+	}
+	log.Debug().Msg("Client - Read state.json")
+
+	if err = json.Unmarshal(b, &state); err != nil {
 		log.Err(err).Msg("Client - Failed to unmarshal state.json")
 		return &state
 	}
+	log.Debug().Msg("Client - Unmarshalled state.json")
+
 	return &state
 }
 
 func (c *Client) SetState() {
-	var b []byte
-	if state, err := c.BrowserContext.StorageState(); err != nil {
+
+	state, err := c.BrowserContext.StorageState()
+	if err != nil {
 		log.Err(err).Msg("Client - Failed to get StorageState")
 		return
-	} else if b, err = json.Marshal(&state); err != nil {
+	}
+	log.Debug().Msg("Client - Got StorageState")
+
+	var b []byte
+	if b, err = json.Marshal(&state); err != nil {
 		log.Err(err).Msg("Client - Failed to marshal StorageState")
 		return
-	} else if err = os.WriteFile("state.json", b, 0644); err != nil {
-		log.Err(err).Msg("Client - Failed to write state.json")
 	}
+	log.Debug().Msg("Client - Marshalled StorageState")
+
+	if err = os.WriteFile("state.json", b, 0644); err != nil {
+		log.Err(err).Msg("Client - Failed to write state.json")
+		return
+	}
+	log.Debug().Msg("Client - Wrote state.json")
 }

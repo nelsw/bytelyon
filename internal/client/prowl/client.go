@@ -2,14 +2,12 @@ package prowl
 
 import (
 	"errors"
-	"log/slog"
 	"regexp"
 
-	"github.com/nelsw/bytelyon/internal/config"
+	"github.com/nelsw/bytelyon/internal/logger"
 	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
-	slogzerolog "github.com/samber/slog-zerolog/v2"
 )
 
 var (
@@ -17,44 +15,34 @@ var (
 )
 
 type Client struct {
-	Headless *bool
 	*playwright.Playwright
 	playwright.Browser
 	playwright.BrowserContext
 }
 
 func Init() {
-	var sl slog.Level
-	if config.IsReleaseMode() {
-		sl = slog.LevelError
-	} else if config.IsDebugMode() {
-		sl = slog.LevelInfo
-	} else {
-		sl = slog.LevelDebug
-	}
-	err := playwright.Install(&playwright.RunOptions{
-		Logger: slog.New(slogzerolog.Option{
-			Level:  sl,
-			Logger: util.Ptr(log.Logger),
-		}.NewZerologHandler()),
-	})
-	if err != nil {
-		panic(err)
-	}
+	util.Check(playwright.Install(&playwright.RunOptions{Logger: logger.NewSlog()}))
 }
 
-func New(headless bool) (c *Client, err error) {
+func New(headless bool) (*Client, error) {
 
-	c = &Client{Headless: &headless}
+	var c = new(Client)
+	var err error
 
 	if c.Playwright, err = playwright.Run(); err != nil {
-		return
-	} else if err = c.NewBrowser(); err != nil {
-		return
-	} else if err = c.NewBrowserContext(); err != nil {
-		return
+		return nil, err
 	}
-	return
+	log.Info().Msg("Client Initialized Playwright")
+
+	if err = c.NewBrowser(headless); err != nil {
+		return nil, err
+	} else if err = c.NewBrowserContext(); err != nil {
+		return nil, err
+	}
+
+	log.Info().Msg("Client Instantiated")
+
+	return c, nil
 }
 
 func (c *Client) IsBlocked(aa ...any) error {
@@ -71,4 +59,24 @@ func (c *Client) IsBlocked(aa ...any) error {
 		}
 	}
 	return nil
+}
+
+func (c *Client) Close() {
+	if err := c.BrowserContext.Close(); err != nil {
+		log.Warn().Err(err).Msg("Failed to close Client Context")
+	} else {
+		log.Info().Msg("Client Context Closed")
+	}
+
+	if err := c.Browser.Close(); err != nil {
+		log.Warn().Err(err).Msg("Failed to close Client Browser")
+	} else {
+		log.Info().Msg("Client Browser Closed")
+	}
+
+	if err := c.Stop(); err != nil {
+		log.Warn().Err(err).Msg("Failed to stop Client Playwright")
+	} else {
+		log.Info().Msg("Client Playwright Stopped")
+	}
 }

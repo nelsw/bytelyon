@@ -47,7 +47,9 @@ func New() *gin.Engine {
 			GET("/bot/:id", ListNews)
 	}
 	{
-		// todo - settings
+		api.Group("/settings").
+			GET("", FindSettings).
+			PUT("", UpdateSettings)
 	}
 
 	return r

@@ -1,4 +1,4 @@
-package dynamo
+package client
 
 import (
 	"context"

@@ -21,18 +21,18 @@ func Test_Client_Dynamo_Table_Functions(t *testing.T) {
 	var names []string
 
 	ctx := context.Background()
-	dbc := dynamo.New(
+	dbc := client.New(
 		config.Get[string]("AWS_REGION"),
 		config.Get[string]("AWS_ACCESS_KEY_ID"),
 		config.Get[string]("AWS_SECRET_ACCESS_KEY"),
 	)
 	name := "ByteLyon_Test_Table"
 
-	ok, err = dynamo.TableExists(ctx, dbc, name)
+	ok, err = client.TableExists(ctx, dbc, name)
 	assert.NoError(t, err)
 	assert.False(t, ok)
 
-	err = dynamo.CreateTable(ctx, dbc, &dynamodb.CreateTableInput{
+	err = client.CreateTable(ctx, dbc, &dynamodb.CreateTableInput{
 		TableName:   &name,
 		BillingMode: types.BillingModeProvisioned,
 		ProvisionedThroughput: &types.ProvisionedThroughput{
@@ -50,18 +50,18 @@ func Test_Client_Dynamo_Table_Functions(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	ok, err = dynamo.TableExists(ctx, dbc, name)
+	ok, err = client.TableExists(ctx, dbc, name)
 	assert.NoError(t, err)
 	assert.True(t, ok)
 
-	names, err = dynamo.ListTables(ctx, dbc)
+	names, err = client.ListTables(ctx, dbc)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, names)
 
-	err = dynamo.DeleteTable(ctx, dbc, name)
+	err = client.DeleteTable(ctx, dbc, name)
 	assert.NoError(t, err)
 
-	ok, err = dynamo.TableExists(ctx, dbc, name)
+	ok, err = client.TableExists(ctx, dbc, name)
 	assert.NoError(t, err)
 	assert.False(t, ok)
 }
@@ -70,7 +70,7 @@ func Test_Client_Dynamo_Item_Functions(t *testing.T) {
 
 	var err error
 	ctx := context.Background()
-	dbc := dynamo.New(
+	c := client.New(
 		config.Get[string]("AWS_REGION"),
 		config.Get[string]("AWS_ACCESS_KEY_ID"),
 		config.Get[string]("AWS_SECRET_ACCESS_KEY"),
@@ -83,36 +83,36 @@ func Test_Client_Dynamo_Item_Functions(t *testing.T) {
 
 	var exp = User{util.Must(uuid.NewV7())}
 
-	err = dynamo.PutItem(ctx, dbc, name, exp)
+	err = client.PutItem(ctx, c, name, exp)
 	assert.NoError(t, err)
 
 	var act = User{exp.ID}
-	act, err = dynamo.GetItem[User](ctx, dbc, name, exp)
+	act, err = client.GetItem[User](ctx, c, name, exp)
 	assert.NoError(t, err)
 	assert.Equal(t, exp.ID, act.ID)
 
-	err = dynamo.DeleteItem(ctx, dbc, name, exp)
+	err = client.DeleteItem(ctx, c, name, exp)
 	assert.NoError(t, err)
 
-	act, err = dynamo.GetItem[User](ctx, dbc, name, exp)
-	assert.ErrorAs(t, err, &dynamo.NotFoundEx)
+	act, err = client.GetItem[User](ctx, c, name, exp)
+	assert.ErrorAs(t, err, &client.NotFoundEx)
 }
 
 func Test_Client_Dynamo_Query(t *testing.T) {
 
 	var err error
 	ctx := context.Background()
-	dbc := dynamo.New(
+	dbc := client.New(
 		config.Get[string]("AWS_REGION"),
 		config.Get[string]("AWS_ACCESS_KEY_ID"),
 		config.Get[string]("AWS_SECRET_ACCESS_KEY"),
 	)
 	name := "ByteLyon_Test_Bot_News"
 
-	err = dynamo.DeleteTable(ctx, dbc, name)
+	err = client.DeleteTable(ctx, dbc, name)
 	assert.NoError(t, err)
 
-	err = dynamo.CreateTable(ctx, dbc, &dynamodb.CreateTableInput{
+	err = client.CreateTable(ctx, dbc, &dynamodb.CreateTableInput{
 		TableName:   &name,
 		BillingMode: types.BillingModeProvisioned,
 		ProvisionedThroughput: &types.ProvisionedThroughput{
@@ -151,7 +151,7 @@ func Test_Client_Dynamo_Query(t *testing.T) {
 
 	for j := 0; j < 2; j++ {
 		for i := 0; i < 5; i++ {
-			err = dynamo.PutItem(ctx, dbc, name, Bot{
+			err = client.PutItem(ctx, dbc, name, Bot{
 				UserID:    ids[j],
 				ID:        util.Must(uuid.NewV7()),
 				Frequency: time.Hour * time.Duration(fake.Uint8()),
@@ -165,7 +165,7 @@ func Test_Client_Dynamo_Query(t *testing.T) {
 	}
 
 	var arr []Bot
-	arr, err = dynamo.QueryByID[Bot](ctx, dbc, name, "UserID", ids[0])
+	arr, err = client.QueryByID[Bot](ctx, dbc, name, "UserID", ids[0])
 	assert.NoError(t, err)
 	assert.Len(t, arr, 5)
 	util.PrettyPrintln(arr)

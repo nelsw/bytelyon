@@ -4,58 +4,45 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/nelsw/bytelyon/internal/client/fetch"
 	"github.com/nelsw/bytelyon/internal/client/s3"
 	"github.com/nelsw/bytelyon/internal/config"
-	"github.com/nelsw/bytelyon/internal/db"
-	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_Client_S3_New(t *testing.T) {
+func Test_Client_S3(t *testing.T) {
 
+	var err error
 	ctx := context.Background()
-
-	err := db.Builder[model.Settings]().Create(ctx, &model.Settings{
-		AWS: model.AWS{
-			Credentials: aws.Credentials{
-				AccessKeyID:     config.Get[string]("AWS_ACCESS_KEY_ID"),
-				SecretAccessKey: config.Get[string]("AWS_SECRET_ACCESS_KEY"),
-				Source:          "StaticCredentialsProvider",
-			},
-			Bucket: "bytelyon",
-			Region: "us-east-1",
-		},
-	})
-	assert.NoError(t, err)
-
-	var val model.Settings
-	val, err = db.Builder[model.Settings]().First(ctx)
+	c := client.New(
+		config.Get[string]("AWS_REGION"),
+		config.Get[string]("AWS_ACCESS_KEY_ID"),
+		config.Get[string]("AWS_SECRET_ACCESS_KEY"),
+	)
+	bucket := config.Get[string]("AWS_S3_BUCKET")
 
 	var data = struct{ Hello string }{Hello: "World"}
 	b, _ := json.Marshal(&data)
 
-	client := s3.New(&val)
-
-	err = client.Put("data.json", b)
+	err = client.PutObject(ctx, c, bucket, "data.json", b)
 	assert.NoError(t, err)
 
-	b, err = client.Get("data.json")
+	b, err = client.GetObject(ctx, c, bucket, "data.json")
 	assert.NoError(t, err)
-	assert.Equal(t, string(b), `{"Hello":"World"}`)
+	assert.Equal(t, `{"Hello":"World"}`, string(b))
 
 	var url string
-	url, err = client.URL("data.json", 10)
+	url, err = client.PresignGetObject(ctx, c, bucket, "data.json", time.Minute)
 	assert.NoError(t, err)
 	assert.True(t, len(url) > 0)
 
 	var fb []byte
 	fb, err = fetch.New(url).Bytes()
 	assert.NoError(t, err)
-	assert.Equal(t, string(fb), `{"Hello":"World"}`)
+	assert.Equal(t, `{"Hello":"World"}`, string(fb))
 
-	err = client.Delete("data.json")
+	err = client.DeleteObject(ctx, c, bucket, "data.json")
 	assert.NoError(t, err)
 }

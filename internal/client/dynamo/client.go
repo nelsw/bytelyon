@@ -21,10 +21,10 @@ var (
 )
 
 // TableExists determines whether a DynamoDB table exists.
-func TableExists(ctx context.Context, dbc *dynamodb.Client, name string) (bool, error) {
+func TableExists(ctx context.Context, c *dynamodb.Client, name string) (bool, error) {
 	log.Trace().Str("name", name).Msg("checking if table exists")
 
-	_, err := dbc.DescribeTable(ctx, &dynamodb.DescribeTableInput{
+	_, err := c.DescribeTable(ctx, &dynamodb.DescribeTableInput{
 		TableName: &name,
 	})
 
@@ -43,10 +43,10 @@ func TableExists(ctx context.Context, dbc *dynamodb.Client, name string) (bool, 
 }
 
 // CreateTable creates a DynamoDB table.
-func CreateTable(ctx context.Context, dbc *dynamodb.Client, input *dynamodb.CreateTableInput) error {
+func CreateTable(ctx context.Context, c *dynamodb.Client, input *dynamodb.CreateTableInput) error {
 	log.Trace().Str("name", *input.TableName).Msg("creating table")
 
-	_, err := dbc.CreateTable(ctx, input)
+	_, err := c.CreateTable(ctx, input)
 
 	if errors.As(err, &TableExistsEx) {
 		log.Warn().Str("name", *input.TableName).Msg("table already exists")
@@ -58,7 +58,7 @@ func CreateTable(ctx context.Context, dbc *dynamodb.Client, input *dynamodb.Crea
 		return err
 	}
 
-	err = dynamodb.NewTableExistsWaiter(dbc).Wait(ctx, &dynamodb.DescribeTableInput{
+	err = dynamodb.NewTableExistsWaiter(c).Wait(ctx, &dynamodb.DescribeTableInput{
 		TableName: input.TableName,
 	}, 5*time.Minute)
 
@@ -72,10 +72,10 @@ func CreateTable(ctx context.Context, dbc *dynamodb.Client, input *dynamodb.Crea
 }
 
 // DeleteTable deletes the DynamoDB table and all of its data.
-func DeleteTable(ctx context.Context, dbc *dynamodb.Client, name string) error {
+func DeleteTable(ctx context.Context, c *dynamodb.Client, name string) error {
 	log.Trace().Str("name", name).Msg("deleting table")
 
-	_, err := dbc.DeleteTable(ctx, &dynamodb.DeleteTableInput{
+	_, err := c.DeleteTable(ctx, &dynamodb.DeleteTableInput{
 		TableName: &name,
 	})
 
@@ -89,7 +89,7 @@ func DeleteTable(ctx context.Context, dbc *dynamodb.Client, name string) error {
 		return err
 	}
 
-	err = dynamodb.NewTableNotExistsWaiter(dbc).Wait(ctx, &dynamodb.DescribeTableInput{
+	err = dynamodb.NewTableNotExistsWaiter(c).Wait(ctx, &dynamodb.DescribeTableInput{
 		TableName: &name,
 	}, 5*time.Minute)
 
@@ -103,14 +103,14 @@ func DeleteTable(ctx context.Context, dbc *dynamodb.Client, name string) error {
 }
 
 // ListTables lists the DynamoDB table names for the current account.
-func ListTables(ctx context.Context, dbc *dynamodb.Client) ([]string, error) {
+func ListTables(ctx context.Context, c *dynamodb.Client) ([]string, error) {
 	log.Trace().Msg("listing tables")
 
 	var names []string
 	var output *dynamodb.ListTablesOutput
 	var err error
 
-	tablePaginator := dynamodb.NewListTablesPaginator(dbc, &dynamodb.ListTablesInput{})
+	tablePaginator := dynamodb.NewListTablesPaginator(c, &dynamodb.ListTablesInput{})
 
 	for tablePaginator.HasMorePages() {
 		if output, err = tablePaginator.NextPage(ctx); err != nil {
@@ -126,7 +126,7 @@ func ListTables(ctx context.Context, dbc *dynamodb.Client) ([]string, error) {
 }
 
 // PutItem creates a new item, or replaces an old item with a new item.
-func PutItem(ctx context.Context, dbc *dynamodb.Client, name string, a any) error {
+func PutItem(ctx context.Context, c *dynamodb.Client, name string, a any) error {
 
 	log.Trace().Str("name", name).Msg("creating item")
 
@@ -136,7 +136,7 @@ func PutItem(ctx context.Context, dbc *dynamodb.Client, name string, a any) erro
 		return err
 	}
 
-	_, err = dbc.PutItem(ctx, &dynamodb.PutItemInput{
+	_, err = c.PutItem(ctx, &dynamodb.PutItemInput{
 		Item:      item,
 		TableName: &name,
 	})
@@ -152,7 +152,7 @@ func PutItem(ctx context.Context, dbc *dynamodb.Client, name string, a any) erro
 }
 
 // DeleteItem removes an item from a DynamoDB table.
-func DeleteItem(ctx context.Context, dbc *dynamodb.Client, name string, a any) error {
+func DeleteItem(ctx context.Context, c *dynamodb.Client, name string, a any) error {
 
 	log.Trace().Str("name", name).Msg("deleting item")
 
@@ -162,7 +162,7 @@ func DeleteItem(ctx context.Context, dbc *dynamodb.Client, name string, a any) e
 		return err
 	}
 
-	_, err = dbc.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+	_, err = c.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 		TableName: &name,
 		Key:       key,
 	})
@@ -183,7 +183,7 @@ func DeleteItem(ctx context.Context, dbc *dynamodb.Client, name string, a any) e
 }
 
 // GetItem retrieves an item from the DynamoDB table.
-func GetItem[T any](ctx context.Context, dbc *dynamodb.Client, name string, a any) (t T, err error) {
+func GetItem[T any](ctx context.Context, c *dynamodb.Client, name string, a any) (t T, err error) {
 
 	log.Trace().Str("name", name).Msg("getting item")
 
@@ -194,7 +194,7 @@ func GetItem[T any](ctx context.Context, dbc *dynamodb.Client, name string, a an
 	}
 
 	var res *dynamodb.GetItemOutput
-	res, err = dbc.GetItem(ctx, &dynamodb.GetItemInput{
+	res, err = c.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: &name,
 		Key:       key,
 	})
@@ -221,7 +221,7 @@ func GetItem[T any](ctx context.Context, dbc *dynamodb.Client, name string, a an
 }
 
 // QueryByID gets all items in the DynamoDB table by the hash key.
-func QueryByID[T any](ctx context.Context, dbc *dynamodb.Client, name, key string, val uuid.UUID) ([]T, error) {
+func QueryByID[T any](ctx context.Context, c *dynamodb.Client, name, key string, val uuid.UUID) ([]T, error) {
 
 	l := log.With().
 		Str("name", name).
@@ -241,7 +241,7 @@ func QueryByID[T any](ctx context.Context, dbc *dynamodb.Client, name, key strin
 		return nil, err
 	}
 
-	queryPaginator := dynamodb.NewQueryPaginator(dbc, &dynamodb.QueryInput{
+	queryPaginator := dynamodb.NewQueryPaginator(c, &dynamodb.QueryInput{
 		TableName:                 &name,
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),

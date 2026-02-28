@@ -5,13 +5,12 @@ import (
 	"errors"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
+	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/rs/zerolog/log"
 )
 
@@ -271,14 +270,6 @@ func QueryByID[T any](ctx context.Context, c *dynamodb.Client, name, key string,
 }
 
 // New returns a new DynamoDB client with the given Region, AccessKeyID, and SecretAccessKey.
-func New(reg, aki, sac string) *dynamodb.Client {
-	return dynamodb.NewFromConfig(aws.Config{
-		Credentials: credentials.StaticCredentialsProvider{
-			Value: aws.Credentials{
-				AccessKeyID:     aki,
-				SecretAccessKey: sac,
-			},
-		},
-		Region: reg,
-	})
+func New() *dynamodb.Client {
+	return dynamodb.NewFromConfig(config.AWS())
 }

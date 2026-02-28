@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
+	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/rs/zerolog/log"
 )
 
@@ -94,6 +93,7 @@ func SendPasswordReset(ctx context.Context, c *ses.Client, to string) error {
 func sendEmail(ctx context.Context, c *ses.Client, to, subject, html string) error {
 
 	l := log.With().
+		Str("subject", subject).
 		Str("to", to).
 		Logger()
 
@@ -129,14 +129,6 @@ func sendEmail(ctx context.Context, c *ses.Client, to, subject, html string) err
 }
 
 // New returns a new s3.Client with the given Region, AccessKeyID, and SecretAccessKey.
-func New(reg, aki, sac string) *ses.Client {
-	return ses.NewFromConfig(aws.Config{
-		Credentials: credentials.StaticCredentialsProvider{
-			Value: aws.Credentials{
-				AccessKeyID:     aki,
-				SecretAccessKey: sac,
-			},
-		},
-		Region: reg,
-	})
+func New() *ses.Client {
+	return ses.NewFromConfig(config.AWS())
 }

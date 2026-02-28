@@ -6,9 +6,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/rs/zerolog/log"
 )
 
@@ -123,14 +122,6 @@ func PresignGetObject(ctx context.Context, c *s3.Client, bucket, key string, exp
 }
 
 // New returns a new s3.Client with the given Region, AccessKeyID, and SecretAccessKey.
-func New(reg, aki, sac string) *s3.Client {
-	return s3.NewFromConfig(aws.Config{
-		Credentials: credentials.StaticCredentialsProvider{
-			Value: aws.Credentials{
-				AccessKeyID:     aki,
-				SecretAccessKey: sac,
-			},
-		},
-		Region: reg,
-	})
+func New() *s3.Client {
+	return s3.NewFromConfig(config.AWS())
 }

@@ -1,12 +1,15 @@
 package handler
 
 import (
+	"encoding/base64"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	client "github.com/nelsw/bytelyon/internal/client/dynamodb"
 	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
 )
@@ -162,41 +165,88 @@ func ValidateID(c *gin.Context) {
 	c.Next()
 }
 
-func FindSettings(c *gin.Context) {
-	val, err := db.Builder[model.Settings]().First(c)
+func ValidateAuth(c *gin.Context) {
+
+	if c.Request.Method == http.MethodOptions {
+		c.Next()
+		return
+	}
+
+	authHeader := c.Request.Header.Get("Authorization")
+	if authHeader == "" {
+		authHeader = c.Request.Header.Get("authorization")
+	}
+
+	tokenType, tokenValue, _ := strings.Cut(authHeader, " ")
+	if tokenType == "Bearer" {
+		validateBearerAuth(c, tokenValue)
+		return
+	}
+
+	if tokenType == "Basic" {
+		validateBasicAuth(c, tokenValue)
+		return
+	}
+
+	c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid authorization token; must be 'Bearer <token>' or 'Basic <token>'"})
+}
+
+type Claims struct {
+	*model.User `json:"data"`
+	jwt.RegisteredClaims
+}
+
+func validateBasicAuth(c *gin.Context, token string) {
+
+	b, err := base64.StdEncoding.DecodeString(token)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	username, password, ok := strings.Cut(string(b), ":")
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid basic token; must be base64 encoded '<email>:<password>'"})
+		return
+	}
+
+	dbc := client.New()
+
+	var email model.Email
+	if email, err = client.GetItem[model.Email](c, dbc, "Email", model.Email{ID: username}); err != nil {
+		return
+	}
+
+	var pass model.Password
+	if pass, err = client.GetItem[model.Password](c, dbc, "Password", email); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err = pass.Authenticate(password); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var user model.User
+	if user, err = client.GetItem[model.User](c, dbc, "User", email); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var tkn string
+	if tkn, err = user.NewJWT(); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"token": tkn})
+}
+
+func validateBearerAuth(c *gin.Context, token string) {
+	usr, err := model.NewUser(token)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, val)
-}
-
-func CreateSettings(c *gin.Context) {
-
-	var val model.Settings
-	if err := c.Bind(&val); err != nil {
-		return
-	}
-
-	if err := db.Builder[model.Settings]().Create(c, &val); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, val)
-}
-
-func UpdateSettings(c *gin.Context) {
-	var val model.Settings
-	if err := c.Bind(&val); err != nil {
-		return
-	}
-	_, err := db.Builder[model.Settings]().
-		Where("id = ?", val.ID).
-		Updates(c, val)
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, val)
+	c.Set("user", usr)
 }

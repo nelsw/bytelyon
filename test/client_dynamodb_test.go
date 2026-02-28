@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
 	"github.com/nelsw/bytelyon/internal/client/dynamodb"
-	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -21,11 +20,7 @@ func Test_Client_Dynamo_Table_Functions(t *testing.T) {
 	var names []string
 
 	ctx := context.Background()
-	dbc := client.New(
-		config.Get[string]("AWS_REGION"),
-		config.Get[string]("AWS_ACCESS_KEY_ID"),
-		config.Get[string]("AWS_SECRET_ACCESS_KEY"),
-	)
+	dbc := client.New()
 	name := "ByteLyon_Test_Table"
 
 	ok, err = client.TableExists(ctx, dbc, name)
@@ -70,11 +65,7 @@ func Test_Client_Dynamo_Item_Functions(t *testing.T) {
 
 	var err error
 	ctx := context.Background()
-	c := client.New(
-		config.Get[string]("AWS_REGION"),
-		config.Get[string]("AWS_ACCESS_KEY_ID"),
-		config.Get[string]("AWS_SECRET_ACCESS_KEY"),
-	)
+	c := client.New()
 	name := "ByteLyon_Test_User"
 
 	type User struct {
@@ -102,11 +93,7 @@ func Test_Client_Dynamo_Query(t *testing.T) {
 
 	var err error
 	ctx := context.Background()
-	dbc := client.New(
-		config.Get[string]("AWS_REGION"),
-		config.Get[string]("AWS_ACCESS_KEY_ID"),
-		config.Get[string]("AWS_SECRET_ACCESS_KEY"),
-	)
+	dbc := client.New()
 	name := "ByteLyon_Test_Bot_News"
 
 	err = client.DeleteTable(ctx, dbc, name)

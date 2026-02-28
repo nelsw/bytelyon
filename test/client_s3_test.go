@@ -16,11 +16,7 @@ func Test_Client_S3(t *testing.T) {
 
 	var err error
 	ctx := context.Background()
-	c := client.New(
-		config.Get[string]("AWS_REGION"),
-		config.Get[string]("AWS_ACCESS_KEY_ID"),
-		config.Get[string]("AWS_SECRET_ACCESS_KEY"),
-	)
+	c := client.New()
 	bucket := config.Get[string]("AWS_S3_BUCKET")
 
 	var data = struct{ Hello string }{Hello: "World"}

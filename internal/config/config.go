@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/joho/godotenv"
 	"github.com/nelsw/bytelyon/internal/util"
 
@@ -19,11 +21,48 @@ var cfg = map[string]any{
 }
 
 func Get[T any](key string) T { return cfg[key].(T) }
+func JwtKey() string          { return cfg["JWT_SECRET"].(string) }
 func Mode() string            { return Get[string]("MODE") }
 func IsReleaseMode() bool     { return Mode() == "release" }
 func IsDebugMode() bool       { return Mode() == "debug" }
 func IsTestMode() bool        { return Mode() == "test" }
 func Port() int               { return Get[int]("PORT") }
+
+func AWS() aws.Config {
+	return aws.Config{
+		Credentials: credentials.StaticCredentialsProvider{
+			Value: aws.Credentials{
+				AccessKeyID:     Get[string]("AWS_ACCESS_KEY_ID"),
+				SecretAccessKey: Get[string]("AWS_SECRET_ACCESS_KEY"),
+			},
+		},
+		Region: Get[string]("AWS_REGION"),
+	}
+}
+
+func Init() {
+
+	if initialized {
+		return
+	}
+
+	if !loadFromCli() {
+		loadFromEnv()
+	}
+
+	validateCfg()
+
+	fmt.Println("\u001B[0;36m" + `
+██████╗ ██╗   ██╗████████╗███████╗██╗  ██╗   ██╗ ██████╗ ███╗   ██╗
+██╔══██╗╚██╗ ██╔╝╚══██╔══╝██╔════╝██║  ╚██╗ ██╔╝██╔═══██╗████╗  ██║
+██████╔╝ ╚████╔╝    ██║   █████╗  ██║   ╚████╔╝ ██║   ██║██╔██╗ ██║
+██╔══██╗  ╚██╔╝     ██║   ██╔══╝  ██║    ╚██╔╝  ██║   ██║██║╚██╗██║
+██████╔╝   ██║      ██║   ███████╗███████╗██║   ╚██████╔╝██║ ╚████║
+╚═════╝    ╚═╝      ╚═╝   ╚══════╝╚══════╝╚═╝    ╚═════╝ ╚═╝  ╚═══╝
+` + "\u001B[0m")
+
+	initialized = true
+}
 
 func loadFromCli() bool {
 
@@ -80,28 +119,4 @@ func validateCfg() {
 	} else if port := Port(); port < 10 || port > 9999 {
 		panic(fmt.Sprintf("bad port: [%d] (ports: 10-9999)", port))
 	}
-}
-
-func Init() {
-
-	if initialized {
-		return
-	}
-
-	if !loadFromCli() {
-		loadFromEnv()
-	}
-
-	validateCfg()
-
-	fmt.Println("\u001B[0;36m" + `
-██████╗ ██╗   ██╗████████╗███████╗██╗  ██╗   ██╗ ██████╗ ███╗   ██╗
-██╔══██╗╚██╗ ██╔╝╚══██╔══╝██╔════╝██║  ╚██╗ ██╔╝██╔═══██╗████╗  ██║
-██████╔╝ ╚████╔╝    ██║   █████╗  ██║   ╚████╔╝ ██║   ██║██╔██╗ ██║
-██╔══██╗  ╚██╔╝     ██║   ██╔══╝  ██║    ╚██╔╝  ██║   ██║██║╚██╗██║
-██████╔╝   ██║      ██║   ███████╗███████╗██║   ╚██████╔╝██║ ╚████║
-╚═════╝    ╚═╝      ╚═╝   ╚══════╝╚══════╝╚═╝    ╚═════╝ ╚═╝  ╚═══╝
-` + "\u001B[0m")
-
-	initialized = true
 }

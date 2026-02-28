@@ -83,7 +83,7 @@ func Test_Client_Dynamo_Item_Functions(t *testing.T) {
 
 	var exp = User{util.Must(uuid.NewV7())}
 
-	err = dynamo.CreateItem(ctx, dbc, name, exp)
+	err = dynamo.PutItem(ctx, dbc, name, exp)
 	assert.NoError(t, err)
 
 	var act = User{exp.ID}
@@ -151,7 +151,7 @@ func Test_Client_Dynamo_Query(t *testing.T) {
 
 	for j := 0; j < 2; j++ {
 		for i := 0; i < 5; i++ {
-			err = dynamo.CreateItem(ctx, dbc, name, Bot{
+			err = dynamo.PutItem(ctx, dbc, name, Bot{
 				UserID:    ids[j],
 				ID:        util.Must(uuid.NewV7()),
 				Frequency: time.Hour * time.Duration(fake.Uint8()),

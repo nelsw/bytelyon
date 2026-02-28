@@ -125,8 +125,8 @@ func ListTables(ctx context.Context, dbc *dynamodb.Client) ([]string, error) {
 	return names, nil
 }
 
-// CreateItem creates a new item, or replaces an old item with a new item.
-func CreateItem(ctx context.Context, dbc *dynamodb.Client, name string, a any) error {
+// PutItem creates a new item, or replaces an old item with a new item.
+func PutItem(ctx context.Context, dbc *dynamodb.Client, name string, a any) error {
 
 	log.Trace().Str("name", name).Msg("creating item")
 

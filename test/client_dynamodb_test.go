@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
-	"github.com/nelsw/bytelyon/internal/client/dynamo"
+	"github.com/nelsw/bytelyon/internal/client/dynamodb"
 	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/stretchr/testify/assert"

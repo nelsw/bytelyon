@@ -1,32 +1,53 @@
 package model
 
 import (
-	"net/mail"
-
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
+	. "github.com/nelsw/bytelyon/internal/config"
+	. "github.com/nelsw/bytelyon/internal/util"
 )
 
 // Email represents a single mail address, the User it belongs to, a token for address confirmation.
 type Email struct {
 
 	// ID is a unique email address and primary key of the Email table.
-	ID string `json:"address" dynamodbav:"ID,binary"`
+	ID string `json:"ID" dynamodbav:"ID,string"`
 
 	// UserID is a foreign key reference to define which Email belongs-to a User.
 	UserID uuid.UUID `json:"-" dynamodbav:"UserID,binary"`
-
-	// Token is present when confirming an Email address, and omitted (nil) once empty.
-	Token string `json:"token,omitempty" dynamodbav:"Token,omitempty"`
 }
 
-// Validate asserts that the given address follows RFC 5322.
-func (e *Email) Validate() error {
-	log.Trace().Str("email", e.ID).Msg("validating email address")
-	if _, err := mail.ParseAddress(e.ID); err != nil {
-		log.Warn().Err(err).Str("email", e.ID).Msg("invalid email address")
-		return err
+func (e *Email) Desc() *dynamodb.CreateTableInput {
+	return &dynamodb.CreateTableInput{
+		BillingMode: types.BillingModeProvisioned,
+		KeySchema: []types.KeySchemaElement{{
+			AttributeName: Ptr("ID"),
+			KeyType:       types.KeyTypeHash,
+		}},
+		AttributeDefinitions: []types.AttributeDefinition{{
+			AttributeName: Ptr("ID"),
+			AttributeType: types.ScalarAttributeTypeS,
+		}},
+		ProvisionedThroughput: &types.ProvisionedThroughput{
+			ReadCapacityUnits:  Ptr(int64(10)),
+			WriteCapacityUnits: Ptr(int64(10)),
+		},
+		TableName: Ptr(e.Name()),
 	}
-	log.Debug().Str("email", e.ID).Msg("valid email address")
-	return nil
+}
+
+func (e *Email) Key() map[string]any {
+	return map[string]any{"ID": e.ID}
+}
+
+func (e *Email) Name() string {
+	return "ByteLyon_" + ModeTitle() + "_Email"
+}
+
+func NewEmail(u *User, str string) *Email {
+	return &Email{
+		ID:     str,
+		UserID: u.ID,
+	}
 }

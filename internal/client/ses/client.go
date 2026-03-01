@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
-	"github.com/nelsw/bytelyon/internal/config"
+	. "github.com/nelsw/bytelyon/internal/config"
 	"github.com/rs/zerolog/log"
 )
 
@@ -78,16 +79,23 @@ var (
 	replyTo = fmt.Sprintf("ByteLyon <no-reply@bytelyon.com>")
 )
 
-func SendEmailConfirmation(ctx context.Context, c *ses.Client, to string) error {
-	html := strings.ReplaceAll(template, "{{href}}", "https://ByteLyon.com/confirm-email")
-	html = strings.ReplaceAll(template, "{{text}}", "Confirm Email")
+func SendEmailConfirmation(ctx context.Context, c *ses.Client, to, tkn string) error {
+	html := strings.ReplaceAll(template, "{{href}}", url("?tkn="+tkn))
+	html = strings.ReplaceAll(html, "{{text}}", "Confirm Email")
 	return sendEmail(ctx, c, to, `🦁 Confirm Email`, html)
 }
 
-func SendPasswordReset(ctx context.Context, c *ses.Client, to string) error {
-	html := strings.ReplaceAll(template, "{{href}}", "https://ByteLyon.com/reset-password")
-	html = strings.ReplaceAll(template, "{{text}}", "Reset Password")
+func SendPasswordReset(ctx context.Context, c *ses.Client, to, tkn string) error {
+	html := strings.ReplaceAll(template, "{{href}}", url("?tkn="+tkn))
+	html = strings.ReplaceAll(html, "{{text}}", "Reset Password")
 	return sendEmail(ctx, c, to, `🦁 Reset Password`, html)
+}
+
+func url(s string) string {
+	if IsReleaseMode() {
+		return "https://ByteLyon.com" + s
+	}
+	return "http://localhost:8081" + s
 }
 
 func sendEmail(ctx context.Context, c *ses.Client, to, subject, html string) error {
@@ -129,6 +137,13 @@ func sendEmail(ctx context.Context, c *ses.Client, to, subject, html string) err
 }
 
 // New returns a new s3.Client with the given Region, AccessKeyID, and SecretAccessKey.
-func New() *ses.Client {
-	return ses.NewFromConfig(config.AWS())
+func New(args ...context.Context) (*ses.Client, error) {
+	if len(args) == 0 {
+		args = append(args, context.Background())
+	}
+	cfg, err := config.LoadDefaultConfig(args[0])
+	if err != nil {
+		return nil, err
+	}
+	return ses.NewFromConfig(cfg), nil
 }

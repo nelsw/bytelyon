@@ -5,46 +5,36 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/joho/godotenv"
 	"github.com/nelsw/bytelyon/internal/util"
 
 	"regexp"
 )
 
-var initialized bool
+const (
+	AppTC = "ByteLyon"
+	AppLC = "bytelyon"
+)
+
 var cfg = map[string]any{
 	"MODE": "debug",
 	"PORT": 8085,
 }
 
 func Get[T any](key string) T { return cfg[key].(T) }
-func JwtKey() string          { return cfg["JWT_SECRET"].(string) }
+func JwtKey() []byte          { return []byte(cfg["JWT_SECRET"].(string)) }
 func Mode() string            { return Get[string]("MODE") }
+func ModeTitle() string       { return strings.ToUpper(Mode()[0:1]) + Mode()[1:] }
 func IsReleaseMode() bool     { return Mode() == "release" }
 func IsDebugMode() bool       { return Mode() == "debug" }
 func IsTestMode() bool        { return Mode() == "test" }
 func Port() int               { return Get[int]("PORT") }
-
-func AWS() aws.Config {
-	return aws.Config{
-		Credentials: credentials.StaticCredentialsProvider{
-			Value: aws.Credentials{
-				AccessKeyID:     Get[string]("AWS_ACCESS_KEY_ID"),
-				SecretAccessKey: Get[string]("AWS_SECRET_ACCESS_KEY"),
-			},
-		},
-		Region: Get[string]("AWS_REGION"),
-	}
-}
+func MigrateTables() bool     { return Get[int]("DB_MIGRATE_TABLES") == 1 }
+func SeedTables() bool        { return Get[int]("DB_SEED_TABLES") == 1 }
 
 func Init() {
-
-	if initialized {
-		return
-	}
 
 	if !loadFromCli() {
 		loadFromEnv()
@@ -61,7 +51,6 @@ func Init() {
 ╚═════╝    ╚═╝      ╚═╝   ╚══════╝╚══════╝╚═╝    ╚═════╝ ╚═╝  ╚═══╝
 ` + "\u001B[0m")
 
-	initialized = true
 }
 
 func loadFromCli() bool {

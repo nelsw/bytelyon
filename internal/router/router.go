@@ -15,15 +15,20 @@ func New() *gin.Engine {
 	r := gin.New()
 
 	r.Static("/static", "./web")
-	r.Use(gin.Recovery(), gin.Logger(), cors.Default())
+	cfg := cors.DefaultConfig()
+	cfg.AllowAllOrigins = true
+	cfg.AllowCredentials = true
+	cfg.AllowHeaders = append(cfg.AllowHeaders, "Authorization")
+
+	r.Use(gin.Recovery(), gin.Logger(), cors.New(cfg))
 
 	api := r.Group("/api", ValidateAuth)
 	{
 		api.Group("/user").
-			POST("/confirm-email").
-			POST("/login").
-			POST("/change-password").
-			POST("/signup")
+			POST("/login", Login).
+			POST("/forgot-password", ForgotPassword).
+			POST("/signup", Signup).
+			POST("/token/:token", Token)
 	}
 	{
 		api.Group("/bots").

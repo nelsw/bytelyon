@@ -4,9 +4,12 @@ import (
 	"errors"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/nelsw/bytelyon/internal/config"
+	. "github.com/nelsw/bytelyon/internal/config"
+	. "github.com/nelsw/bytelyon/internal/util"
 	"github.com/rs/zerolog/log"
 )
 
@@ -16,6 +19,37 @@ var (
 
 type User struct {
 	ID uuid.UUID `json:"id" dynamodbav:"ID,binary"`
+}
+
+func (u *User) Desc() *dynamodb.CreateTableInput {
+	return &dynamodb.CreateTableInput{
+		BillingMode: types.BillingModeProvisioned,
+		KeySchema: []types.KeySchemaElement{{
+			AttributeName: Ptr("ID"),
+			KeyType:       types.KeyTypeHash,
+		}},
+		AttributeDefinitions: []types.AttributeDefinition{{
+			AttributeName: Ptr("ID"),
+			AttributeType: types.ScalarAttributeTypeB,
+		}},
+		ProvisionedThroughput: &types.ProvisionedThroughput{
+			ReadCapacityUnits:  Ptr(int64(10)),
+			WriteCapacityUnits: Ptr(int64(10)),
+		},
+		TableName: Ptr(u.Name()),
+	}
+}
+
+func (u *User) Name() string {
+	return "ByteLyon_" + ModeTitle() + "_User"
+}
+
+func (u *User) Key() map[string]any {
+	return map[string]any{"ID": u.ID}
+}
+
+func (u *User) Validate() error {
+	return nil
 }
 
 func (u *User) NewJWT() (string, error) {
@@ -29,7 +63,7 @@ func (u *User) NewJWT() (string, error) {
 		Issuer:    "https://ByteLyon.com",
 		NotBefore: jwt.NewNumericDate(time.Now().UTC()),
 		Subject:   u.ID.String(),
-	}).SignedString(config.JwtKey())
+	}).SignedString(JwtKey())
 
 	if err != nil {
 		log.Err(err).Msg("error creating JWT token")
@@ -45,7 +79,7 @@ func NewUser(str string) (*User, error) {
 	log.Trace().Msg("creating new user from JWT")
 
 	tkn, err := jwt.ParseWithClaims(str, &jwt.RegisteredClaims{}, func(*jwt.Token) (any, error) {
-		return []byte(config.JwtKey()), nil
+		return JwtKey(), nil
 	})
 
 	if err != nil {

@@ -1,24 +1,20 @@
 package sitemap
 
 import (
-	"context"
 	"sort"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	client "github.com/nelsw/bytelyon/internal/client/dynamodb"
 	"github.com/nelsw/bytelyon/internal/model"
+	"github.com/nelsw/bytelyon/internal/service/db"
 	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/rs/zerolog/log"
 )
 
 type Worker struct {
-	context.Context
-	*dynamodb.Client
 	*model.SitemapBot
 }
 
-func New(ctx context.Context, dbc *dynamodb.Client, bot *model.SitemapBot) *Worker {
-	return &Worker{ctx, dbc, bot}
+func New(bot *model.SitemapBot) *Worker {
+	return &Worker{bot}
 }
 
 func (w *Worker) Work() {
@@ -31,7 +27,7 @@ func (w *Worker) Work() {
 	sort.Strings(m.Relative())
 	sort.Strings(m.Remote())
 
-	err := client.PutItem(w.Context, w.Client, &model.SitemapBotData{
+	err := db.Save(&model.SitemapBotData{
 		BotID:    w.BotID,
 		URL:      w.Target,
 		Domain:   util.Domain(w.Target),

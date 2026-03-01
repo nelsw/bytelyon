@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/nelsw/bytelyon/internal/client/dynamodb"
 	"github.com/nelsw/bytelyon/internal/model"
+	"github.com/nelsw/bytelyon/internal/service/db"
 )
 
 var (
@@ -20,28 +20,35 @@ var (
 
 func SaveBot(c *gin.Context) {
 
-	ƒ := func(e client.Entity) {
-		if err := c.Bind(&e); err != nil {
+	t := model.BotType(c.Param("type"))
+
+	if t == model.SitemapBotType {
+		var b model.SitemapBot
+		if err := c.Bind(&b); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
-		} else if err = e.Validate(); err != nil {
+		} else if err = b.Validate(); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
-		} else if err = client.PutItem(c, db, e); err != nil {
+		} else if err = db.Save(&b); err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		} else {
-			c.JSON(http.StatusCreated, e)
+			c.JSON(http.StatusCreated, &b)
 		}
+		return
 	}
 
-	switch t := model.BotType(c.Param("type")); t {
-	case model.SearchBotType:
-		ƒ(&model.SearchBot{})
-	case model.SitemapBotType:
-		ƒ(&model.SitemapBot{})
-	case model.NewsBotType:
-		ƒ(&model.NewsBot{})
-	default:
-		c.AbortWithStatusJSON(http.StatusBadRequest, badBotType(c.Param("type")))
+	if t == model.SearchBotType || t == model.NewsBotType {
+		var a any
+		if err := c.Bind(&a); err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
+		} else if err = db.Save(&a); err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
+		} else {
+			c.JSON(http.StatusCreated, &a)
+		}
+		return
 	}
+
+	c.AbortWithStatusJSON(http.StatusBadRequest, badBotType(c.Param("type")))
 }
 
 func GetBots(c *gin.Context) {
@@ -51,11 +58,11 @@ func GetBots(c *gin.Context) {
 
 	switch t := model.BotType(c.Param("type")); t {
 	case model.SearchBotType:
-		arr, err = client.QueryByID[model.SearchBot](c, db, &model.SearchBot{}, c.MustGet("userID").(uuid.UUID))
+		arr, err = db.Query[model.SearchBot](model.SearchBot{}, "UserID", c.MustGet("userID").(uuid.UUID))
 	case model.SitemapBotType:
-		arr, err = client.QueryByID[model.SitemapBot](c, db, &model.SitemapBot{}, c.MustGet("userID").(uuid.UUID))
+		arr, err = db.Query[model.SitemapBot](model.SitemapBot{}, "UserID", c.MustGet("userID").(uuid.UUID))
 	case model.NewsBotType:
-		arr, err = client.QueryByID[model.NewsBot](c, db, &model.NewsBot{}, c.MustGet("userID").(uuid.UUID))
+		arr, err = db.Query[model.NewsBot](model.NewsBot{}, "UserID", c.MustGet("userID").(uuid.UUID))
 	default:
 		c.AbortWithStatusJSON(http.StatusBadRequest, badBotType(c.Param("type")))
 	}
@@ -74,18 +81,18 @@ func DeleteBot(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
 	}
 
-	bot := model.Bot{
-		UserID: c.MustGet("userID").(uuid.UUID),
-		BotID:  uuid.MustParse(c.Param("botID")),
+	bot := map[string]any{
+		"UserID": c.MustGet("userID").(uuid.UUID),
+		"BotID":  uuid.MustParse(c.Param("botID")),
 	}
 
 	switch t := model.BotType(c.Param("type")); t {
 	case model.SearchBotType:
-		err = client.DeleteItem[model.Bot](c, db, &model.SearchBot{Bot: bot})
+		err = db.Wipe(model.SearchBot{}, bot)
 	case model.SitemapBotType:
-		err = client.DeleteItem[model.Bot](c, db, &model.SitemapBot{Bot: bot})
+		err = db.Wipe(model.SitemapBot{}, bot)
 	case model.NewsBotType:
-		err = client.DeleteItem[model.Bot](c, db, &model.NewsBot{Bot: bot})
+		err = db.Wipe(model.NewsBot{}, bot)
 	default:
 		c.AbortWithStatusJSON(http.StatusBadRequest, badBotType(c.Param("type")))
 	}
@@ -110,7 +117,7 @@ func DeleteBotData(c *gin.Context) {
 		var url []byte
 		if url, err = base64.URLEncoding.DecodeString(c.Param("dataID")); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
-		} else if err = client.DeleteItem(c, db, &model.NewsBotData{BotID: botID, URL: string(url)}); err != nil {
+		} else if err = db.Wipe(model.NewsBotData{}, map[string]any{"BotID": botID, "URL": string(url)}); err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		} else {
 			c.Status(http.StatusOK)
@@ -126,9 +133,9 @@ func DeleteBotData(c *gin.Context) {
 		}
 
 		if t == model.SearchBotType {
-			err = client.DeleteItem(c, db, &model.SearchBotData{BotID: botID, DataID: dataID})
+			err = db.Wipe(model.SearchBotData{}, map[string]any{"BotID": botID, "DataID": dataID})
 		} else {
-			err = client.DeleteItem(c, db, &model.SitemapBotData{BotID: botID, DataID: dataID})
+			err = db.Wipe(model.SitemapBotData{}, map[string]any{"BotID": botID, "DataID": dataID})
 		}
 
 		if err != nil {
@@ -152,11 +159,11 @@ func GetBotData(c *gin.Context) {
 	var arr any
 	switch t := model.BotType(c.Param("type")); t {
 	case model.SearchBotType:
-		arr, err = client.QueryByID[model.SearchBotData](c, db, &model.SearchBotData{}, botID)
+		arr, err = db.Query[model.SearchBotData](model.SearchBotData{}, "BotID", botID)
 	case model.SitemapBotType:
-		arr, err = client.QueryByID[model.SitemapBotData](c, db, &model.SitemapBotData{}, botID)
+		arr, err = db.Query[model.SitemapBotData](model.SitemapBotData{}, "BotID", botID)
 	case model.NewsBotType:
-		arr, err = client.QueryByID[model.NewsBotData](c, db, &model.NewsBotData{}, botID)
+		arr, err = db.Query[model.NewsBotData](model.NewsBotData{}, "BotID", botID)
 	default:
 		c.AbortWithStatusJSON(http.StatusBadRequest, badBotType(c.Param("type")))
 	}

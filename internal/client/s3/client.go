@@ -122,8 +122,3 @@ func PresignGetObject(ctx context.Context, c *s3.Client, key string, exp time.Du
 
 	return out.URL, nil
 }
-
-// New returns a new s3.Client with the given Region, AccessKeyID, and SecretAccessKey.
-func New(args ...context.Context) (*s3.Client, error) {
-	return s3.NewFromConfig(config.Aws()), nil
-}

@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/nelsw/bytelyon/internal/client/prowl"
-	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
-	"github.com/nelsw/bytelyon/internal/store"
+	"github.com/nelsw/bytelyon/internal/service/db"
+	"github.com/nelsw/bytelyon/internal/service/s3"
 	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
@@ -185,7 +185,7 @@ func (w *Worker) save(s model.SearchBotData, page playwright.Page, c *prowl.Clie
 		log.Warn().Err(err).Msg("Failed to Screenshot SearchPage")
 	} else {
 		k := ƒ(s, page.URL(), "png")
-		if err = store.Save(k, img); err != nil {
+		if err = s3.Save(k, img); err != nil {
 			log.Warn().Err(err).Msg("Failed to Save Search Page (Screenshot)")
 		} else {
 			p["screenshot"] = k
@@ -196,7 +196,7 @@ func (w *Worker) save(s model.SearchBotData, page playwright.Page, c *prowl.Clie
 		log.Warn().Err(err).Msg("Failed to get SearchPage Content")
 	} else {
 		k := ƒ(s, page.URL(), "html")
-		if err = store.Save(k, content); err != nil {
+		if err = s3.Save(k, content); err != nil {
 			log.Warn().Err(err).Msg("Failed to Save Search Content")
 		} else {
 			p["content"] = k

@@ -7,24 +7,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	dbClient "github.com/nelsw/bytelyon/internal/client/dynamodb"
-	seClient "github.com/nelsw/bytelyon/internal/client/ses"
-	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/nelsw/bytelyon/internal/model"
+	"github.com/nelsw/bytelyon/internal/service/db"
+	"github.com/nelsw/bytelyon/internal/service/ses"
 	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/rs/zerolog/log"
 )
-
-var (
-	db *dynamodb.Client
-)
-
-func init() {
-	db = dynamodb.NewFromConfig(config.Aws())
-}
 
 func Token(c *gin.Context) {
 	ID, err := uuid.Parse(c.Param("token"))
@@ -34,7 +24,7 @@ func Token(c *gin.Context) {
 	}
 
 	var tkn model.Token
-	if tkn, err = dbClient.GetItem[model.Token](c, db, &model.Token{ID: ID}); err != nil {
+	if tkn, err = db.Find[model.Token](model.Token{}, map[string]any{"ID": ID}); err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -54,7 +44,7 @@ func Token(c *gin.Context) {
 	} else if tkn.Type == model.ResetPasswordTokenType {
 
 		var pass model.Password
-		if pass, err = dbClient.GetItem[model.Password](c, db, &model.Password{ID: tkn.UserID}); err != nil {
+		if pass, err = db.Find[model.Password](model.Password{}, map[string]any{"ID": tkn.UserID}); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "failed to find user and password from token"})
 			return
 		}
@@ -65,13 +55,13 @@ func Token(c *gin.Context) {
 			return
 		}
 		pass.Update(a.(*model.Credentials).Password)
-		if err = dbClient.PutItem(c, db, &pass); err != nil {
+		if err = db.Save(&pass); err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 	}
 
-	if err = dbClient.DeleteItem[model.Token](c, db, &model.Token{ID: ID}); err != nil {
+	if err = db.Wipe(model.Token{}, map[string]any{"ID": ID}); err != nil {
 		log.Warn().Err(err).Msg("failed to delete token")
 	}
 
@@ -97,7 +87,7 @@ func Signup(c *gin.Context) {
 	creds := a.(*model.Credentials)
 
 	// have we seen this email address before
-	email, err := dbClient.GetItem[model.Email](c, db, &model.Email{ID: creds.Username})
+	email, err := db.Find[model.Email](model.Email{}, map[string]any{"ID": creds.Username})
 	if err != nil {
 		log.Err(err).Msg("failed to get email on signup")
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
@@ -112,27 +102,27 @@ func Signup(c *gin.Context) {
 
 		// create a user
 		user = model.User{util.Must(uuid.NewV7())}
-		if err = dbClient.PutItem(c, db, &user); err != nil {
+		if err = db.Save(user); err != nil {
 			log.Err(err).Msg("failed to put user on signup")
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 
 		// create a password
-		if err = dbClient.PutItem(c, db, model.NewPassword(user.ID, creds.Password)); err != nil {
+		if err = db.Save(model.NewPassword(user.ID, creds.Password)); err != nil {
 			log.Err(err).Msg("failed to put password on signup")
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 
 		// create email
-		if err = dbClient.PutItem(c, db, model.NewEmail(user.ID, creds.Username)); err != nil {
+		if err = db.Save(model.NewEmail(user.ID, creds.Username)); err != nil {
 			log.Err(err).Msg("failed to put email on signup")
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		}
 	} else {
 		// we've seen this email before
-		if user, err = dbClient.GetItem[model.User](c, db, &model.User{ID: email.UserID}); err != nil {
+		if user, err = db.Find[model.User](model.User{}, map[string]any{"ID": email.UserID}); err != nil {
 			log.Err(err).Msg("failed to get user on signup")
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -140,15 +130,14 @@ func Signup(c *gin.Context) {
 	}
 
 	tkn := model.NewConfirmEmailToken(email.UserID)
-	if err = dbClient.PutItem(c, db, tkn); err != nil {
+	if err = db.Save(tkn); err != nil {
 		log.Err(err).Msg("failed to put token on signup")
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
 
-	sec := util.Must(seClient.New())
-	if err = seClient.SendEmailConfirmation(c, sec, creds.Username, tkn.ID.String()); err != nil {
+	if err = ses.SendEmailConfirmation(creds.Username, tkn.ID.String()); err != nil {
 		log.Err(err).Msg("failed to send email on signup")
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -175,26 +164,20 @@ func ForgotPassword(c *gin.Context) {
 	}
 	creds := a.(*model.Credentials)
 
-	db, err := dbClient.New()
+	email, err := db.Find[model.Email](model.Email{}, map[string]any{"ID": creds.Username})
 	if err != nil {
-		panic(err)
-	}
-
-	var email model.Email
-	if email, err = dbClient.GetItem[model.Email](c, db, &model.Email{ID: creds.Username}); err != nil {
 		log.Err(err).Msg("failed to get email on forgot password")
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
 	tkn := model.NewResetPasswordToken(email.UserID)
-	if err = dbClient.PutItem(c, db, tkn); err != nil {
+	if err = db.Save(tkn); err != nil {
 		log.Err(err).Msg("failed to put token on forgot password")
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
 
-	sec := util.Must(seClient.New())
-	if err = seClient.SendPasswordReset(c, sec, email.ID, tkn.ID.String()); err != nil {
+	if err = ses.SendPasswordReset(email.ID, tkn.ID.String()); err != nil {
 		log.Err(err).Msg("failed to send email on forgot password")
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
@@ -266,7 +249,7 @@ func validateBasicAuth(c *gin.Context, token string) {
 	}
 
 	var email model.Email
-	if email, err = dbClient.GetItem[model.Email](c, db, &model.Email{ID: username}); err != nil {
+	if email, err = db.Find[model.Email](model.Email{}, map[string]any{"ID": username}); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("user not found for email %s", username),
 		})
@@ -274,7 +257,7 @@ func validateBasicAuth(c *gin.Context, token string) {
 	}
 
 	var pass model.Password
-	if pass, err = dbClient.GetItem[model.Password](c, db, &model.Password{ID: email.UserID}); err != nil {
+	if pass, err = db.Find[model.Password](model.Password{}, map[string]any{"ID": email.UserID}); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -284,7 +267,7 @@ func validateBasicAuth(c *gin.Context, token string) {
 	}
 
 	var user model.User
-	if user, err = dbClient.GetItem[model.User](c, db, &model.User{ID: email.UserID}); err != nil {
+	if user, err = db.Find[model.User](model.User{}, map[string]any{"ID": email.UserID}); err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

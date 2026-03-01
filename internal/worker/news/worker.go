@@ -1,7 +1,6 @@
 package news
 
 import (
-	"context"
 	"encoding/xml"
 	"fmt"
 	"regexp"
@@ -9,10 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	client "github.com/nelsw/bytelyon/internal/client/dynamodb"
 	"github.com/nelsw/bytelyon/internal/client/fetch"
 	"github.com/nelsw/bytelyon/internal/model"
+	"github.com/nelsw/bytelyon/internal/service/db"
 	"github.com/rs/zerolog/log"
 )
 
@@ -21,13 +19,11 @@ var (
 )
 
 type Worker struct {
-	context.Context
-	*dynamodb.Client
 	*model.NewsBot
 }
 
-func New(ctx context.Context, dbc *dynamodb.Client, bot *model.NewsBot) *Worker {
-	return &Worker{ctx, dbc, bot}
+func New(bot *model.NewsBot) *Worker {
+	return &Worker{bot}
 }
 
 func (w *Worker) Work() {
@@ -110,7 +106,7 @@ func (w *Worker) workUrl(url string) {
 				i.Description = i.Description[strings.LastIndex(i.Description, ">")+1:]
 			}
 
-			err = client.PutItem(w.Context, w.Client, &model.NewsBotData{
+			err = db.Save(&model.NewsBotData{
 				BotID:       w.BotID,
 				URL:         i.URL,
 				Title:       i.Title,

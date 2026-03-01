@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
+	"github.com/nelsw/bytelyon/internal/service/db"
 	"github.com/nelsw/bytelyon/internal/worker/news"
 	"github.com/nelsw/bytelyon/internal/worker/search"
 	"github.com/nelsw/bytelyon/internal/worker/sitemap"
@@ -41,54 +41,26 @@ func (m *Manager) Start() {
 
 func (m *Manager) work() {
 
-	//db := util.Must(dbClient.New())
-	//
-	////bots, err := db.Builder[model.Bot]().Where("frequency > ?", 0).Find(context.Background())
-	//
-	//log.Debug().Msgf("bots found [%d]", len(bots))
-	//if len(bots) == 0 {
-	//	return
-	//}
-	//
-	//var ready int
-	//for _, job := range bots {
-	//	if job.UpdatedAt.Add(job.Frequency).Before(time.Now()) {
-	//		ready++
-	//	}
-	//}
-	//
-	//log.Debug().Msgf("bots ready [%d]", ready)
-	//if ready == 0 {
-	//	return
-	//}
-	//
-	//var wg sync.WaitGroup
-	//for _, bot := range bots {
-	//	wg.Go(func() {
-	//		switch bot.Type {
-	//		case model.NewsBotType:
-	//			news.New(&bot).Work()
-	//		case model.SitemapBotType:
-	//			sitemap.New(&bot).Work()
-	//		case model.SearchBotType:
-	//			search.New(&bot).Work()
-	//		default:
-	//			log.Warn().Msg("unknown bot type")
-	//			return
-	//		}
-	//		// A frequency of 1 means the bot runs once
-	//		// Reset it to 0 so it doesn't run again
-	//		if bot.Frequency == 1 {
-	//			bot.Frequency = 0
-	//
-	//			if err != nil {
-	//				log.Err(err).Msg("manager failed to zero out bot frequency")
-	//			}
-	//		}
-	//	})
-	//}
-	//wg.Wait()
-	//log.Debug().Msg("bots deployed")
+	users, err := db.Scan[model.User](model.User{})
+	if err != nil {
+		log.Error().Err(err).Msg("user scan failed")
+		return
+	}
+
+	log.Debug().Int("size", len(users)).Msg("users found")
+
+	var wg sync.WaitGroup
+	for _, user := range users {
+		wg.Go(func() {
+			m.workSearchBots(user)
+			m.workSitemapBots(user)
+			m.workNewsBots(user)
+			log.Debug().Stringer("user", user.ID).Msg("robots deployed")
+		})
+	}
+	log.Debug().Msg("waiting for all robots to deploy")
+	wg.Wait()
+	log.Debug().Msg("all robots deployed")
 }
 
 func (m *Manager) Stop(ctx context.Context) error {
@@ -137,7 +109,7 @@ func (m *Manager) workSearchBots(user model.User) {
 	for _, b := range bots {
 		wg.Go(func() {
 			if b.IsReady() {
-				search.New(m.Context, m.Client, &b).Work()
+				search.New(&b).Work()
 			}
 		})
 	}
@@ -156,7 +128,7 @@ func (m *Manager) workSitemapBots(user model.User) {
 	for _, b := range bots {
 		wg.Go(func() {
 			if b.IsReady() {
-				sitemap.New(m.Context, m.Client, &b).Work()
+				sitemap.New(&b).Work()
 			}
 		})
 	}
@@ -174,7 +146,7 @@ func (m *Manager) workNewsBots(user model.User) {
 	for _, b := range bots {
 		wg.Go(func() {
 			if b.IsReady() {
-				news.New(m.Context, m.Client, &b).Work()
+				news.New(&b).Work()
 			}
 		})
 	}

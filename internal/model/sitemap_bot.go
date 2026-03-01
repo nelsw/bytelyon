@@ -3,6 +3,10 @@ package model
 import (
 	"fmt"
 	"strings"
+
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	. "github.com/nelsw/bytelyon/internal/config"
+	. "github.com/nelsw/bytelyon/internal/util"
 )
 
 type SitemapBot struct {
@@ -14,4 +18,14 @@ func (b *SitemapBot) Validate() error {
 		return fmt.Errorf("bad url, must begin with https://")
 	}
 	return nil
+}
+
+func (b *SitemapBot) Name() string {
+	return "ByteLyon_" + ModeTitle() + "_Sitemap_Bot"
+}
+
+func (b *SitemapBot) Desc() *dynamodb.CreateTableInput {
+	d := b.Bot.desc()
+	d.TableName = Ptr(b.Name())
+	return d
 }

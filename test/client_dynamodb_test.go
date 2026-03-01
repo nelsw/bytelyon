@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	dbClient "github.com/nelsw/bytelyon/internal/client/dynamodb"
@@ -36,80 +37,51 @@ func Test_Client_Dynamo_Item_Functions(t *testing.T) {
 
 func Test_Client_Dynamo_Query(t *testing.T) {
 
-	//var err error
-	//ctx := context.Background()
-	//dbc := util.Must(dbClient.New())
-	//name := "ByteLyon_Test_Bot_News"
-	//
-	//err = dbClient.DeleteTable(ctx, dbc, name)
-	//assert.NoError(t, err)
-	//
-	//err = dbClient.CreateTable(ctx, dbc, &dynamodb.CreateTableInput{
-	//	TableName:   &name,
-	//	BillingMode: types.BillingModeProvisioned,
-	//	ProvisionedThroughput: &types.ProvisionedThroughput{
-	//		ReadCapacityUnits:  util.Ptr(int64(10)),
-	//		WriteCapacityUnits: util.Ptr(int64(10)),
-	//	},
-	//	KeySchema: []types.KeySchemaElement{{
-	//		AttributeName: util.Ptr("UserID"),
-	//		KeyType:       types.KeyTypeHash,
-	//	}, {
-	//		AttributeName: util.Ptr("ID"),
-	//		KeyType:       types.KeyTypeRange,
-	//	}},
-	//	AttributeDefinitions: []types.AttributeDefinition{{
-	//		AttributeName: util.Ptr("UserID"),
-	//		AttributeType: types.ScalarAttributeTypeB,
-	//	}, {
-	//		AttributeName: util.Ptr("ID"),
-	//		AttributeType: types.ScalarAttributeTypeB,
-	//	}},
-	//})
-	//assert.NoError(t, err)
-	//
-	//type Bot struct {
-	//	ID        uuid.UUID     `json:"id" dynamodbav:"ID,binary"`
-	//	UserID    uuid.UUID     `json:"userId" dynamodbav:"UserID,binary"`
-	//	Frequency time.Duration `json:"frequency" dynamodbav:"Frequency,number"`
-	//	BlackList []string      `json:"blackList" dynamodbav:"BlackList,stringset"`
-	//	Headless  bool          `json:"headless" dynamodbav:"Headless,boolean"`
-	//}
-	//
-	//ids := []uuid.UUID{
-	//	util.Must(uuid.NewV7()),
-	//	util.Must(uuid.NewV7()),
-	//}
-	//
-	//for j := 0; j < 2; j++ {
-	//	for i := 0; i < 5; i++ {
-	//		err = dbClient.PutItem(ctx, dbc, Bot{
-	//			UserID:    ids[j],
-	//			ID:        util.Must(uuid.NewV7()),
-	//			Frequency: time.Hour * time.Duration(fake.Uint8()),
-	//			BlackList: []string{
-	//				fake.DomainName(),
-	//			},
-	//			Headless: fake.Bool(),
-	//		})
-	//		assert.NoError(t, err)
-	//	}
-	//}
-	//
-	//var arr []Bot
-	//arr, err = dbClient.QueryByID[Bot](ctx, dbc, name, "UserID", ids[0])
-	//assert.NoError(t, err)
-	//assert.Len(t, arr, 5)
-	//util.PrettyPrintln(arr)
+	userIDs := []uuid.UUID{util.Must(uuid.NewV7()), util.Must(uuid.NewV7())}
+
+	var arr []dbClient.Entity
+
+	for i := 0; i < 10; i++ {
+
+		bot := model.Bot{
+			UserID:    userIDs[i%2],
+			BotID:     util.Must(uuid.NewV7()),
+			BlackList: []string{fake.DomainName()},
+			Frequency: time.Hour * time.Duration(fake.Uint8()),
+			Target:    fake.URL(),
+			UpdatedAt: time.Now(),
+		}
+
+		if i < 3 {
+			arr = append(arr, &model.SearchBot{Bot: bot, Headless: false})
+		} else if i < 5 {
+			arr = append(arr, &model.SitemapBot{Bot: bot})
+		} else {
+			arr = append(arr, &model.NewsBot{Bot: bot})
+		}
+	}
+
+	var err error
+	ctx := context.Background()
+	dbc := util.Must(dbClient.New())
+
+	for _, e := range arr {
+		assert.NoError(t, dbClient.PutItem(ctx, dbc, e))
+	}
+
+	var bots []model.SearchBot
+
+	bots, err = dbClient.QueryByID[model.SearchBot](ctx, dbc, &model.SearchBot{}, userIDs[0])
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, bots)
+
+	util.PrettyPrintln(bots)
 }
 
 func Test_Client_Dynamo_Email(t *testing.T) {
 	ctx := context.Background()
 	c := util.Must(dbClient.New())
-
-	//assert.NoError(t, dbClient.CreateTable(ctx, c, exp))
-	//assert.NoError(t, dbClient.PutItem(ctx, c, exp))
-	//assert.NoError(t, dbClient.DeleteTable(ctx, c, exp))
 
 	email, err := dbClient.GetItem[model.Email](ctx, c, &model.Email{ID: "kowalski7012@gmail.com"})
 	assert.NoError(t, err)

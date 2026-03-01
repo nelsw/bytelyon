@@ -2,18 +2,15 @@ package db
 
 import (
 	"context"
+	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/google/uuid"
 	dbClient "github.com/nelsw/bytelyon/internal/client/dynamodb"
-	s3Client "github.com/nelsw/bytelyon/internal/client/s3"
 	"github.com/nelsw/bytelyon/internal/config"
-	"github.com/nelsw/bytelyon/internal/logger"
 	"github.com/nelsw/bytelyon/internal/model"
 	. "github.com/nelsw/bytelyon/internal/util"
 	"github.com/rs/zerolog/log"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -22,28 +19,20 @@ var db *gorm.DB
 var (
 	ctx    context.Context
 	dbc    *dynamodb.Client
-	s3c    *s3.Client
 	models = []dbClient.Entity{
 		&model.User{},
 		&model.Email{},
 		&model.Password{},
+		&model.SearchBot{},
+		&model.SitemapBot{},
+		&model.NewsBot{},
 	}
 )
 
-func Init(args ...context.Context) {
+func Init() {
 
-	db = Must(gorm.Open(sqlite.Open(BinDir(config.Mode()+".sqlite")), &gorm.Config{
-		Logger: logger.NewGorm(),
-	}))
-
-	if len(args) > 0 {
-		ctx = args[0]
-	} else {
-		ctx = context.Background()
-	}
-
+	ctx = context.Background()
 	dbc = Must(dbClient.New())
-	s3c = Must(s3Client.New())
 
 	migrate()
 	seed()
@@ -61,14 +50,18 @@ func migrate() {
 
 	log.Trace().Int("size", len(models)).Msg("migrating tables")
 
+	var wg sync.WaitGroup
 	for _, a := range models {
-		if err := dbClient.DeleteTable(ctx, dbc, a); err != nil {
-			continue
-		}
-		if err := dbClient.CreateTable(ctx, dbc, a); err != nil {
-			continue
-		}
+		wg.Go(func() {
+			if err := dbClient.DeleteTable(ctx, dbc, a); err != nil {
+				return
+			}
+			if err := dbClient.CreateTable(ctx, dbc, a); err != nil {
+				return
+			}
+		})
 	}
+	wg.Wait()
 }
 
 func seed() {
@@ -76,8 +69,8 @@ func seed() {
 		return
 	}
 
-	user := &model.User{Must(uuid.NewV7())}
-	dbClient.PutItem(ctx, dbc, user)
-	dbClient.PutItem(ctx, dbc, model.NewEmail(user, "kowalski7012@gmail.com"))
-	dbClient.PutItem(ctx, dbc, model.NewPassword(user, "Demo123!"))
+	userID := Must(uuid.NewV7())
+	dbClient.PutItem(ctx, dbc, &model.User{userID})
+	dbClient.PutItem(ctx, dbc, model.NewEmail(userID, "kowalski7012@gmail.com"))
+	dbClient.PutItem(ctx, dbc, model.NewPassword(userID, "Demo123!"))
 }

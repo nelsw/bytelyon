@@ -5,7 +5,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nelsw/bytelyon/internal/config"
 	. "github.com/nelsw/bytelyon/internal/handler"
-	"github.com/nelsw/bytelyon/internal/model"
 )
 
 func New() *gin.Engine {
@@ -29,30 +28,18 @@ func New() *gin.Engine {
 			POST("/forgot-password", ForgotPassword).
 			POST("/signup", Signup).
 			POST("/token/:token", Token)
-	}
-	{
-		api.Group("/bots").
-			GET("", ListBots).
-			POST("", CreateBot).
-			PUT("", UpdateBot).
-			DELETE("/id/:id", ValidateID, Delete[model.Bot]).
-			GET("/type/:type", ListBotsByType)
 		// todo - delete account
 	}
 	{
-		api.Group("/search", ValidateID).
-			DELETE("/id/:id", Delete[model.Search]).
-			GET("/bot/:id", ListSearches)
-	}
-	{
-		api.Group("/sitemap", ValidateID).
-			DELETE("/id/:id", Delete[model.Sitemap]).
-			GET("/bot/:id", ListSitemaps)
-	}
-	{
-		api.Group("/news", ValidateID).
-			DELETE("/id/:id", Delete[model.News]).
-			GET("/bot/:id", ListNews)
+		api.Group("/bots/:type").
+			PUT("", SaveBot).
+			GET("", GetBots).
+			DELETE("/bot/:botID", DeleteBot)
+		{
+			api.Group("/data/:dataID").
+				DELETE("", DeleteBotData).
+				GET("", GetBotData)
+		}
 	}
 	return r
 }

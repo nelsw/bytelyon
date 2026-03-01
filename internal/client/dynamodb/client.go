@@ -3,13 +3,15 @@ package client
 import (
 	"context"
 	"errors"
+	"maps"
+	"slices"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/nelsw/bytelyon/internal/config"
 	. "github.com/nelsw/bytelyon/internal/util"
 	"github.com/rs/zerolog/log"
 )
@@ -18,6 +20,7 @@ type Entity interface {
 	Desc() *dynamodb.CreateTableInput
 	Name() string
 	Key() map[string]any
+	Validate() error
 }
 
 var (
@@ -85,52 +88,6 @@ func DeleteTable(ctx context.Context, c *dynamodb.Client, e Entity) error {
 
 	log.Debug().Str("name", e.Name()).Msg("deleted table")
 	return nil
-}
-
-// ListTables lists the DynamoDB table names for the current account.
-func ListTables(ctx context.Context, c *dynamodb.Client) ([]string, error) {
-	log.Trace().Msg("listing tables")
-
-	var names []string
-	var output *dynamodb.ListTablesOutput
-	var err error
-
-	tablePaginator := dynamodb.NewListTablesPaginator(c, &dynamodb.ListTablesInput{})
-
-	for tablePaginator.HasMorePages() {
-		if output, err = tablePaginator.NextPage(ctx); err != nil {
-			log.Err(err).Msg("failed to list tables")
-			return nil, err
-		}
-		names = append(names, output.TableNames...)
-	}
-
-	log.Debug().Strs("names", names).Msg("listed tables")
-
-	return names, nil
-}
-
-// TableExists determines whether a DynamoDB table exists.
-func TableExists(ctx context.Context, c *dynamodb.Client, e Entity) (bool, error) {
-
-	log.Trace().Str("name", e.Name()).Msg("checking if table exists")
-
-	_, err := c.DescribeTable(ctx, &dynamodb.DescribeTableInput{
-		TableName: Ptr(e.Name()),
-	})
-
-	if errors.As(err, &NotFoundEx) {
-		log.Debug().Str("name", e.Name()).Msg("table does not exist")
-		return false, nil
-	}
-
-	if err != nil {
-		log.Err(err).Str("name", e.Name()).Msg("failed to determine table existence")
-		return false, err
-	}
-
-	log.Debug().Str("name", e.Name()).Msg("table exists")
-	return true, nil
 }
 
 // DeleteItem removes an item from a DynamoDB table.
@@ -229,7 +186,10 @@ func PutItem(ctx context.Context, c *dynamodb.Client, e Entity) error {
 }
 
 // QueryByID gets all items in the DynamoDB table by the hash key.
-func QueryByID[T any](ctx context.Context, c *dynamodb.Client, name, key string, val any) ([]T, error) {
+func QueryByID[T any](ctx context.Context, c *dynamodb.Client, e Entity, val any) ([]T, error) {
+
+	name := e.Name()
+	key := slices.Collect(maps.Keys(e.Key()))[0]
 
 	l := log.With().
 		Str("name", name).
@@ -279,13 +239,6 @@ func QueryByID[T any](ctx context.Context, c *dynamodb.Client, name, key string,
 }
 
 // New returns a new DynamoDB client with the given Region, AccessKeyID, and SecretAccessKey.
-func New(args ...context.Context) (*dynamodb.Client, error) {
-	if len(args) == 0 {
-		args = append(args, context.Background())
-	}
-	c, err := config.LoadDefaultConfig(args[0])
-	if err != nil {
-		return nil, err
-	}
-	return dynamodb.NewFromConfig(c), nil
+func New() (*dynamodb.Client, error) {
+	return dynamodb.NewFromConfig(config.Aws()), nil
 }

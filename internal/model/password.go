@@ -46,9 +46,11 @@ func (p *Password) Name() string {
 	return "ByteLyon_" + ModeTitle() + "_Password"
 }
 
-func NewPassword(u *User, text string) *Password {
+func (p *Password) Validate() error { return nil }
+
+func NewPassword(userID uuid.UUID, text string) *Password {
 	return &Password{
-		ID:   u.ID,
+		ID:   userID,
 		Hash: Must(bcrypt.GenerateFromPassword([]byte(text), bcrypt.MinCost)),
 	}
 }

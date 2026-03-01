@@ -45,9 +45,11 @@ func (e *Email) Name() string {
 	return "ByteLyon_" + ModeTitle() + "_Email"
 }
 
-func NewEmail(u *User, str string) *Email {
+func (e *Email) Validate() error { return nil }
+
+func NewEmail(userID uuid.UUID, str string) *Email {
 	return &Email{
 		ID:     str,
-		UserID: u.ID,
+		UserID: userID,
 	}
 }

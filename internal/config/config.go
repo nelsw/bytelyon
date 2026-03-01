@@ -1,28 +1,36 @@
 package config
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/joho/godotenv"
 	"github.com/nelsw/bytelyon/internal/util"
 
 	"regexp"
 )
 
-const (
-	AppTC = "ByteLyon"
-	AppLC = "bytelyon"
-)
+var banner = "\u001B[0;36m" + `
+██████╗ ██╗   ██╗████████╗███████╗██╗  ██╗   ██╗ ██████╗ ███╗   ██╗
+██╔══██╗╚██╗ ██╔╝╚══██╔══╝██╔════╝██║  ╚██╗ ██╔╝██╔═══██╗████╗  ██║
+██████╔╝ ╚████╔╝    ██║   █████╗  ██║   ╚████╔╝ ██║   ██║██╔██╗ ██║
+██╔══██╗  ╚██╔╝     ██║   ██╔══╝  ██║    ╚██╔╝  ██║   ██║██║╚██╗██║
+██████╔╝   ██║      ██║   ███████╗███████╗██║   ╚██████╔╝██║ ╚████║
+╚═════╝    ╚═╝      ╚═╝   ╚══════╝╚══════╝╚═╝    ╚═════╝ ╚═╝  ╚═══╝
+` + "\u001B[0m"
 
 var cfg = map[string]any{
 	"MODE": "debug",
 	"PORT": 8085,
 }
 
+func Aws() aws.Config         { return cfg["AWS_CONFIG"].(aws.Config) }
 func Get[T any](key string) T { return cfg[key].(T) }
 func JwtKey() []byte          { return []byte(cfg["JWT_SECRET"].(string)) }
 func Mode() string            { return Get[string]("MODE") }
@@ -40,17 +48,18 @@ func Init() {
 		loadFromEnv()
 	}
 
+	loadAwsConfig()
 	validateCfg()
 
-	fmt.Println("\u001B[0;36m" + `
-██████╗ ██╗   ██╗████████╗███████╗██╗  ██╗   ██╗ ██████╗ ███╗   ██╗
-██╔══██╗╚██╗ ██╔╝╚══██╔══╝██╔════╝██║  ╚██╗ ██╔╝██╔═══██╗████╗  ██║
-██████╔╝ ╚████╔╝    ██║   █████╗  ██║   ╚████╔╝ ██║   ██║██╔██╗ ██║
-██╔══██╗  ╚██╔╝     ██║   ██╔══╝  ██║    ╚██╔╝  ██║   ██║██║╚██╗██║
-██████╔╝   ██║      ██║   ███████╗███████╗██║   ╚██████╔╝██║ ╚████║
-╚═════╝    ╚═╝      ╚═╝   ╚══════╝╚══════╝╚═╝    ╚═════╝ ╚═╝  ╚═══╝
-` + "\u001B[0m")
+	fmt.Println(banner)
+}
 
+func loadAwsConfig() {
+	c, err := config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	cfg["AWS_CONFIG"] = c
 }
 
 func loadFromCli() bool {
@@ -100,6 +109,7 @@ func loadFromEnv() {
 		}
 		cfg[k] = v
 	}
+
 }
 
 func validateCfg() {

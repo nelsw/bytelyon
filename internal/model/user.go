@@ -37,14 +37,6 @@ func (u *User) Desc() *dynamodb.CreateTableInput {
 	}
 }
 
-func (u *User) Name() string {
-	return "ByteLyon_" + ModeTitle() + "_User"
-}
-
-func (u *User) Key() map[string]any {
-	return map[string]any{"ID": u.ID}
-}
-
-func (u *User) Validate() error {
-	return nil
-}
+func (u *User) Key() map[string]any { return map[string]any{"ID": u.ID} }
+func (u *User) Name() string        { return "ByteLyon_" + ModeTitle() + "_User" }
+func (u *User) Validate() error     { return nil }

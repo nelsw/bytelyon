@@ -1,8 +1,7 @@
 package model
 
 import (
-	"database/sql/driver"
-	"errors"
+	"fmt"
 	"regexp"
 )
 
@@ -16,31 +15,9 @@ const (
 	NewsBotType    BotType = "news"
 )
 
-func (t *BotType) Scan(src any) error {
-	if src == nil {
-		return errors.New("nil bot type")
+func (t BotType) Validate() error {
+	if validationRegex.MatchString(string(t)) {
+		return nil
 	}
-	*t = BotType(src.(string))
-	if err := t.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (t BotType) String() string {
-	return string(t)
-}
-
-func (t *BotType) Validate() error {
-	if !validationRegex.MatchString(t.String()) {
-		return errors.New("invalid bot type; must be one of [search, news, or sitemap]; got: [" + t.String() + "]")
-	}
-	return nil
-}
-
-func (t *BotType) Value() (driver.Value, error) {
-	if err := t.Validate(); err != nil {
-		return nil, err
-	}
-	return t.String(), nil
+	return fmt.Errorf("invalid bot type; must be one of [search, news, or sitemap]; got: [%s]", t)
 }

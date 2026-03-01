@@ -44,9 +44,7 @@ func (t *Token) Key() map[string]any {
 	return map[string]any{"ID": t.ID}
 }
 
-func (t *Token) Validate() error {
-	return nil
-}
+func (t *Token) Validate() error { return nil }
 
 func NewResetPasswordToken(userID uuid.UUID) *Token {
 	return &Token{

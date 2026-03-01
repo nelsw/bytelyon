@@ -19,6 +19,13 @@ type Bot struct {
 	UpdatedAt time.Time     `json:"updatedAt" dynamodbav:"UpdatedAt,number"`
 }
 
+func (b *Bot) IsReady() bool {
+	if b.Frequency == 0 {
+		return false
+	}
+	return b.UpdatedAt.Add(b.Frequency).After(time.Now())
+}
+
 func (b *Bot) Ignore() map[string]bool {
 	m := map[string]bool{}
 	for _, s := range b.BlackList {

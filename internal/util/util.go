@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"unicode"
 
 	"github.com/rs/zerolog/log"
 )
@@ -69,12 +70,36 @@ func BinDir(parts ...string) string {
 	return dir
 }
 
+// Name returns the name of the type;
+// Helpful for getting a struct name.
 func Name(a any) string {
+	// get the reflection Type
 	t := reflect.TypeOf(a)
+
+	// check if the param is a ptr
 	if t.Kind() == reflect.Ptr {
+		// if so, return the element type
 		t = t.Elem()
 	}
 	return t.Name()
+}
+
+func SplitByCase(s string) []string {
+	var words []string
+	var currentWord []rune
+
+	for i, r := range s {
+		if i > 0 && unicode.IsUpper(r) {
+			words = append(words, string(currentWord))
+			currentWord = []rune{r}
+		} else {
+			currentWord = append(currentWord, r)
+		}
+	}
+	if len(currentWord) > 0 {
+		words = append(words, string(currentWord))
+	}
+	return words
 }
 
 func Capitalize(s string) string {

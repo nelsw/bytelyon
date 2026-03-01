@@ -41,58 +41,54 @@ func (m *Manager) Start() {
 
 func (m *Manager) work() {
 
-	bots, err := db.Builder[model.Bot]().Where("frequency > ?", 0).Find(context.Background())
-	if err != nil {
-		log.Err(err).Msg("failed to find bots")
-		return
-	}
-
-	log.Debug().Msgf("bots found [%d]", len(bots))
-	if len(bots) == 0 {
-		return
-	}
-
-	var ready int
-	for _, job := range bots {
-		if job.UpdatedAt.Add(job.Frequency).Before(time.Now()) {
-			ready++
-		}
-	}
-
-	log.Debug().Msgf("bots ready [%d]", ready)
-	if ready == 0 {
-		return
-	}
-
-	var wg sync.WaitGroup
-	for _, bot := range bots {
-		wg.Go(func() {
-			switch bot.Type {
-			case model.NewsBotType:
-				news.New(&bot).Work()
-			case model.SitemapBotType:
-				sitemap.New(&bot).Work()
-			case model.SearchBotType:
-				search.New(&bot).Work()
-			default:
-				log.Warn().Msg("unknown bot type")
-				return
-			}
-			// A frequency of 1 means the bot runs once
-			// Reset it to 0 so it doesn't run again
-			if bot.Frequency == 1 {
-				_, err = db.Builder[model.Bot]().
-					Where("id = ?", bot.ID).
-					Update(context.Background(), "frequency", 0)
-
-				if err != nil {
-					log.Err(err).Msg("manager failed to zero out bot frequency")
-				}
-			}
-		})
-	}
-	wg.Wait()
-	log.Debug().Msg("bots deployed")
+	//db := util.Must(dbClient.New())
+	//
+	////bots, err := db.Builder[model.Bot]().Where("frequency > ?", 0).Find(context.Background())
+	//
+	//log.Debug().Msgf("bots found [%d]", len(bots))
+	//if len(bots) == 0 {
+	//	return
+	//}
+	//
+	//var ready int
+	//for _, job := range bots {
+	//	if job.UpdatedAt.Add(job.Frequency).Before(time.Now()) {
+	//		ready++
+	//	}
+	//}
+	//
+	//log.Debug().Msgf("bots ready [%d]", ready)
+	//if ready == 0 {
+	//	return
+	//}
+	//
+	//var wg sync.WaitGroup
+	//for _, bot := range bots {
+	//	wg.Go(func() {
+	//		switch bot.Type {
+	//		case model.NewsBotType:
+	//			news.New(&bot).Work()
+	//		case model.SitemapBotType:
+	//			sitemap.New(&bot).Work()
+	//		case model.SearchBotType:
+	//			search.New(&bot).Work()
+	//		default:
+	//			log.Warn().Msg("unknown bot type")
+	//			return
+	//		}
+	//		// A frequency of 1 means the bot runs once
+	//		// Reset it to 0 so it doesn't run again
+	//		if bot.Frequency == 1 {
+	//			bot.Frequency = 0
+	//
+	//			if err != nil {
+	//				log.Err(err).Msg("manager failed to zero out bot frequency")
+	//			}
+	//		}
+	//	})
+	//}
+	//wg.Wait()
+	//log.Debug().Msg("bots deployed")
 }
 
 func (m *Manager) Stop(ctx context.Context) error {
@@ -118,4 +114,69 @@ func (m *Manager) Stop(ctx context.Context) error {
 			timer.Reset(time.Second)
 		}
 	}
+}
+
+func (m *Manager) getUsers() []model.User {
+	arr, err := db.Scan[model.User](model.User{})
+	if err != nil {
+		log.Err(err).Msg("failed to scan users")
+		return nil
+	}
+	return arr
+}
+
+func (m *Manager) workSearchBots(user model.User) {
+
+	bots, err := db.Query[model.SearchBot](model.SearchBot{}, "UserID", user.ID)
+	if err != nil {
+		log.Err(err).Msg("failed to query search bots")
+		return
+	}
+
+	var wg sync.WaitGroup
+	for _, b := range bots {
+		wg.Go(func() {
+			if b.IsReady() {
+				search.New(m.Context, m.Client, &b).Work()
+			}
+		})
+	}
+	wg.Wait()
+}
+
+func (m *Manager) workSitemapBots(user model.User) {
+
+	bots, err := db.Query[model.SitemapBot](model.SitemapBot{}, "UserID", user.ID)
+	if err != nil {
+		log.Err(err).Msg("failed to query sitemap bots")
+		return
+	}
+
+	var wg sync.WaitGroup
+	for _, b := range bots {
+		wg.Go(func() {
+			if b.IsReady() {
+				sitemap.New(m.Context, m.Client, &b).Work()
+			}
+		})
+	}
+	wg.Wait()
+}
+
+func (m *Manager) workNewsBots(user model.User) {
+	bots, err := db.Query[model.NewsBot](model.NewsBot{}, "UserID", user.ID)
+	if err != nil {
+		log.Err(err).Msg("failed to query news bots")
+		return
+	}
+
+	var wg sync.WaitGroup
+	for _, b := range bots {
+		wg.Go(func() {
+			if b.IsReady() {
+				news.New(m.Context, m.Client, &b).Work()
+			}
+		})
+	}
+	wg.Wait()
 }

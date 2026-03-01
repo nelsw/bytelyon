@@ -6,14 +6,12 @@ import (
 	"io"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	. "github.com/nelsw/bytelyon/internal/config"
-	. "github.com/nelsw/bytelyon/internal/util"
+	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/rs/zerolog/log"
 )
 
-var bucket = AppName("-", "db", Mode())
+var bucket = "bytelyon-db-" + config.Mode()
 
 // DeleteObject removes an object from the s3 bucket with the given key.
 func DeleteObject(ctx context.Context, c *s3.Client, key string) error {
@@ -127,12 +125,5 @@ func PresignGetObject(ctx context.Context, c *s3.Client, key string, exp time.Du
 
 // New returns a new s3.Client with the given Region, AccessKeyID, and SecretAccessKey.
 func New(args ...context.Context) (*s3.Client, error) {
-	if len(args) == 0 {
-		args = append(args, context.Background())
-	}
-	c, err := config.LoadDefaultConfig(args[0])
-	if err != nil {
-		return nil, err
-	}
-	return s3.NewFromConfig(c), nil
+	return s3.NewFromConfig(config.Aws()), nil
 }

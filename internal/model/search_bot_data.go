@@ -9,10 +9,9 @@ import (
 )
 
 type SearchBotData struct {
-	BotID  uuid.UUID `json:"botID" dynamodbav:"BotID,binary"`
-	DataID uuid.UUID `json:"dataID" dynamodbav:"DataID,binary"`
-	// page uri set?
-	// serp result data?
+	BotID  uuid.UUID        `json:"botID" dynamodbav:"BotID,binary"`
+	DataID uuid.UUID        `json:"dataID" dynamodbav:"DataID,binary"`
+	Pages  []map[string]any `json:"pages" dynamodbav:"Pages,omitempty"`
 }
 
 func (b *SearchBotData) Key() map[string]any {

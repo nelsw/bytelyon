@@ -3,8 +3,6 @@ package client
 import (
 	"context"
 	"errors"
-	"maps"
-	"slices"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -12,16 +10,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/nelsw/bytelyon/internal/config"
+	"github.com/nelsw/bytelyon/internal/contract"
 	. "github.com/nelsw/bytelyon/internal/util"
 	"github.com/rs/zerolog/log"
 )
-
-type Entity interface {
-	Desc() *dynamodb.CreateTableInput
-	Name() string
-	Key() map[string]any
-	Validate() error
-}
 
 var (
 	NotFoundEx    *types.ResourceNotFoundException
@@ -29,7 +21,7 @@ var (
 )
 
 // CreateTable creates a DynamoDB table.
-func CreateTable(ctx context.Context, c *dynamodb.Client, e Entity) error {
+func CreateTable(ctx context.Context, c *dynamodb.Client, e contract.Entity) error {
 
 	log.Trace().Str("name", e.Name()).Msg("creating table")
 
@@ -59,7 +51,7 @@ func CreateTable(ctx context.Context, c *dynamodb.Client, e Entity) error {
 }
 
 // DeleteTable deletes the DynamoDB table and all of its data.
-func DeleteTable(ctx context.Context, c *dynamodb.Client, e Entity) error {
+func DeleteTable(ctx context.Context, c *dynamodb.Client, e contract.Entity) error {
 
 	log.Trace().Str("name", e.Name()).Msg("deleting table")
 
@@ -91,7 +83,7 @@ func DeleteTable(ctx context.Context, c *dynamodb.Client, e Entity) error {
 }
 
 // DeleteItem removes an item from a DynamoDB table.
-func DeleteItem(ctx context.Context, c *dynamodb.Client, e Entity) error {
+func DeleteItem(ctx context.Context, c *dynamodb.Client, e contract.Entity) error {
 	log.Trace().Str("name", e.Name()).Msg("deleting item")
 
 	key, err := attributevalue.MarshalMap(e)
@@ -121,7 +113,7 @@ func DeleteItem(ctx context.Context, c *dynamodb.Client, e Entity) error {
 }
 
 // GetItem retrieves an item from the DynamoDB table.
-func GetItem[T any](ctx context.Context, c *dynamodb.Client, e Entity) (t T, err error) {
+func GetItem[T any](ctx context.Context, c *dynamodb.Client, e contract.Entity) (t T, err error) {
 	log.Trace().Str("name", e.Name()).Msg("getting item")
 
 	var key map[string]types.AttributeValue
@@ -161,7 +153,7 @@ func GetItem[T any](ctx context.Context, c *dynamodb.Client, e Entity) (t T, err
 // ItemExists
 
 // PutItem creates a new item, or replaces an old item with a new item.
-func PutItem(ctx context.Context, c *dynamodb.Client, e Entity) error {
+func PutItem(ctx context.Context, c *dynamodb.Client, e contract.Entity) error {
 	log.Trace().Str("name", e.Name()).Msg("creating item")
 
 	item, err := attributevalue.MarshalMap(e)
@@ -185,11 +177,45 @@ func PutItem(ctx context.Context, c *dynamodb.Client, e Entity) error {
 	return nil
 }
 
-// QueryByID gets all items in the DynamoDB table by the hash key.
-func QueryByID[T any](ctx context.Context, c *dynamodb.Client, e Entity, val any) ([]T, error) {
+func Query[T any](ctx context.Context, c *dynamodb.Client, e contract.Entity, expr expression.Expression) (t []T, err error) {
 
-	name := e.Name()
-	key := slices.Collect(maps.Keys(e.Key()))[0]
+	l := log.With().
+		Str("name", e.Name()).
+		Logger()
+
+	l.Trace().Msg("querying")
+
+	queryPaginator := dynamodb.NewQueryPaginator(c, &dynamodb.QueryInput{
+		TableName:                 Ptr(e.Name()),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+		FilterExpression:          expr.Filter(),
+	})
+
+	var response *dynamodb.QueryOutput
+	var arr []T
+	for queryPaginator.HasMorePages() {
+
+		if response, err = queryPaginator.NextPage(ctx); err != nil {
+			l.Err(err).Msg("failed to query")
+			return nil, err
+		}
+
+		var tt []T
+		if err = attributevalue.UnmarshalListOfMaps(response.Items, &tt); err != nil {
+			l.Err(err).Msg("failed to unmarshal items")
+			return nil, err
+		}
+		arr = append(arr, tt...)
+	}
+
+	l.Debug().Int("size", len(arr)).Msg("queried")
+
+	return arr, err
+}
+
+// QueryByID gets all items in the DynamoDB table by the hash key.
+func QueryByID[T any](ctx context.Context, c *dynamodb.Client, name, key string, val any) ([]T, error) {
 
 	l := log.With().
 		Str("name", name).
@@ -236,6 +262,46 @@ func QueryByID[T any](ctx context.Context, c *dynamodb.Client, e Entity, val any
 	l.Debug().Int("size", len(arr)).Msg("queried")
 
 	return arr, err
+}
+
+func Scan[T any](c *dynamodb.Client, name string) ([]T, error) {
+	var lastEvaluatedKey map[string]types.AttributeValue = nil
+	var items []T
+	// Loop to handle pagination
+	for {
+		input := &dynamodb.ScanInput{
+			TableName: &name,
+			// Set ExclusiveStartKey for subsequent requests after the first one
+			ExclusiveStartKey: lastEvaluatedKey,
+			//FilterExpression:  Ptr("Frequency > :freq"),
+			//ExpressionAttributeValues: map[string]types.AttributeValue{
+			//	":freq": &types.AttributeValueMemberN{
+			//		Value: "208800000000000",
+			//	},
+			//},
+		}
+
+		result, err := c.Scan(context.TODO(), input)
+		if err != nil {
+			return nil, err
+		}
+
+		// Unmarshal the retrieved items into the Go struct
+		var currentItems []T
+		err = attributevalue.UnmarshalListOfMaps(result.Items, &currentItems)
+		if err != nil {
+			return nil, err
+		}
+
+		items = append(items, currentItems...)
+
+		// Check for LastEvaluatedKey to determine if more items exist
+		if result.LastEvaluatedKey == nil {
+			break // No more items, exit the loop
+		}
+		lastEvaluatedKey = result.LastEvaluatedKey
+	}
+	return items, nil
 }
 
 // New returns a new DynamoDB client with the given Region, AccessKeyID, and SecretAccessKey.

@@ -9,8 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	client "github.com/nelsw/bytelyon/internal/client/dynamodb"
 	"github.com/nelsw/bytelyon/internal/client/fetch"
-	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/rs/zerolog/log"
 )
@@ -20,16 +21,18 @@ var (
 )
 
 type Worker struct {
-	*model.Bot
+	context.Context
+	*dynamodb.Client
+	*model.NewsBot
 }
 
-func New(b *model.Bot) *Worker {
-	return &Worker{b}
+func New(ctx context.Context, dbc *dynamodb.Client, bot *model.NewsBot) *Worker {
+	return &Worker{ctx, dbc, bot}
 }
 
-func (c *Worker) Work() {
+func (w *Worker) Work() {
 
-	q := strings.ReplaceAll(c.Target, ` `, `+`)
+	q := strings.ReplaceAll(w.Target, ` `, `+`)
 	urls := []string{
 		fmt.Sprintf("https://news.google.com/rss/search?q=%s&hl=en-US&gl=US&ceid=US:en", q),
 		fmt.Sprintf("https://www.bing.com/news/search?format=rss&q=%s", q),
@@ -37,12 +40,11 @@ func (c *Worker) Work() {
 	}
 
 	for _, url := range urls {
-		c.workUrl(url)
+		w.workUrl(url)
 	}
-
 }
 
-func (c *Worker) workUrl(url string) {
+func (w *Worker) workUrl(url string) {
 
 	b, err := fetch.New(url).Bytes()
 	if err != nil {
@@ -69,7 +71,7 @@ func (c *Worker) workUrl(url string) {
 
 			// if this job is brand new, save all the articles found
 			// else persist articles published after the last update
-			if c.CreatedAt != c.UpdatedAt && time.Time(*i.Time).Before(c.UpdatedAt) {
+			if time.Time(*i.Time).Before(w.UpdatedAt) {
 				log.Debug().Msgf("Skipping old article %s", i.Title)
 				return
 			}
@@ -79,7 +81,7 @@ func (c *Worker) workUrl(url string) {
 			sourceParts := strings.Split(i.Source, " ")
 			parts := append(titleParts, sourceParts...)
 			for _, p := range parts {
-				if _, ok := c.Ignore()[p]; ok {
+				if _, ok := w.Ignore()[p]; ok {
 					log.Info().Msgf("Skipping blacklisted article %s", p)
 					return
 				}
@@ -108,13 +110,13 @@ func (c *Worker) workUrl(url string) {
 				i.Description = i.Description[strings.LastIndex(i.Description, ">")+1:]
 			}
 
-			err = db.Builder[model.News]().Create(context.Background(), &model.News{
-				BotID:       c.Bot.ID,
+			err = client.PutItem(w.Context, w.Client, &model.NewsBotData{
+				BotID:       w.BotID,
 				URL:         i.URL,
 				Title:       i.Title,
 				Source:      i.Source,
-				Published:   time.Time(*i.Time),
 				Description: i.Description,
+				Published:   time.Time(*i.Time),
 			})
 
 			if err != nil {

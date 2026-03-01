@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
-	. "github.com/nelsw/bytelyon/internal/config"
+	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/rs/zerolog/log"
 )
 
@@ -92,7 +91,7 @@ func SendPasswordReset(ctx context.Context, c *ses.Client, to, tkn string) error
 }
 
 func url(s string) string {
-	if IsReleaseMode() {
+	if config.IsReleaseMode() {
 		return "https://ByteLyon.com" + s
 	}
 	return "http://localhost:8081" + s
@@ -138,12 +137,5 @@ func sendEmail(ctx context.Context, c *ses.Client, to, subject, html string) err
 
 // New returns a new s3.Client with the given Region, AccessKeyID, and SecretAccessKey.
 func New(args ...context.Context) (*ses.Client, error) {
-	if len(args) == 0 {
-		args = append(args, context.Background())
-	}
-	cfg, err := config.LoadDefaultConfig(args[0])
-	if err != nil {
-		return nil, err
-	}
-	return ses.NewFromConfig(cfg), nil
+	return ses.NewFromConfig(config.Aws()), nil
 }

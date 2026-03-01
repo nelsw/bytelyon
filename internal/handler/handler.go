@@ -161,7 +161,7 @@ func Signup(c *gin.Context) {
 	}
 
 	var jwt string
-	if jwt, err = user.NewJWT(); err != nil {
+	if jwt, err = model.NewJWT(user.ID); err != nil {
 		log.Err(err).Msg("failed to generate JWT token")
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
@@ -447,7 +447,7 @@ func validateBasicAuth(c *gin.Context, token string) {
 	}
 
 	var tkn string
-	if tkn, err = user.NewJWT(); err != nil {
+	if tkn, err = model.NewJWT(user.ID); err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -461,12 +461,12 @@ func validateBearerAuth(c *gin.Context, token string) {
 		Str("token", token).
 		Msg("validate bearer token")
 
-	usr, err := model.NewUser(token)
+	userID, err := model.ParseUserID(token)
 	if err != nil {
 		log.Warn().Err(err).Msg("invalid bearer token")
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	log.Debug().Msg("bearer token validated")
-	c.Set("user", usr)
+	c.Set("userID", userID)
 }

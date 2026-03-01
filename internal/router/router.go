@@ -37,6 +37,7 @@ func New() *gin.Engine {
 			PUT("", UpdateBot).
 			DELETE("/id/:id", ValidateID, Delete[model.Bot]).
 			GET("/type/:type", ListBotsByType)
+		// todo - delete account
 	}
 	{
 		api.Group("/search", ValidateID).

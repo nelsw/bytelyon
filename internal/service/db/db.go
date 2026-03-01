@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"errors"
-	"strings"
 	"sync"
 	"time"
 
@@ -12,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/nelsw/bytelyon/internal/config"
+	. "github.com/nelsw/bytelyon/internal/config"
 	. "github.com/nelsw/bytelyon/internal/util"
 	"github.com/rs/zerolog/log"
 )
@@ -32,16 +31,6 @@ func init() {
 		panic(err)
 	}
 	db = dynamodb.NewFromConfig(c)
-}
-
-// name returns the table name of a model.
-func name(a any) string {
-	if config.IsReleaseMode() {
-		return "ByteLyon_" + Name(a)
-	} else if config.IsDebugMode() {
-		return "ByteLyon_Debug_" + Name(a)
-	}
-	return "ByteLyon_Test_" + strings.Join(SplitByCase(Name(a)), "_")
 }
 
 // Make creates a DynamoDB table.
@@ -108,21 +97,21 @@ func Drop(name string) error {
 
 // Migrate drops and creates the DynamoDB tables defined in the given map.
 // Fails fast if app mode is release or migration config equals false.
-func Migrate(m map[string]*dynamodb.CreateTableInput) {
+func Migrate(arr ...*dynamodb.CreateTableInput) {
 
-	if config.IsReleaseMode() || !config.MigrateTables() {
+	if IsReleaseMode() || !MigrateTables() {
 		return
 	}
 
-	l := log.With().Int("size", len(m)).Logger()
+	l := log.With().Int("size", len(arr)).Logger()
 
 	l.Trace().Msg("migrating tables")
 
 	var wg sync.WaitGroup
-	for k, v := range m {
+	for _, a := range arr {
 		wg.Go(func() {
-			Drop(k)
-			Make(k, v)
+			Drop(*a.TableName)
+			Make(*a.TableName, a)
 		})
 	}
 
@@ -135,7 +124,7 @@ func Migrate(m map[string]*dynamodb.CreateTableInput) {
 
 // Wipe removes an item from a DynamoDB table.
 func Wipe(a, v any) error {
-	l := log.With().Str("name", name(a)).Logger()
+	l := log.With().Str("name", *TableName(a)).Logger()
 
 	l.Trace().Msg("deleting item")
 
@@ -146,7 +135,7 @@ func Wipe(a, v any) error {
 	}
 
 	_, err = db.DeleteItem(ctx, &dynamodb.DeleteItemInput{
-		TableName: Ptr(name(a)),
+		TableName: TableName(a),
 		Key:       key,
 	})
 
@@ -168,13 +157,13 @@ func Wipe(a, v any) error {
 // Save creates a new item, or replaces an old item with a new item.
 func Save(a any) (err error) {
 
-	l := log.With().Str("name", name(a)).Logger()
+	l := log.With().Str("name", *TableName(a)).Logger()
 
 	l.Trace().Msg("creating item")
 
-	input := dynamodb.PutItemInput{TableName: Ptr(name(a))}
+	input := dynamodb.PutItemInput{TableName: TableName(a)}
 	if input.Item, err = attributevalue.MarshalMap(a); err != nil {
-		log.Err(err).Str("name", name(a)).Msg("failed to marshal item")
+		l.Err(err).Msg("failed to marshal item")
 		return err
 	}
 
@@ -190,11 +179,11 @@ func Save(a any) (err error) {
 
 // Find retrieves an item from the DynamoDB table.
 func Find[T any](a, v any) (t T, err error) {
-	l := log.With().Str("name", name(a)).Logger()
+	l := log.With().Str("name", *TableName(a)).Logger()
 
 	l.Trace().Msg("getting item")
 
-	input := dynamodb.GetItemInput{TableName: Ptr(name(a))}
+	input := dynamodb.GetItemInput{TableName: TableName(a)}
 	if input.Key, err = attributevalue.MarshalMap(v); err != nil {
 		log.Err(err).Msg("failed to marshal key")
 		return
@@ -230,7 +219,7 @@ func Find[T any](a, v any) (t T, err error) {
 func Query[T any](t T, k string, v any) ([]T, error) {
 
 	l := log.With().
-		Str("name", name(t)).
+		Str("name", *TableName(t)).
 		Str("key", k).
 		Any("val", v).
 		Logger()
@@ -248,7 +237,7 @@ func Query[T any](t T, k string, v any) ([]T, error) {
 	}
 
 	input := &dynamodb.QueryInput{
-		TableName:                 Ptr(name(t)),
+		TableName:                 TableName(t),
 		ExpressionAttributeNames:  exp.Names(),
 		ExpressionAttributeValues: exp.Values(),
 		KeyConditionExpression:    exp.KeyCondition(),
@@ -282,11 +271,11 @@ func Query[T any](t T, k string, v any) ([]T, error) {
 // Scan is literally a full table scan; don't use this function.
 func Scan[T any](t T, args ...any) (arr []T, err error) {
 
-	l := log.With().Str("name", name(t)).Logger()
+	l := log.With().Str("name", *TableName(t)).Logger()
 
 	l.Trace().Msg("scanning items")
 
-	input := &dynamodb.ScanInput{TableName: Ptr(name(t))}
+	input := &dynamodb.ScanInput{TableName: TableName(t)}
 
 	if len(args) > 0 {
 		f := args[0].(string)

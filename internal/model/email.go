@@ -33,19 +33,9 @@ func (e *Email) Desc() *dynamodb.CreateTableInput {
 			ReadCapacityUnits:  Ptr(int64(10)),
 			WriteCapacityUnits: Ptr(int64(10)),
 		},
-		TableName: Ptr(e.Name()),
+		TableName: TableName(e),
 	}
 }
-
-func (e *Email) Key() map[string]any {
-	return map[string]any{"ID": e.ID}
-}
-
-func (e *Email) Name() string {
-	return "ByteLyon_" + ModeTitle() + "_Email"
-}
-
-func (e *Email) Validate() error { return nil }
 
 func NewEmail(userID uuid.UUID, str string) *Email {
 	return &Email{

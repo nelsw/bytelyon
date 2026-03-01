@@ -34,10 +34,6 @@ func (b *Bot) Ignore() map[string]bool {
 	return m
 }
 
-func (b *Bot) Key() map[string]any { return map[string]any{"UserID": b.UserID, "BotID": b.BotID} }
-
-func (b *Bot) Validate() error { return nil }
-
 func (b *Bot) desc() *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
 		BillingMode: types.BillingModeProvisioned,

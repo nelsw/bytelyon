@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -8,6 +9,8 @@ import (
 	. "github.com/nelsw/bytelyon/internal/config"
 	"github.com/rs/zerolog/log"
 )
+
+var tokenErr = errors.New("invalid JWT token (either expired or unprocessable")
 
 func NewJWT(userID uuid.UUID) (tkn string, err error) {
 

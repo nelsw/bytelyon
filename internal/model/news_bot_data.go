@@ -19,14 +19,9 @@ type NewsBotData struct {
 	Published   time.Time `json:"published" dynamodbav:"Published,number"`
 }
 
-func (b *NewsBotData) Key() map[string]any { return map[string]any{"BotID": b.BotID, "URL": b.URL} }
-
-func (b *NewsBotData) Name() string {
-	return "ByteLyon_" + ModeTitle() + "_News_Bot_Data"
-}
-
 func (b *NewsBotData) Desc() *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
+		TableName:   TableName(b),
 		BillingMode: types.BillingModeProvisioned,
 		KeySchema: []types.KeySchemaElement{{
 			AttributeName: Ptr("BotID"),
@@ -48,5 +43,3 @@ func (b *NewsBotData) Desc() *dynamodb.CreateTableInput {
 		},
 	}
 }
-
-func (b *NewsBotData) Validate() error { return nil }

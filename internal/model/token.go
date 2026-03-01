@@ -32,19 +32,9 @@ func (t *Token) Desc() *dynamodb.CreateTableInput {
 			ReadCapacityUnits:  Ptr(int64(10)),
 			WriteCapacityUnits: Ptr(int64(10)),
 		},
-		TableName: Ptr(t.Name()),
+		TableName: TableName(t),
 	}
 }
-
-func (t *Token) Name() string {
-	return "ByteLyon_" + ModeTitle() + "_Token"
-}
-
-func (t *Token) Key() map[string]any {
-	return map[string]any{"ID": t.ID}
-}
-
-func (t *Token) Validate() error { return nil }
 
 func NewResetPasswordToken(userID uuid.UUID) *Token {
 	return &Token{

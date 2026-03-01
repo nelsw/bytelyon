@@ -17,16 +17,9 @@ type SitemapBotData struct {
 	Remote   []string  `json:"remote" dynamodbav:"Remote,stringset"`
 }
 
-func (b *SitemapBotData) Key() map[string]any {
-	return map[string]any{"BotID": b.BotID, "DataID": b.DataID}
-}
-
-func (b *SitemapBotData) Name() string {
-	return "ByteLyon_" + ModeTitle() + "_Sitemap_Bot_Data"
-}
-
 func (b *SitemapBotData) Desc() *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
+		TableName:   TableName(b),
 		BillingMode: types.BillingModeProvisioned,
 		KeySchema: []types.KeySchemaElement{{
 			AttributeName: Ptr("BotID"),
@@ -48,5 +41,3 @@ func (b *SitemapBotData) Desc() *dynamodb.CreateTableInput {
 		},
 	}
 }
-
-func (b *SitemapBotData) Validate() error { return nil }

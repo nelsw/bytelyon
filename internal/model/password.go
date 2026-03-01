@@ -34,19 +34,9 @@ func (p *Password) Desc() *dynamodb.CreateTableInput {
 			ReadCapacityUnits:  Ptr(int64(10)),
 			WriteCapacityUnits: Ptr(int64(10)),
 		},
-		TableName: Ptr(p.Name()),
+		TableName: TableName(p),
 	}
 }
-
-func (p *Password) Key() map[string]any {
-	return map[string]any{"ID": p.ID}
-}
-
-func (p *Password) Name() string {
-	return "ByteLyon_" + ModeTitle() + "_Password"
-}
-
-func (p *Password) Validate() error { return nil }
 
 func NewPassword(userID uuid.UUID, text string) *Password {
 	return &Password{

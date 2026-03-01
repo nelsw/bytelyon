@@ -14,14 +14,9 @@ type SearchBotData struct {
 	Pages  []map[string]any `json:"pages" dynamodbav:"Pages,omitempty"`
 }
 
-func (b *SearchBotData) Key() map[string]any {
-	return map[string]any{"BotID": b.BotID, "DataID": b.DataID}
-}
-
-func (b *SearchBotData) Name() string { return "ByteLyon_" + ModeTitle() + "_Search_Bot_Data" }
-
 func (b *SearchBotData) Desc() *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
+		TableName:   TableName(b),
 		BillingMode: types.BillingModeProvisioned,
 		KeySchema: []types.KeySchemaElement{{
 			AttributeName: Ptr("BotID"),
@@ -43,5 +38,3 @@ func (b *SearchBotData) Desc() *dynamodb.CreateTableInput {
 		},
 	}
 }
-
-func (b *SearchBotData) Validate() error { return nil }

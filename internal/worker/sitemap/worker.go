@@ -2,6 +2,7 @@ package sitemap
 
 import (
 	"sort"
+	"time"
 
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/service/db"
@@ -38,4 +39,11 @@ func (w *Worker) Work() {
 	if err != nil {
 		log.Err(err).Msg("Failed to create sitemap")
 	}
+
+	w.Bot.UpdatedAt = time.Now()
+	if w.Bot.Frequency == 1 {
+		w.Bot.Frequency = 0
+	}
+
+	err = db.Save(w.Bot)
 }

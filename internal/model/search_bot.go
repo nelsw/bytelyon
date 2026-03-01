@@ -7,7 +7,8 @@ import (
 
 type SearchBot struct {
 	Bot
-	Headless bool `json:"headless" dynamodbav:"Headless,boolean"`
+	Headless bool                `json:"headless" dynamodbav:"Headless,boolean"`
+	State    BrowserContextState `json:"state" dynamodbav:"State,boolean"`
 }
 
 func (b *SearchBot) Desc() *dynamodb.CreateTableInput {

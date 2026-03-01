@@ -121,4 +121,11 @@ func (w *Worker) workUrl(url string) {
 		})
 	}
 	wg.Wait()
+
+	w.Bot.UpdatedAt = time.Now()
+	if w.Bot.Frequency == 1 {
+		w.Bot.Frequency = 0
+	}
+
+	err = db.Save(w.Bot)
 }

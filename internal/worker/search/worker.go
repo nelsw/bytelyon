@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/nelsw/bytelyon/internal/client/prowl"
 	"github.com/nelsw/bytelyon/internal/model"
@@ -80,6 +81,13 @@ func (w *Worker) Work() {
 	}
 
 	log.Err(err).Msg("Finished Search")
+
+	w.Bot.UpdatedAt = time.Now()
+	if w.Bot.Frequency == 1 {
+		w.Bot.Frequency = 0
+	}
+
+	err = db.Save(w.Bot)
 }
 
 func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) {

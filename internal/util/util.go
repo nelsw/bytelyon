@@ -6,10 +6,13 @@ import (
 	"io/fs"
 	"math/rand"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/rs/zerolog/log"
 )
+
+const app = "ByteLyon"
 
 func Ptr[T any](a T) *T { return &a }
 
@@ -64,4 +67,29 @@ func BinDir(parts ...string) string {
 		dir += "/" + strings.Join(parts, "/")
 	}
 	return dir
+}
+
+func Name(a any) string {
+	t := reflect.TypeOf(a)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	return t.Name()
+}
+
+func Capitalize(s string) string {
+	return strings.ToUpper(s[0:1]) + s[1:]
+}
+
+func AppName(args ...string) string {
+
+	if len(args) == 0 {
+		return app
+	}
+
+	if len(args)%2 == 0 {
+		return app + strings.Join(args, "")
+	}
+
+	return app + args[0] + strings.Join(args[1:], args[0])
 }

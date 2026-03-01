@@ -14,7 +14,6 @@ import (
 	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/logger"
-	"github.com/nelsw/bytelyon/internal/manager"
 	"github.com/nelsw/bytelyon/internal/router"
 	"github.com/rs/zerolog/log"
 )
@@ -28,13 +27,13 @@ func init() {
 
 func main() {
 
-	mgr := manager.New()
+	//mgr := manager.New()
 	svr := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Port()),
 		Handler: router.New().Handler(),
 	}
 
-	go mgr.Start()
+	//go mgr.Start()
 	go func() {
 		if err := svr.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal().Err(err).Int("port", config.Port()).Msg("Server failure")
@@ -53,9 +52,9 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	if err := mgr.Stop(ctx); err != nil {
-		log.Err(err).Msg("Manager stop failure")
-	}
+	//if err := mgr.Stop(ctx); err != nil {
+	//	log.Err(err).Msg("Manager stop failure")
+	//}
 
 	log.Info().Int("port", config.Port()).Msg("Server stopping")
 	if err := svr.Shutdown(ctx); err != nil {

@@ -5,100 +5,85 @@ import (
 	"errors"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/google/uuid"
+	. "github.com/nelsw/bytelyon/internal/util"
 	"github.com/rs/zerolog/log"
 )
+
+type Entity interface {
+	Desc() *dynamodb.CreateTableInput
+	Name() string
+	Key() map[string]any
+}
 
 var (
 	NotFoundEx    *types.ResourceNotFoundException
 	TableExistsEx *types.TableAlreadyExistsException
 )
 
-// TableExists determines whether a DynamoDB table exists.
-func TableExists(ctx context.Context, c *dynamodb.Client, name string) (bool, error) {
-	log.Trace().Str("name", name).Msg("checking if table exists")
-
-	_, err := c.DescribeTable(ctx, &dynamodb.DescribeTableInput{
-		TableName: &name,
-	})
-
-	if errors.As(err, &NotFoundEx) {
-		log.Debug().Str("name", name).Msg("table does not exist")
-		return false, nil
-	}
-
-	if err != nil {
-		log.Err(err).Str("name", name).Msg("failed to determine table existence")
-		return false, err
-	}
-
-	log.Debug().Str("name", name).Msg("table exists")
-	return true, nil
-}
-
 // CreateTable creates a DynamoDB table.
-func CreateTable(ctx context.Context, c *dynamodb.Client, input *dynamodb.CreateTableInput) error {
-	log.Trace().Str("name", *input.TableName).Msg("creating table")
+func CreateTable(ctx context.Context, c *dynamodb.Client, e Entity) error {
 
-	_, err := c.CreateTable(ctx, input)
+	log.Trace().Str("name", e.Name()).Msg("creating table")
+
+	_, err := c.CreateTable(ctx, e.Desc())
 
 	if errors.As(err, &TableExistsEx) {
-		log.Warn().Str("name", *input.TableName).Msg("table already exists")
+		log.Warn().Str("name", e.Name()).Msg("table already exists")
 		return nil
 	}
 
 	if err != nil {
-		log.Err(err).Str("name", *input.TableName).Msg("failed to create table")
+		log.Err(err).Str("name", e.Name()).Msg("failed to create table")
 		return err
 	}
 
 	err = dynamodb.NewTableExistsWaiter(c).Wait(ctx, &dynamodb.DescribeTableInput{
-		TableName: input.TableName,
+		TableName: Ptr(e.Name()),
 	}, 5*time.Minute)
 
 	if err != nil {
-		log.Err(err).Str("name", *input.TableName).Msg("failed to wait for table creation")
+		log.Err(err).Str("name", e.Name()).Msg("failed to wait for table creation")
 		return err
 	}
 
-	log.Debug().Str("name", *input.TableName).Msg("table created")
+	log.Debug().Str("name", e.Name()).Msg("table created")
 	return nil
 }
 
 // DeleteTable deletes the DynamoDB table and all of its data.
-func DeleteTable(ctx context.Context, c *dynamodb.Client, name string) error {
-	log.Trace().Str("name", name).Msg("deleting table")
+func DeleteTable(ctx context.Context, c *dynamodb.Client, e Entity) error {
+
+	log.Trace().Str("name", e.Name()).Msg("deleting table")
 
 	_, err := c.DeleteTable(ctx, &dynamodb.DeleteTableInput{
-		TableName: &name,
+		TableName: Ptr(e.Name()),
 	})
 
 	if errors.As(err, &NotFoundEx) {
-		log.Warn().Str("name", name).Msg("table does not exist")
+		log.Warn().Str("name", e.Name()).Msg("table does not exist")
 		return nil
 	}
 
 	if err != nil {
-		log.Err(err).Str("name", name).Msg("failed to delete table")
+		log.Err(err).Str("name", e.Name()).Msg("failed to delete table")
 		return err
 	}
 
 	err = dynamodb.NewTableNotExistsWaiter(c).Wait(ctx, &dynamodb.DescribeTableInput{
-		TableName: &name,
+		TableName: Ptr(e.Name()),
 	}, 5*time.Minute)
 
 	if err != nil {
-		log.Warn().Err(err).Str("name", name).Msg("failed to wait for table deletion")
+		log.Warn().Err(err).Str("name", e.Name()).Msg("failed to wait for table deletion")
 		return nil
 	}
 
-	log.Debug().Str("name", name).Msg("deleted table")
+	log.Debug().Str("name", e.Name()).Msg("deleted table")
 	return nil
 }
 
@@ -125,108 +110,131 @@ func ListTables(ctx context.Context, c *dynamodb.Client) ([]string, error) {
 	return names, nil
 }
 
-// PutItem creates a new item, or replaces an old item with a new item.
-func PutItem(ctx context.Context, c *dynamodb.Client, name string, a any) error {
+// TableExists determines whether a DynamoDB table exists.
+func TableExists(ctx context.Context, c *dynamodb.Client, e Entity) (bool, error) {
 
-	log.Trace().Str("name", name).Msg("creating item")
+	log.Trace().Str("name", e.Name()).Msg("checking if table exists")
 
-	item, err := attributevalue.MarshalMap(a)
-	if err != nil {
-		log.Err(err).Str("name", name).Msg("failed to marshal item")
-		return err
-	}
-
-	_, err = c.PutItem(ctx, &dynamodb.PutItemInput{
-		Item:      item,
-		TableName: &name,
+	_, err := c.DescribeTable(ctx, &dynamodb.DescribeTableInput{
+		TableName: Ptr(e.Name()),
 	})
 
-	if err != nil {
-		log.Err(err).Str("name", name).Msg("failed to put item")
-		return err
+	if errors.As(err, &NotFoundEx) {
+		log.Debug().Str("name", e.Name()).Msg("table does not exist")
+		return false, nil
 	}
 
-	log.Debug().Str("name", name).Msg("item created")
+	if err != nil {
+		log.Err(err).Str("name", e.Name()).Msg("failed to determine table existence")
+		return false, err
+	}
 
-	return nil
+	log.Debug().Str("name", e.Name()).Msg("table exists")
+	return true, nil
 }
 
 // DeleteItem removes an item from a DynamoDB table.
-func DeleteItem(ctx context.Context, c *dynamodb.Client, name string, a any) error {
+func DeleteItem(ctx context.Context, c *dynamodb.Client, e Entity) error {
+	log.Trace().Str("name", e.Name()).Msg("deleting item")
 
-	log.Trace().Str("name", name).Msg("deleting item")
-
-	key, err := attributevalue.MarshalMap(a)
+	key, err := attributevalue.MarshalMap(e)
 	if err != nil {
-		log.Err(err).Str("name", name).Msg("failed to marshal key")
+		log.Err(err).Str("name", e.Name()).Msg("failed to marshal key")
 		return err
 	}
 
 	_, err = c.DeleteItem(ctx, &dynamodb.DeleteItemInput{
-		TableName: &name,
+		TableName: Ptr(e.Name()),
 		Key:       key,
 	})
 
 	if errors.As(err, &NotFoundEx) {
-		log.Warn().Str("name", name).Msg("item does not exist")
+		log.Warn().Str("name", e.Name()).Msg("item does not exist")
 		return nil
 	}
 
 	if err != nil {
-		log.Err(err).Str("name", name).Msg("failed to delete item")
+		log.Err(err).Str("name", e.Name()).Msg("failed to delete item")
 		return err
 	}
 
-	log.Debug().Str("name", name).Msg("item deleted")
+	log.Debug().Str("name", e.Name()).Msg("item deleted")
 
 	return nil
 }
 
 // GetItem retrieves an item from the DynamoDB table.
-func GetItem[T any](ctx context.Context, c *dynamodb.Client, name string, a any) (t T, err error) {
-
-	log.Trace().Str("name", name).Msg("getting item")
+func GetItem[T any](ctx context.Context, c *dynamodb.Client, e Entity) (t T, err error) {
+	log.Trace().Str("name", e.Name()).Msg("getting item")
 
 	var key map[string]types.AttributeValue
-	if key, err = attributevalue.MarshalMap(a); err != nil {
-		log.Err(err).Str("name", name).Msg("failed to marshal key")
+	if key, err = attributevalue.MarshalMap(e.Key()); err != nil {
+		log.Err(err).Str("name", e.Name()).Msg("failed to marshal key")
 		return
 	}
 
+	log.Trace().Any("key", key).Msg("getting item")
+
 	var res *dynamodb.GetItemOutput
 	res, err = c.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: &name,
+		TableName: Ptr(e.Name()),
 		Key:       key,
 	})
 
 	if err != nil {
-		log.Err(err).Str("name", name).Msg("failed to get item")
+		log.Err(err).Str("name", e.Name()).Msg("failed to get item")
 		return
 	}
 
 	if res.Item == nil {
-		log.Warn().Str("name", name).Msg("item not found")
-		err = NotFoundEx
+		log.Warn().Str("name", e.Name()).Msg("item not found")
 		return
 	}
 
 	if err = attributevalue.UnmarshalMap(res.Item, &t); err != nil {
-		log.Err(err).Str("name", name).Msg("failed to unmarshal item")
+		log.Err(err).Str("name", e.Name()).Msg("failed to unmarshal item")
 		return
 	}
 
-	log.Debug().Str("name", name).Any("item", t).Msg("got item")
+	log.Debug().Str("name", e.Name()).Any("item", t).Msg("got item")
 
 	return
 }
 
+// ItemExists
+
+// PutItem creates a new item, or replaces an old item with a new item.
+func PutItem(ctx context.Context, c *dynamodb.Client, e Entity) error {
+	log.Trace().Str("name", e.Name()).Msg("creating item")
+
+	item, err := attributevalue.MarshalMap(e)
+	if err != nil {
+		log.Err(err).Str("name", e.Name()).Msg("failed to marshal item")
+		return err
+	}
+
+	_, err = c.PutItem(ctx, &dynamodb.PutItemInput{
+		Item:      item,
+		TableName: Ptr(e.Name()),
+	})
+
+	if err != nil {
+		log.Err(err).Str("name", e.Name()).Msg("failed to put item")
+		return err
+	}
+
+	log.Debug().Str("name", e.Name()).Msg("item created")
+
+	return nil
+}
+
 // QueryByID gets all items in the DynamoDB table by the hash key.
-func QueryByID[T any](ctx context.Context, c *dynamodb.Client, name, key string, val uuid.UUID) ([]T, error) {
+func QueryByID[T any](ctx context.Context, c *dynamodb.Client, name, key string, val any) ([]T, error) {
 
 	l := log.With().
 		Str("name", name).
 		Str("key", key).
-		Stringer("val", val).
+		Any("val", val).
 		Logger()
 
 	l.Trace().Msg("querying")
@@ -271,14 +279,13 @@ func QueryByID[T any](ctx context.Context, c *dynamodb.Client, name, key string,
 }
 
 // New returns a new DynamoDB client with the given Region, AccessKeyID, and SecretAccessKey.
-func New(reg, aki, sac string) *dynamodb.Client {
-	return dynamodb.NewFromConfig(aws.Config{
-		Credentials: credentials.StaticCredentialsProvider{
-			Value: aws.Credentials{
-				AccessKeyID:     aki,
-				SecretAccessKey: sac,
-			},
-		},
-		Region: reg,
-	})
+func New(args ...context.Context) (*dynamodb.Client, error) {
+	if len(args) == 0 {
+		args = append(args, context.Background())
+	}
+	c, err := config.LoadDefaultConfig(args[0])
+	if err != nil {
+		return nil, err
+	}
+	return dynamodb.NewFromConfig(c), nil
 }

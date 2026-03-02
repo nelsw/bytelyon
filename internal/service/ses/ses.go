@@ -94,13 +94,13 @@ func url(s string) string {
 }
 
 func SendEmailConfirmation(to, tkn string) error {
-	html := strings.ReplaceAll(template, "{{href}}", url("?tkn="+tkn))
+	html := strings.ReplaceAll(template, "{{href}}", url("/tkn/confirm/"+tkn))
 	html = strings.ReplaceAll(html, "{{text}}", "Confirm Email")
 	return client.SendEmail(ctx, ses, to, `🦁 Confirm Email`, html)
 }
 
 func SendPasswordReset(to, tkn string) error {
-	html := strings.ReplaceAll(template, "{{href}}", url("?tkn="+tkn))
+	html := strings.ReplaceAll(template, "{{href}}", url("/tkn/reset/"+tkn))
 	html = strings.ReplaceAll(html, "{{text}}", "Reset Password")
 	return client.SendEmail(ctx, ses, to, `🦁 Reset Password`, html)
 }

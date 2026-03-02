@@ -4,7 +4,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
-	. "github.com/nelsw/bytelyon/internal/config"
 	. "github.com/nelsw/bytelyon/internal/util"
 )
 
@@ -18,8 +17,8 @@ type Email struct {
 	UserID uuid.UUID `json:"-" dynamodbav:"UserID,binary"`
 }
 
-func (e *Email) Desc() *dynamodb.CreateTableInput {
-	return &dynamodb.CreateTableInput{
+func (e Email) Desc() dynamodb.CreateTableInput {
+	return dynamodb.CreateTableInput{
 		BillingMode: types.BillingModeProvisioned,
 		KeySchema: []types.KeySchemaElement{{
 			AttributeName: Ptr("ID"),
@@ -33,13 +32,9 @@ func (e *Email) Desc() *dynamodb.CreateTableInput {
 			ReadCapacityUnits:  Ptr(int64(10)),
 			WriteCapacityUnits: Ptr(int64(10)),
 		},
-		TableName: TableName(e),
 	}
 }
 
 func NewEmail(userID uuid.UUID, str string) *Email {
-	return &Email{
-		ID:     str,
-		UserID: userID,
-	}
+	return &Email{ID: str, UserID: userID}
 }

@@ -11,9 +11,8 @@ import (
 
 type Bot struct {
 	UserID    uuid.UUID     `json:"userID" dynamodbav:"UserID,binary"`
-	BotID     uuid.UUID     `json:"botID" dynamodbav:"BotID,binary"`
-	Type      BotType       `json:"type" dynamodbav:"Type,string"`
 	Target    string        `json:"target" dynamodbav:"Target,string"`
+	Type      BotType       `json:"type" dynamodbav:"Type,string"`
 	Frequency time.Duration `json:"frequency" dynamodbav:"Frequency,number"`
 	BlackList []string      `json:"blackList" dynamodbav:"BlackList,stringset"`
 	UpdatedAt time.Time     `json:"updatedAt" dynamodbav:"UpdatedAt,number"`
@@ -34,22 +33,22 @@ func (b *Bot) Ignore() map[string]bool {
 	return m
 }
 
-func (b *Bot) desc() *dynamodb.CreateTableInput {
-	return &dynamodb.CreateTableInput{
+func (b *Bot) desc() dynamodb.CreateTableInput {
+	return dynamodb.CreateTableInput{
 		BillingMode: types.BillingModeProvisioned,
 		KeySchema: []types.KeySchemaElement{{
 			AttributeName: Ptr("UserID"),
 			KeyType:       types.KeyTypeHash,
 		}, {
-			AttributeName: Ptr("BotID"),
+			AttributeName: Ptr("Target"),
 			KeyType:       types.KeyTypeRange,
 		}},
 		AttributeDefinitions: []types.AttributeDefinition{{
 			AttributeName: Ptr("UserID"),
 			AttributeType: types.ScalarAttributeTypeB,
 		}, {
-			AttributeName: Ptr("BotID"),
-			AttributeType: types.ScalarAttributeTypeB,
+			AttributeName: Ptr("Target"),
+			AttributeType: types.ScalarAttributeTypeS,
 		}},
 		ProvisionedThroughput: &types.ProvisionedThroughput{
 			ReadCapacityUnits:  Ptr(int64(10)),

@@ -35,7 +35,7 @@ func (m *Manager) Start() {
 		}
 
 		log.Debug().Msg("bot manager sleeping")
-		time.Sleep(time.Second * 15)
+		time.Sleep(time.Hour * 15)
 	}
 }
 

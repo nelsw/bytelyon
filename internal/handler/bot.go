@@ -3,11 +3,13 @@ package handler
 import (
 	"encoding/base64"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/service/db"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -25,10 +27,14 @@ func SaveBot(c *gin.Context) {
 	if t == model.SitemapBotType {
 		var b model.SitemapBot
 		if err := c.Bind(&b); err != nil {
+			log.Err(err).Msg("failed to bind sitemap bot")
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
-		} else if err = b.Validate(); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
-		} else if err = db.Save(&b); err != nil {
+			return
+		}
+		b.UserID = c.MustGet("userID").(uuid.UUID)
+		b.UpdatedAt = time.Now()
+
+		if err := db.Save(&b); err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		} else {
 			c.JSON(http.StatusCreated, &b)
@@ -36,14 +42,37 @@ func SaveBot(c *gin.Context) {
 		return
 	}
 
-	if t == model.SearchBotType || t == model.NewsBotType {
-		var a any
-		if err := c.Bind(&a); err != nil {
+	if t == model.SearchBotType {
+		var b model.SearchBot
+		if err := c.Bind(&b); err != nil {
+			log.Error().Err(err).Msg("failed to bind search bot")
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
-		} else if err = db.Save(&a); err != nil {
+			return
+		}
+
+		b.UserID = c.MustGet("userID").(uuid.UUID)
+		b.UpdatedAt = time.Now()
+		if err := db.Save(&b); err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		} else {
-			c.JSON(http.StatusCreated, &a)
+			c.JSON(http.StatusCreated, &b)
+		}
+		return
+	}
+
+	if t == model.NewsBotType {
+		var b model.NewsBot
+		if err := c.Bind(&b); err != nil {
+			log.Error().Err(err).Msg("failed to bind news bot")
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
+		}
+
+		b.UserID = c.MustGet("userID").(uuid.UUID)
+		b.UpdatedAt = time.Now()
+		if err := db.Save(&b); err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
+		} else {
+			c.JSON(http.StatusCreated, &b)
 		}
 		return
 	}
@@ -76,23 +105,31 @@ func GetBots(c *gin.Context) {
 
 func DeleteBot(c *gin.Context) {
 
-	_, err := uuid.Parse(c.Param("botID"))
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
-	}
-
-	bot := map[string]any{
-		"UserID": c.MustGet("userID").(uuid.UUID),
-		"BotID":  uuid.MustParse(c.Param("botID")),
-	}
+	var err error
 
 	switch t := model.BotType(c.Param("type")); t {
 	case model.SearchBotType:
-		err = db.Wipe(model.SearchBot{}, bot)
+		err = db.Wipe(model.SearchBot{}, map[string]any{
+			"UserID": c.MustGet("userID").(uuid.UUID),
+			"Target": c.Param("botID"),
+		})
 	case model.SitemapBotType:
-		err = db.Wipe(model.SitemapBot{}, bot)
+		var tar []byte
+		tar, err = base64.URLEncoding.DecodeString(c.Param("botID"))
+		if err != nil {
+			log.Error().Err(err).Msg("failed to decode sitemap bot")
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
+			return
+		}
+		err = db.Wipe(model.SitemapBot{}, map[string]any{
+			"UserID": c.MustGet("userID").(uuid.UUID),
+			"Target": string(tar),
+		})
 	case model.NewsBotType:
-		err = db.Wipe(model.NewsBot{}, bot)
+		err = db.Wipe(model.NewsBot{}, map[string]any{
+			"UserID": c.MustGet("userID").(uuid.UUID),
+			"Target": c.Param("botID"),
+		})
 	default:
 		c.AbortWithStatusJSON(http.StatusBadRequest, badBotType(c.Param("type")))
 	}

@@ -16,9 +16,9 @@ func Test_DB_Find(t *testing.T) {
 	assert.NoError(t, scanErr)
 	assert.NotEmpty(t, arr)
 
-	out, findErr := db.Find[model.SearchBot](model.SearchBot{}, map[string]any{
+	out, findErr := db.Find[model.SearchBot](map[string]any{
 		"UserID": arr[0].UserID,
-		"BotID":  arr[0].BotID,
+		"Target": arr[0].Target,
 	})
 	assert.NoError(t, findErr)
 	assert.NotNil(t, out)
@@ -57,7 +57,6 @@ func Test_DB_Save(t *testing.T) {
 
 		bot := model.Bot{
 			UserID:    userIDs[i%2],
-			BotID:     util.Must(uuid.NewV7()),
 			BlackList: []string{fake.DomainName()},
 			Frequency: time.Hour * time.Duration(fake.Uint8()),
 			Target:    fake.URL(),
@@ -80,7 +79,7 @@ func Test_DB_Wipe(t *testing.T) {
 
 	err = db.Wipe(model.SearchBot{}, map[string]any{
 		"UserID": arr[0].UserID,
-		"BotID":  arr[0].BotID,
+		"Target": arr[0].Target,
 	})
 	assert.NoError(t, err)
 }

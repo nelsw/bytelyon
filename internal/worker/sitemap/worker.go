@@ -29,7 +29,7 @@ func (w *Worker) Work() {
 	sort.Strings(m.Remote())
 
 	err := db.Save(&model.SitemapBotData{
-		BotID:    w.BotID,
+		UserID:   w.UserID,
 		URL:      w.Target,
 		Domain:   util.Domain(w.Target),
 		Relative: m.Relative(),
@@ -45,5 +45,5 @@ func (w *Worker) Work() {
 		w.Bot.Frequency = 0
 	}
 
-	err = db.Save(w.Bot)
+	err = db.Save(w.SitemapBot)
 }

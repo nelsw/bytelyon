@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	. "github.com/nelsw/bytelyon/internal/config"
+	. "github.com/nelsw/bytelyon/internal/model"
 	. "github.com/nelsw/bytelyon/internal/util"
 	"github.com/rs/zerolog/log"
 )
@@ -26,92 +27,111 @@ var (
 
 func init() {
 	ctx = context.Background()
-	c, err := aws.LoadDefaultConfig(ctx)
-	if err != nil {
-		panic(err)
-	}
+	c := Must(aws.LoadDefaultConfig(ctx))
 	db = dynamodb.NewFromConfig(c)
+
+	if !IsReleaseMode() &&
+		MigrateTables() {
+		Migrate(
+			&Email{},
+			&NewsBot{},
+			&NewsBotData{},
+			&Password{},
+			&SearchBot{},
+			&SearchBotData{},
+			&SitemapBot{},
+			&SitemapBotData{},
+			&Token{},
+			&User{},
+		)
+	}
 }
 
 // Make creates a DynamoDB table.
-func Make(name string, desc *dynamodb.CreateTableInput) error {
+func Make(e Entity) error {
 
-	log.Trace().Str("name", name).Msg("creating table")
+	l := log.With().Str("name", *TableName(e)).Logger()
 
-	_, err := db.CreateTable(ctx, desc)
+	l.Trace().Msg("creating table")
+
+	cti := e.Desc()
+	cti.TableName = TableName(e)
+	_, err := db.CreateTable(ctx, &cti)
 
 	if errors.As(err, &tableExistsEx) {
-		log.Warn().Str("name", name).Msg("table already exists")
+		l.Warn().Msg("table already exists")
 		return nil
 	}
 
 	if err != nil {
-		log.Err(err).Str("name", name).Msg("failed to create table")
+		l.Err(err).Msg("failed to create table")
 		return err
 	}
 
 	err = dynamodb.NewTableExistsWaiter(db).Wait(ctx, &dynamodb.DescribeTableInput{
-		TableName: Ptr(name),
+		TableName: TableName(e),
 	}, 5*time.Minute)
 
 	if err != nil {
-		log.Err(err).Str("name", name).Msg("failed to wait for table creation")
+		l.Err(err).Msg("failed to wait for table creation")
 		return err
 	}
 
-	log.Debug().Str("name", name).Msg("table created")
+	l.Debug().Msg("table created")
 	return nil
 }
 
 // Drop deletes the DynamoDB table and all of its data.
-func Drop(name string) error {
+func Drop(e Entity) error {
 
-	log.Trace().Str("name", name).Msg("deleting table")
+	l := log.With().Str("name", *TableName(e)).Logger()
+
+	l.Trace().Msg("deleting table")
 
 	_, err := db.DeleteTable(ctx, &dynamodb.DeleteTableInput{
-		TableName: Ptr(name),
+		TableName: TableName(e),
 	})
 
 	if errors.As(err, &notFoundEx) {
-		log.Warn().Str("name", name).Msg("table does not exist")
+		log.Warn().Msg("table does not exist")
 		return nil
 	}
 
 	if err != nil {
-		log.Err(err).Str("name", name).Msg("failed to delete table")
+		log.Err(err).Msg("failed to delete table")
 		return err
 	}
 
 	err = dynamodb.NewTableNotExistsWaiter(db).Wait(ctx, &dynamodb.DescribeTableInput{
-		TableName: Ptr(name),
+		TableName: TableName(e),
 	}, 5*time.Minute)
 
 	if err != nil {
-		log.Warn().Err(err).Str("name", name).Msg("failed to wait for table deletion")
+		log.Warn().Err(err).Msg("failed to wait for table deletion")
 		return nil
 	}
 
-	log.Debug().Str("name", name).Msg("deleted table")
+	log.Debug().Msg("deleted table")
 	return nil
 }
 
 // Migrate drops and creates the DynamoDB tables defined in the given map.
 // Fails fast if app mode is release or migration config equals false.
-func Migrate(arr ...*dynamodb.CreateTableInput) {
+func Migrate(ee ...Entity) error {
 
 	if IsReleaseMode() || !MigrateTables() {
-		return
+		return nil
 	}
 
-	l := log.With().Int("size", len(arr)).Logger()
+	l := log.With().Int("size", len(ee)).Logger()
 
 	l.Trace().Msg("migrating tables")
 
 	var wg sync.WaitGroup
-	for _, a := range arr {
+	for _, e := range ee {
 		wg.Go(func() {
-			Drop(*a.TableName)
-			Make(*a.TableName, a)
+			Drop(e)
+			Make(e)
 		})
 	}
 
@@ -120,11 +140,13 @@ func Migrate(arr ...*dynamodb.CreateTableInput) {
 	wg.Wait()
 
 	l.Trace().Msg("migration complete")
+
+	return nil
 }
 
 // Wipe removes an item from a DynamoDB table.
-func Wipe(a, v any) error {
-	l := log.With().Str("name", *TableName(a)).Logger()
+func Wipe(e Entity, v any) error {
+	l := log.With().Str("name", *TableName(e)).Logger()
 
 	l.Trace().Msg("deleting item")
 
@@ -135,7 +157,7 @@ func Wipe(a, v any) error {
 	}
 
 	_, err = db.DeleteItem(ctx, &dynamodb.DeleteItemInput{
-		TableName: TableName(a),
+		TableName: TableName(e),
 		Key:       key,
 	})
 
@@ -155,14 +177,14 @@ func Wipe(a, v any) error {
 }
 
 // Save creates a new item, or replaces an old item with a new item.
-func Save(a any) (err error) {
+func Save(e Entity) (err error) {
 
-	l := log.With().Str("name", *TableName(a)).Logger()
+	l := log.With().Any("entity", e).Str("name", *TableName(e)).Logger()
 
 	l.Trace().Msg("creating item")
 
-	input := dynamodb.PutItemInput{TableName: TableName(a)}
-	if input.Item, err = attributevalue.MarshalMap(a); err != nil {
+	input := dynamodb.PutItemInput{TableName: TableName(e)}
+	if input.Item, err = attributevalue.MarshalMap(e); err != nil {
 		l.Err(err).Msg("failed to marshal item")
 		return err
 	}
@@ -178,13 +200,13 @@ func Save(a any) (err error) {
 }
 
 // Find retrieves an item from the DynamoDB table.
-func Find[T any](a, v any) (t T, err error) {
-	l := log.With().Str("name", *TableName(a)).Logger()
+func Find[E Entity](a any) (e E, err error) {
+	l := log.With().Str("name", *TableName(e)).Logger()
 
 	l.Trace().Msg("getting item")
 
-	input := dynamodb.GetItemInput{TableName: TableName(a)}
-	if input.Key, err = attributevalue.MarshalMap(v); err != nil {
+	input := dynamodb.GetItemInput{TableName: TableName(e)}
+	if input.Key, err = attributevalue.MarshalMap(a); err != nil {
 		log.Err(err).Msg("failed to marshal key")
 		return
 	}
@@ -204,22 +226,22 @@ func Find[T any](a, v any) (t T, err error) {
 		return
 	}
 
-	if err = attributevalue.UnmarshalMap(res.Item, &t); err != nil {
+	if err = attributevalue.UnmarshalMap(res.Item, &e); err != nil {
 		log.Err(err).Msg("failed to unmarshal item")
 		return
 	}
 
-	log.Debug().Any("item", t).Msg("got item")
+	log.Debug().Any("item", e).Msg("got item")
 
 	return
 }
 
 // Query items by the hash key.
-// See model.Bot for a composite key of a hash & range key.
-func Query[T any](t T, k string, v any) ([]T, error) {
+// See Bot for a composite key of a hash & range key.
+func Query[E Entity](e E, k string, v any) ([]E, error) {
 
 	l := log.With().
-		Str("name", *TableName(t)).
+		Str("name", *TableName(e)).
 		Str("key", k).
 		Any("val", v).
 		Logger()
@@ -237,13 +259,13 @@ func Query[T any](t T, k string, v any) ([]T, error) {
 	}
 
 	input := &dynamodb.QueryInput{
-		TableName:                 TableName(t),
+		TableName:                 TableName(e),
 		ExpressionAttributeNames:  exp.Names(),
 		ExpressionAttributeValues: exp.Values(),
 		KeyConditionExpression:    exp.KeyCondition(),
 	}
 
-	var arr []T
+	var arr []E
 
 	queryPaginator := dynamodb.NewQueryPaginator(db, input)
 
@@ -255,7 +277,7 @@ func Query[T any](t T, k string, v any) ([]T, error) {
 			return nil, err
 		}
 
-		var items []T
+		var items []E
 		if err = attributevalue.UnmarshalListOfMaps(res.Items, &items); err != nil {
 			l.Err(err).Msg("failed to unmarshal items")
 			return nil, err
@@ -269,13 +291,13 @@ func Query[T any](t T, k string, v any) ([]T, error) {
 }
 
 // Scan is literally a full table scan; don't use this function.
-func Scan[T any](t T, args ...any) (arr []T, err error) {
+func Scan[E Entity](e E, args ...any) (arr []E, err error) {
 
-	l := log.With().Str("name", *TableName(t)).Logger()
+	l := log.With().Str("name", *TableName(e)).Logger()
 
 	l.Trace().Msg("scanning items")
 
-	input := &dynamodb.ScanInput{TableName: TableName(t)}
+	input := &dynamodb.ScanInput{TableName: TableName(e)}
 
 	if len(args) > 0 {
 		f := args[0].(string)
@@ -298,7 +320,7 @@ func Scan[T any](t T, args ...any) (arr []T, err error) {
 			return
 		}
 
-		var items []T
+		var items []E
 		if err = attributevalue.UnmarshalListOfMaps(result.Items, &items); err != nil {
 			l.Err(err).Msg("failed to unmarshal items")
 			return

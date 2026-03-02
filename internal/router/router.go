@@ -32,9 +32,10 @@ func New() *gin.Engine {
 	}
 	{
 		api.Group("/bots/:type").
+			POST("", SaveBot).
 			PUT("", SaveBot).
 			GET("", GetBots).
-			DELETE("/bot/:botID", DeleteBot)
+			DELETE("/id/:botID", DeleteBot)
 		{
 			api.Group("/data/:dataID").
 				DELETE("", DeleteBotData).

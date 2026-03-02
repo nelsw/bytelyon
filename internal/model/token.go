@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
-	. "github.com/nelsw/bytelyon/internal/config"
 	. "github.com/nelsw/bytelyon/internal/util"
 )
 
@@ -17,8 +16,8 @@ type Token struct {
 	Expiry time.Time `json:"expiry" dynamodbav:"Expiry,number"`
 }
 
-func (t *Token) Desc() *dynamodb.CreateTableInput {
-	return &dynamodb.CreateTableInput{
+func (t Token) Desc() dynamodb.CreateTableInput {
+	return dynamodb.CreateTableInput{
 		BillingMode: types.BillingModeProvisioned,
 		KeySchema: []types.KeySchemaElement{{
 			AttributeName: Ptr("ID"),
@@ -32,7 +31,6 @@ func (t *Token) Desc() *dynamodb.CreateTableInput {
 			ReadCapacityUnits:  Ptr(int64(10)),
 			WriteCapacityUnits: Ptr(int64(10)),
 		},
-		TableName: TableName(t),
 	}
 }
 

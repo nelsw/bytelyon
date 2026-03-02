@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/joho/godotenv"
 	. "github.com/nelsw/bytelyon/internal/util"
@@ -23,17 +22,20 @@ var banner = "\u001B[0;36m" + `
 ` + "\u001B[0m"
 
 var cfg = map[string]any{
-	"MODE": "debug",
-	"PORT": 8085,
+	"MODE":              "debug",
+	"PORT":              8085,
+	"DB_MIGRATE_TABLES": 0,
+	"JWT_SECRET":        "",
 }
 
 func Get[T any](key string) T { return cfg[key].(T) }
-func JwtKey() []byte          { return []byte(cfg["JWT_SECRET"].(string)) }
-func Mode() string            { return Get[string]("MODE") }
-func IsReleaseMode() bool     { return Mode() == "release" }
 func IsDebugMode() bool       { return Mode() == "debug" }
-func Port() int               { return Get[int]("PORT") }
+func IsReleaseMode() bool     { return Mode() == "release" }
+func IsTestMode() bool        { return Mode() == "test" }
+func JwtKey() []byte          { return []byte(Get[string]("JWT_SECRET")) }
 func MigrateTables() bool     { return Get[int]("DB_MIGRATE_TABLES") == 1 }
+func Mode() string            { return Get[string]("MODE") }
+func Port() int               { return Get[int]("PORT") }
 
 func Init() {
 	if !loadFromCli() {
@@ -99,13 +101,4 @@ func validateCfg() {
 	} else if port := Port(); port < 10 || port > 9999 {
 		panic(fmt.Sprintf("bad port: [%d] (ports: 10-9999)", port))
 	}
-}
-
-func TableName(a any) *string {
-	if IsReleaseMode() {
-		return Ptr("ByteLyon_" + Name(a))
-	} else if IsDebugMode() {
-		return Ptr("ByteLyon_Debug_" + Name(a))
-	}
-	return Ptr("ByteLyon_Test_" + strings.Join(SplitByCase(Name(a)), "_"))
 }

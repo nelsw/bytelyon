@@ -107,7 +107,7 @@ func (w *Worker) workUrl(url string) {
 			}
 
 			err = db.Save(&model.NewsBotData{
-				BotID:       w.BotID,
+				UserID:      w.UserID,
 				URL:         i.URL,
 				Title:       i.Title,
 				Source:      i.Source,
@@ -127,5 +127,5 @@ func (w *Worker) workUrl(url string) {
 		w.Bot.Frequency = 0
 	}
 
-	err = db.Save(w.Bot)
+	err = db.Save(w.NewsBot)
 }

@@ -17,15 +17,16 @@ import (
 )
 
 func Token(c *gin.Context) {
+
 	ID, err := uuid.Parse(c.Param("token"))
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
 		return
 	}
 
 	var tkn model.Token
-	if tkn, err = db.Find[model.Token](model.Token{}, map[string]any{"ID": ID}); err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if tkn, err = db.Find[model.Token](map[string]any{"ID": ID}); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
 
@@ -40,11 +41,30 @@ func Token(c *gin.Context) {
 	}
 
 	if tkn.Type == model.ConfirmEmailTokenType {
-		// todo - func or prop to denote this email is confirmed
-	} else if tkn.Type == model.ResetPasswordTokenType {
+
+		var jwt string
+		if jwt, err = model.NewJWT(tkn.UserID); err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
+			return
+		}
+
+		if err = db.Wipe(model.Token{}, map[string]any{"ID": ID}); err != nil {
+			log.Warn().Err(err).Msg("failed to delete token")
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"isAuthenticated": true,
+			"context": map[string]any{
+				"token": jwt,
+			},
+		})
+		return
+	}
+
+	if tkn.Type == model.ResetPasswordTokenType {
 
 		var pass model.Password
-		if pass, err = db.Find[model.Password](model.Password{}, map[string]any{"ID": tkn.UserID}); err != nil {
+		if pass, err = db.Find[model.Password](map[string]any{"ID": tkn.UserID}); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "failed to find user and password from token"})
 			return
 		}
@@ -56,16 +76,29 @@ func Token(c *gin.Context) {
 		}
 		pass.Update(a.(*model.Credentials).Password)
 		if err = db.Save(&pass); err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 			return
 		}
+
+		var jwt string
+		if jwt, err = model.NewJWT(tkn.UserID); err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
+			return
+		}
+
+		if err = db.Wipe(model.Token{}, map[string]any{"ID": ID}); err != nil {
+			log.Warn().Err(err).Msg("failed to delete token")
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"isAuthenticated": true,
+			"context": map[string]any{
+				"token": jwt,
+			},
+		})
 	}
 
-	if err = db.Wipe(model.Token{}, map[string]any{"ID": ID}); err != nil {
-		log.Warn().Err(err).Msg("failed to delete token")
-	}
-
-	c.Status(http.StatusOK)
+	c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "unknown token type"})
 }
 
 func Login(c *gin.Context) {
@@ -87,7 +120,7 @@ func Signup(c *gin.Context) {
 	creds := a.(*model.Credentials)
 
 	// have we seen this email address before
-	email, err := db.Find[model.Email](model.Email{}, map[string]any{"ID": creds.Username})
+	email, err := db.Find[model.Email](map[string]any{"ID": creds.Username})
 	if err != nil {
 		log.Err(err).Msg("failed to get email on signup")
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
@@ -122,9 +155,9 @@ func Signup(c *gin.Context) {
 		}
 	} else {
 		// we've seen this email before
-		if user, err = db.Find[model.User](model.User{}, map[string]any{"ID": email.UserID}); err != nil {
+		if user, err = db.Find[model.User](map[string]any{"ID": email.UserID}); err != nil {
 			log.Err(err).Msg("failed to get user on signup")
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 			return
 		}
 	}
@@ -137,7 +170,7 @@ func Signup(c *gin.Context) {
 
 	if err = ses.SendEmailConfirmation(creds.Username, tkn.ID.String()); err != nil {
 		log.Err(err).Msg("failed to send email on signup")
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
 
@@ -164,10 +197,16 @@ func ForgotPassword(c *gin.Context) {
 	}
 	creds := a.(*model.Credentials)
 
-	email, err := db.Find[model.Email](model.Email{}, map[string]any{"ID": creds.Username})
+	email, err := db.Find[model.Email](map[string]any{"ID": creds.Username})
 	if err != nil {
 		log.Err(err).Msg("failed to get email on forgot password")
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	// does homeboy exist? literally? not in a meta way.
+	if email.UserID == uuid.Nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "email not found; try signing up."})
 		return
 	}
 
@@ -177,7 +216,7 @@ func ForgotPassword(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
 
-	if err = ses.SendPasswordReset(email.ID, tkn.ID.String()); err != nil {
+	if err = ses.SendPasswordReset(creds.Username, tkn.ID.String()); err != nil {
 		log.Err(err).Msg("failed to send email on forgot password")
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
@@ -197,8 +236,6 @@ func ValidateAuth(c *gin.Context) {
 	if authHeader == "" {
 		authHeader = c.Request.Header.Get("authorization")
 	}
-
-	log.Info().Msgf("Authorization header: %s", authHeader)
 
 	tokenType, tokenValue, _ := strings.Cut(authHeader, " ")
 	log.Info().Msgf("Token type: %s", tokenType)
@@ -234,31 +271,49 @@ func validateBasicAuth(c *gin.Context, token string) {
 	}
 
 	creds := model.NewCredentials(username, password)
-	if err = creds.ValidateUsername(); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-	} else if err = creds.ValidatePassword(); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+
+	if strings.Contains(c.FullPath(), "/token") {
+		c.Set("creds", creds)
+		c.Next()
+		return
 	}
 
-	if strings.Contains(c.FullPath(), "/signup") ||
-		strings.Contains(c.FullPath(), "/token") ||
-		strings.Contains(c.FullPath(), "/forgot-password") {
+	if err = creds.ValidateUsername(); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
+	}
+
+	if strings.Contains(c.FullPath(), "/forgot-password") {
+		c.Set("creds", creds)
+		c.Next()
+		return
+	}
+
+	if err = creds.ValidatePassword(); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
+	}
+
+	if strings.Contains(c.FullPath(), "/signup") {
 		c.Set("creds", creds)
 		c.Next()
 		return
 	}
 
 	var email model.Email
-	if email, err = db.Find[model.Email](model.Email{}, map[string]any{"ID": username}); err != nil {
+	if email, err = db.Find[model.Email](map[string]any{"ID": username}); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("user not found for email %s", username),
 		})
 		return
 	}
 
+	if email.UserID == uuid.Nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "email not found; try signing up."})
+		return
+	}
+
 	var pass model.Password
-	if pass, err = db.Find[model.Password](model.Password{}, map[string]any{"ID": email.UserID}); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if pass, err = db.Find[model.Password](map[string]any{"ID": email.UserID}); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
 		return
 	}
 	if err = pass.Authenticate(password); err != nil {
@@ -267,14 +322,14 @@ func validateBasicAuth(c *gin.Context, token string) {
 	}
 
 	var user model.User
-	if user, err = db.Find[model.User](model.User{}, map[string]any{"ID": email.UserID}); err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if user, err = db.Find[model.User](map[string]any{"ID": email.UserID}); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
 
 	var tkn string
 	if tkn, err = model.NewJWT(user.ID); err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
 
@@ -283,14 +338,12 @@ func validateBasicAuth(c *gin.Context, token string) {
 
 func validateBearerAuth(c *gin.Context, token string) {
 
-	log.Trace().
-		Str("token", token).
-		Msg("validate bearer token")
+	log.Trace().Msg("validate bearer token")
 
 	userID, err := model.ParseUserID(token)
 	if err != nil {
 		log.Warn().Err(err).Msg("invalid bearer token")
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
 	log.Debug().Msg("bearer token validated")

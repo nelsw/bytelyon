@@ -1,8 +1,11 @@
 package model
 
 import (
+	"encoding/base64"
+	"fmt"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	. "github.com/nelsw/bytelyon/internal/config"
 )
 
 type SearchBot struct {
@@ -11,8 +14,14 @@ type SearchBot struct {
 	State    BrowserContextState `json:"state" dynamodbav:"State,boolean"`
 }
 
-func (b *SearchBot) Desc() *dynamodb.CreateTableInput {
-	d := b.Bot.desc()
-	d.TableName = TableName(b)
-	return d
+func (b SearchBot) Desc() dynamodb.CreateTableInput { return b.Bot.desc() }
+
+func (b SearchBot) PageDataPath(url, ext string) string {
+	return fmt.Sprintf("users/%s/bots/search/%s/%s/%s.%s",
+		b.Bot.UserID,
+		b.Bot.Target,
+		b.UpdatedAt.Truncate(time.Minute),
+		base64.URLEncoding.EncodeToString([]byte(url)),
+		ext,
+	)
 }

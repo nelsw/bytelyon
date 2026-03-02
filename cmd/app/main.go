@@ -32,7 +32,7 @@ func main() {
 		Handler: router.New().Handler(),
 	}
 
-	go mgr.Start()
+	//go mgr.Start()
 	go func() {
 		if err := svr.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal().Err(err).Int("port", config.Port()).Msg("Server failure")

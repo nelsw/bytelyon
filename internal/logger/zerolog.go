@@ -35,6 +35,7 @@ func MakeZerolog() zerolog.Logger {
 				return Default + l + Default
 			}
 		},
+		TimeFormat: "15:04:05",
 	})
 
 	if config.IsReleaseMode() {
@@ -42,5 +43,6 @@ func MakeZerolog() zerolog.Logger {
 	} else if config.IsDebugMode() {
 		return l.Level(zerolog.DebugLevel)
 	}
+	zerolog.TimeFieldFormat = ""
 	return l.Level(zerolog.TraceLevel).With().Caller().Logger()
 }

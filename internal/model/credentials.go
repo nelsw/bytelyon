@@ -32,10 +32,10 @@ func (c *Credentials) ValidateUsername() error {
 	return nil
 }
 
-func (c *Credentials) ValidatePassword() (err error) {
+func (c *Credentials) ValidatePassword() error {
 
 	if len(c.Password) < 8 {
-		err = errors.Join(err, errInvalidPasswordLen)
+		return errInvalidPasswordLen
 	}
 
 	var number, lower, upper, special bool
@@ -53,23 +53,16 @@ func (c *Credentials) ValidatePassword() (err error) {
 	}
 
 	if !lower {
-		err = errors.Join(err, errInvalidPasswordLower)
-	}
-	if !upper {
-		err = errors.Join(err, errInvalidPasswordUpper)
-	}
-	if !special {
-		err = errors.Join(err, errInvalidPasswordSymbol)
-	}
-	if !number {
-		err = errors.Join(err, errInvalidPasswordNumber)
+		return errInvalidPasswordLower
+	} else if !upper {
+		return errInvalidPasswordUpper
+	} else if !special {
+		return errInvalidPasswordSymbol
+	} else if !number {
+		return errInvalidPasswordNumber
 	}
 
-	if err != nil {
-		return err
-	}
-
-	return err
+	return nil
 }
 
 func NewCredentials(username string, password string) *Credentials {

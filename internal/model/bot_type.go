@@ -1,12 +1,14 @@
 package model
 
 import (
-	"database/sql/driver"
-	"errors"
+	"fmt"
 	"regexp"
 )
 
 var validationRegex = regexp.MustCompile(`^(search|news|sitemap)$`)
+var ErrBotTypeFn = func(a any) error {
+	return fmt.Errorf("invalid bot type; must be one of [search, news, or sitemap]; got: [%s]", a)
+}
 
 type BotType string
 
@@ -16,31 +18,49 @@ const (
 	NewsBotType    BotType = "news"
 )
 
-func (t *BotType) Scan(src any) error {
-	if src == nil {
-		return errors.New("nil bot type")
-	}
-	*t = BotType(src.(string))
-	if err := t.Validate(); err != nil {
-		return err
+func (t BotType) BotEntity(a ...any) Entity {
+	switch t {
+	case SearchBotType:
+		return &BotSearch{Bot: Bot{Model: Make(a...), Type: t}}
+	case SitemapBotType:
+		return &BotSitemap{Bot: Bot{Model: Make(a...), Type: t}}
+	case NewsBotType:
+		return &BotNews{Bot: Bot{Model: Make(a...), Type: t}}
 	}
 	return nil
+}
+
+func (t BotType) ResultEntity() Entity {
+	switch t {
+	case SearchBotType:
+		return &BotSearchResult{}
+	case SitemapBotType:
+		return &BotSitemapResult{}
+	case NewsBotType:
+		return &BotNewsResult{}
+	}
+	return nil
+}
+
+func (t BotType) is(bt BotType) bool { return t == bt }
+func (t BotType) IsNews() bool       { return t.is(NewsBotType) }
+func (t BotType) IsSearch() bool     { return t.is(SearchBotType) }
+func (t BotType) IsSitemap() bool    { return t.is(SitemapBotType) }
+
+func (t BotType) Validate() error {
+	if validationRegex.MatchString(t.String()) {
+		return nil
+	}
+	return ErrBotTypeFn(t)
+}
+
+func NewBotType(s string) (BotType, error) {
+	if err := BotType(s).Validate(); err != nil {
+		return "", err
+	}
+	return BotType(s), nil
 }
 
 func (t BotType) String() string {
 	return string(t)
-}
-
-func (t *BotType) Validate() error {
-	if !validationRegex.MatchString(t.String()) {
-		return errors.New("invalid bot type; must be one of [search, news, or sitemap]; got: [" + t.String() + "]")
-	}
-	return nil
-}
-
-func (t *BotType) Value() (driver.Value, error) {
-	if err := t.Validate(); err != nil {
-		return nil, err
-	}
-	return t.String(), nil
 }

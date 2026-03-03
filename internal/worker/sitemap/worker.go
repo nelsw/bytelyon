@@ -1,21 +1,21 @@
 package sitemap
 
 import (
-	"context"
 	"sort"
+	"time"
 
-	"github.com/nelsw/bytelyon/internal/db"
+	"github.com/google/uuid"
 	"github.com/nelsw/bytelyon/internal/model"
-	"github.com/nelsw/bytelyon/internal/util"
+	"github.com/nelsw/bytelyon/internal/service/db"
 	"github.com/rs/zerolog/log"
 )
 
 type Worker struct {
-	*model.Bot
+	*model.BotSitemap
 }
 
-func New(b *model.Bot) *Worker {
-	return &Worker{b}
+func New(bot *model.BotSitemap) *Worker {
+	return &Worker{bot}
 }
 
 func (w *Worker) Work() {
@@ -28,10 +28,10 @@ func (w *Worker) Work() {
 	sort.Strings(m.Relative())
 	sort.Strings(m.Remote())
 
-	err := db.Builder[model.Sitemap]().Create(context.Background(), &model.Sitemap{
-		BotID:    w.Bot.ID,
-		URL:      w.Target,
-		Domain:   util.Domain(w.Target),
+	err := db.Save(&model.BotSitemapResult{
+		Model:    model.Make(w.UserID),
+		ID:       uuid.Must(uuid.NewV7()),
+		Target:   w.Target,
 		Relative: m.Relative(),
 		Remote:   m.Remote(),
 	})
@@ -39,4 +39,11 @@ func (w *Worker) Work() {
 	if err != nil {
 		log.Err(err).Msg("Failed to create sitemap")
 	}
+
+	w.Bot.UpdatedAt = time.Now()
+	if w.Bot.Frequency == 1 {
+		w.Bot.Frequency = 0
+	}
+
+	err = db.Save(w.BotSitemap)
 }

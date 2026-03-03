@@ -5,7 +5,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nelsw/bytelyon/internal/config"
 	. "github.com/nelsw/bytelyon/internal/handler"
-	"github.com/nelsw/bytelyon/internal/model"
 )
 
 func New() *gin.Engine {
@@ -20,39 +19,27 @@ func New() *gin.Engine {
 	cfg.AllowCredentials = true
 	cfg.AllowHeaders = append(cfg.AllowHeaders, "Authorization")
 
-	r.Use(gin.Recovery(), gin.Logger(), cors.New(cfg))
+	r.Use(gin.Recovery(), cors.New(cfg), Logger())
 
 	api := r.Group("/api", ValidateAuth)
 	{
-		api.Group("/user").
-			POST("/login", Login).
-			POST("/forgot-password", ForgotPassword).
-			POST("/signup", Signup).
-			POST("/token/:token", Token)
+		api.Group("/auth").
+			POST("/login", LoginUser).
+			POST("/reset", ResetPassword).
+			POST("/signup", SignupUser).
+			POST("/token/:id", ProcessToken)
 	}
 	{
-		api.Group("/bots").
-			GET("", ListBots).
+		api.Group("/bots/:type", ValidateBotType).
 			POST("", CreateBot).
 			PUT("", UpdateBot).
-			DELETE("/id/:id", ValidateID, Delete[model.Bot]).
-			GET("/type/:type", ListBotsByType)
-		// todo - delete account
+			GET("", ListBots).
+			DELETE("/target/:target", DeleteBot)
 	}
 	{
-		api.Group("/search", ValidateID).
-			DELETE("/id/:id", Delete[model.Search]).
-			GET("/bot/:id", ListSearches)
-	}
-	{
-		api.Group("/sitemap", ValidateID).
-			DELETE("/id/:id", Delete[model.Sitemap]).
-			GET("/bot/:id", ListSitemaps)
-	}
-	{
-		api.Group("/news", ValidateID).
-			DELETE("/id/:id", Delete[model.News]).
-			GET("/bot/:id", ListNews)
+		api.Group("results/:type/target/:target", ValidateBotType).
+			GET("", ListResults).
+			DELETE("/id/:id", DeleteResult)
 	}
 	return r
 }

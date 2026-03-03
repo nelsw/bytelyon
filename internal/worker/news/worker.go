@@ -1,7 +1,6 @@
 package news
 
 import (
-	"context"
 	"encoding/xml"
 	"fmt"
 	"regexp"
@@ -10,8 +9,8 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/internal/client/fetch"
-	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
+	"github.com/nelsw/bytelyon/internal/service/db"
 	"github.com/rs/zerolog/log"
 )
 
@@ -20,16 +19,16 @@ var (
 )
 
 type Worker struct {
-	*model.Bot
+	*model.BotNews
 }
 
-func New(b *model.Bot) *Worker {
-	return &Worker{b}
+func New(bot *model.BotNews) *Worker {
+	return &Worker{bot}
 }
 
-func (c *Worker) Work() {
+func (w *Worker) Work() {
 
-	q := strings.ReplaceAll(c.Target, ` `, `+`)
+	q := strings.ReplaceAll(w.Target, ` `, `+`)
 	urls := []string{
 		fmt.Sprintf("https://news.google.com/rss/search?q=%s&hl=en-US&gl=US&ceid=US:en", q),
 		fmt.Sprintf("https://www.bing.com/news/search?format=rss&q=%s", q),
@@ -37,12 +36,11 @@ func (c *Worker) Work() {
 	}
 
 	for _, url := range urls {
-		c.workUrl(url)
+		w.workUrl(url)
 	}
-
 }
 
-func (c *Worker) workUrl(url string) {
+func (w *Worker) workUrl(url string) {
 
 	b, err := fetch.New(url).Bytes()
 	if err != nil {
@@ -67,9 +65,11 @@ func (c *Worker) workUrl(url string) {
 
 		wg.Go(func() {
 
+			log.Trace().Any("item", i).Msg("Processing RSS item")
+
 			// if this job is brand new, save all the articles found
 			// else persist articles published after the last update
-			if c.CreatedAt != c.UpdatedAt && time.Time(*i.Time).Before(c.UpdatedAt) {
+			if w.CreatedAt != w.UpdatedAt && time.Time(*i.Time).Before(w.UpdatedAt) {
 				log.Debug().Msgf("Skipping old article %s", i.Title)
 				return
 			}
@@ -79,7 +79,7 @@ func (c *Worker) workUrl(url string) {
 			sourceParts := strings.Split(i.Source, " ")
 			parts := append(titleParts, sourceParts...)
 			for _, p := range parts {
-				if _, ok := c.Ignore()[p]; ok {
+				if _, ok := w.Ignore()[p]; ok {
 					log.Info().Msgf("Skipping blacklisted article %s", p)
 					return
 				}
@@ -108,13 +108,14 @@ func (c *Worker) workUrl(url string) {
 				i.Description = i.Description[strings.LastIndex(i.Description, ">")+1:]
 			}
 
-			err = db.Builder[model.News]().Create(context.Background(), &model.News{
-				BotID:       c.Bot.ID,
+			err = db.Save(&model.BotNewsResult{
+				Model:       model.Make(w.UserID),
+				Target:      w.Target,
 				URL:         i.URL,
 				Title:       i.Title,
 				Source:      i.Source,
-				Published:   time.Time(*i.Time),
 				Description: i.Description,
+				Published:   time.Time(*i.Time),
 			})
 
 			if err != nil {
@@ -123,4 +124,11 @@ func (c *Worker) workUrl(url string) {
 		})
 	}
 	wg.Wait()
+
+	w.Bot.UpdatedAt = time.Now()
+	if w.Bot.Frequency == 1 {
+		w.Bot.Frequency = 0
+	}
+
+	err = db.Save(w.BotNews)
 }

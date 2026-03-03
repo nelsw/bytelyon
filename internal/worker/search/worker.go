@@ -1,15 +1,15 @@
 package search
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"os"
-	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/nelsw/bytelyon/internal/client/prowl"
-	"github.com/nelsw/bytelyon/internal/db"
 	"github.com/nelsw/bytelyon/internal/model"
+	"github.com/nelsw/bytelyon/internal/service/db"
+	"github.com/nelsw/bytelyon/internal/service/s3"
 	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
@@ -26,10 +26,14 @@ var googleSearchInputSelectors = []string{
 }
 
 type Worker struct {
-	*model.Bot
+	*model.BotSearch
 }
 
-func New(job *model.Bot) *Worker {
+func (w *Worker) pageDataPath(id uuid.UUID, idx int, ext string) string {
+	return w.PageDataPath(id, idx, ext)
+}
+
+func New(job *model.BotSearch) *Worker {
 	return &Worker{job}
 }
 
@@ -42,19 +46,19 @@ func (w *Worker) Work() {
 	}
 	defer c.Close()
 
+	result := model.BotSearchResult{
+		Model:  model.Make(w.UserID),
+		Target: w.Target,
+		ID:     uuid.Must(uuid.NewV7()),
+	}
+
 	var google playwright.Page
 	if google, err = w.VisitGoogle(c); err != nil {
 		log.Err(err).Msg("Failed to Visit Google")
 		return
 	}
 
-	search := model.Search{BotID: w.Bot.ID}
-	if err = db.Builder[model.Search]().Create(context.Background(), &search); err != nil {
-		log.Err(err).Msg("Failed to Create Search")
-		return
-	}
-
-	if err = w.save(model.SearchPage{SearchID: search.ID}, google, c); err != nil {
+	if err = w.save(result, google); err != nil {
 		log.Err(err).Msg("Failed to Save Search Page (Google)")
 		return
 	}
@@ -73,13 +77,19 @@ func (w *Worker) Work() {
 	}
 
 	for i := 0; i < locatorCount; i++ {
-		e := w.HandleLocator(c, google, i, search.ID)
-		if e != nil {
+		if e := w.HandleLocator(c, result, google, i); e != nil {
 			err = errors.Join(err, e)
 		}
 	}
 
 	log.Err(err).Msg("Finished Search")
+
+	w.Bot.UpdatedAt = time.Now()
+	if w.Bot.Frequency == 1 {
+		w.Bot.Frequency = 0
+	}
+
+	err = db.Save(w.BotSearch)
 }
 
 func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) {
@@ -111,7 +121,7 @@ func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) 
 	return
 }
 
-func (w *Worker) HandleLocator(c *prowl.Client, page playwright.Page, idx int, searchID uint) (err error) {
+func (w *Worker) HandleLocator(c *prowl.Client, data model.BotSearchResult, page playwright.Page, idx int) (err error) {
 
 	l := page.Locator(`[data-rw]`).Nth(idx)
 	var att string
@@ -151,7 +161,7 @@ func (w *Worker) HandleLocator(c *prowl.Client, page playwright.Page, idx int, s
 	}
 
 	log.Debug().Int("pages", len(c.BrowserContext.Pages())).Msg("Pages")
-	if err = w.save(model.SearchPage{SearchID: searchID}, targetPage, c); err != nil {
+	if err = w.save(data, targetPage); err != nil {
 		log.Warn().Err(err).Msg("Failed to Save Search Page (Target)")
 	} else {
 		log.Info().Msgf("Saved Search Page [%s]", targetPage.URL())
@@ -160,46 +170,43 @@ func (w *Worker) HandleLocator(c *prowl.Client, page playwright.Page, idx int, s
 	return
 }
 
-func (w *Worker) save(s model.SearchPage, page playwright.Page, c *prowl.Client) error {
+func (w *Worker) save(result model.BotSearchResult, page playwright.Page) (err error) {
 
-	s.URL = page.URL()
-	if err := db.Builder[model.SearchPage]().Create(context.Background(), &s); err != nil {
-		log.Err(err).Msgf("Failed to Save SearchPage [%s]", s.URL)
-		return err
+	p := model.PageData{
+		IDX: len(result.Pages),
+		URL: page.URL(),
 	}
 
-	if title, err := page.Title(); err != nil {
+	if p.Title, err = page.Title(); err != nil {
 		log.Warn().Err(err).Msg("Failed to get page Title")
-	} else {
-		s.Title = strings.TrimSpace(title)
 	}
 
-	wd, _ := os.Getwd()
-	serverPath := fmt.Sprintf("%s/web/bot/search/%d-%d.", wd, s.SearchID, s.ID)
-	staticPath := fmt.Sprintf("/static/bot/search/%d-%d.", s.SearchID, s.ID)
-
-	if img, err := page.Screenshot(playwright.PageScreenshotOptions{FullPage: util.Ptr(true)}); err != nil {
+	var img []byte
+	if img, err = page.Screenshot(playwright.PageScreenshotOptions{FullPage: util.Ptr(true)}); err != nil {
 		log.Warn().Err(err).Msg("Failed to Screenshot SearchPage")
-	} else if imgErr := os.WriteFile(serverPath+"png", img, os.ModePerm); imgErr != nil {
-		log.Warn().Err(imgErr).Msg("Failed to write SearchPage screenshot")
-	} else {
-		s.IMG = staticPath + "png"
 	}
 
-	if content, err := page.Content(); err != nil {
-		log.Warn().Err(err).Msg("Failed to get SearchPage Content")
-	} else if htmlErr := os.WriteFile(serverPath+"html", []byte(content), os.ModePerm); htmlErr != nil {
-		log.Warn().Err(htmlErr).Msg("Failed to write SearchPage html")
-	} else {
-		s.HTML = staticPath + "html"
-		if strings.Contains(s.URL, "google.com") {
-			s.JSON = c.Data(s.URL, content)
+	if len(img) > 0 {
+		p.IMG = w.pageDataPath(result.ID, p.IDX, "png")
+		if err = s3.Save(p.IMG, img); err != nil {
+			log.Warn().Err(err).Msg("Failed to Save Search Page (Screenshot)")
 		}
 	}
 
-	_, err := db.Builder[model.SearchPage]().
-		Where("id = ?", s.ID).
-		Updates(context.Background(), s)
+	var content string
+	if content, err = page.Content(); err != nil {
+		log.Warn().Err(err).Msg("Failed to get SearchPage Content")
+	}
 
-	return err
+	if len(content) > 0 {
+		p.HTML = w.pageDataPath(result.ID, p.IDX, "html")
+		if err = s3.Save(p.HTML, []byte(content)); err != nil {
+			log.Warn().Err(err).Msg("Failed to Save Search Page (HTML)")
+		}
+		p.Parse(content)
+	}
+
+	result.Pages = append(result.Pages, p)
+
+	return db.Save(&result)
 }

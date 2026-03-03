@@ -4,50 +4,30 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
-	. "github.com/nelsw/bytelyon/internal/config"
 	. "github.com/nelsw/bytelyon/internal/util"
 )
 
 // Email represents a single mail address, the User it belongs to, a token for address confirmation.
 type Email struct {
+	Model
 
-	// ID is a unique email address and primary key of the Email table.
-	ID string `json:"ID" dynamodbav:"ID,string"`
-
-	// UserID is a foreign key reference to define which Email belongs-to a User.
-	UserID uuid.UUID `json:"-" dynamodbav:"UserID,binary"`
+	// Address is a unique email address and primary key of the Email table.
+	Address string `json:"address" dynamodbav:"Address"`
 }
 
-func (e *Email) Desc() *dynamodb.CreateTableInput {
-	return &dynamodb.CreateTableInput{
-		BillingMode: types.BillingModeProvisioned,
-		KeySchema: []types.KeySchemaElement{{
-			AttributeName: Ptr("ID"),
-			KeyType:       types.KeyTypeHash,
-		}},
-		AttributeDefinitions: []types.AttributeDefinition{{
-			AttributeName: Ptr("ID"),
-			AttributeType: types.ScalarAttributeTypeS,
-		}},
-		ProvisionedThroughput: &types.ProvisionedThroughput{
-			ReadCapacityUnits:  Ptr(int64(10)),
-			WriteCapacityUnits: Ptr(int64(10)),
-		},
-		TableName: Ptr(e.Name()),
-	}
+func (e Email) GetDesc() dynamodb.CreateTableInput {
+	d := e.Model.GetDesc()
+	d.KeySchema = []types.KeySchemaElement{{
+		AttributeName: Ptr("Address"),
+		KeyType:       types.KeyTypeHash,
+	}}
+	d.AttributeDefinitions = []types.AttributeDefinition{{
+		AttributeName: Ptr("Address"),
+		AttributeType: types.ScalarAttributeTypeS,
+	}}
+	return d
 }
 
-func (e *Email) Key() map[string]any {
-	return map[string]any{"ID": e.ID}
-}
-
-func (e *Email) Name() string {
-	return "ByteLyon_" + ModeTitle() + "_Email"
-}
-
-func NewEmail(u *User, str string) *Email {
-	return &Email{
-		ID:     str,
-		UserID: u.ID,
-	}
+func NewEmail(userID uuid.UUID, str string) *Email {
+	return &Email{Model{UserID: userID}, str}
 }

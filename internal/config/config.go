@@ -5,52 +5,44 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/joho/godotenv"
-	"github.com/nelsw/bytelyon/internal/util"
+	. "github.com/nelsw/bytelyon/internal/util"
 
 	"regexp"
 )
 
-const (
-	AppTC = "ByteLyon"
-	AppLC = "bytelyon"
-)
-
-var cfg = map[string]any{
-	"MODE": "debug",
-	"PORT": 8085,
-}
-
-func Get[T any](key string) T { return cfg[key].(T) }
-func JwtKey() []byte          { return []byte(cfg["JWT_SECRET"].(string)) }
-func Mode() string            { return Get[string]("MODE") }
-func ModeTitle() string       { return strings.ToUpper(Mode()[0:1]) + Mode()[1:] }
-func IsReleaseMode() bool     { return Mode() == "release" }
-func IsDebugMode() bool       { return Mode() == "debug" }
-func IsTestMode() bool        { return Mode() == "test" }
-func Port() int               { return Get[int]("PORT") }
-func MigrateTables() bool     { return Get[int]("DB_MIGRATE_TABLES") == 1 }
-func SeedTables() bool        { return Get[int]("DB_SEED_TABLES") == 1 }
-
-func Init() {
-
-	if !loadFromCli() {
-		loadFromEnv()
-	}
-
-	validateCfg()
-
-	fmt.Println("\u001B[0;36m" + `
+var banner = "\u001B[0;36m" + `
 ██████╗ ██╗   ██╗████████╗███████╗██╗  ██╗   ██╗ ██████╗ ███╗   ██╗
 ██╔══██╗╚██╗ ██╔╝╚══██╔══╝██╔════╝██║  ╚██╗ ██╔╝██╔═══██╗████╗  ██║
 ██████╔╝ ╚████╔╝    ██║   █████╗  ██║   ╚████╔╝ ██║   ██║██╔██╗ ██║
 ██╔══██╗  ╚██╔╝     ██║   ██╔══╝  ██║    ╚██╔╝  ██║   ██║██║╚██╗██║
 ██████╔╝   ██║      ██║   ███████╗███████╗██║   ╚██████╔╝██║ ╚████║
 ╚═════╝    ╚═╝      ╚═╝   ╚══════╝╚══════╝╚═╝    ╚═════╝ ╚═╝  ╚═══╝
-` + "\u001B[0m")
+` + "\u001B[0m"
 
+var cfg = map[string]any{
+	"MODE":              "debug",
+	"PORT":              8085,
+	"DB_MIGRATE_TABLES": 0,
+	"JWT_SECRET":        "",
+}
+
+func Get[T any](key string) T { return cfg[key].(T) }
+func IsDebugMode() bool       { return Mode() == "debug" }
+func IsReleaseMode() bool     { return Mode() == "release" }
+func IsTestMode() bool        { return Mode() == "test" }
+func JwtKey() []byte          { return []byte(Get[string]("JWT_SECRET")) }
+func MigrateTables() bool     { return Get[int]("DB_MIGRATE_TABLES") == 1 }
+func Mode() string            { return Get[string]("MODE") }
+func Port() int               { return Get[int]("PORT") }
+
+func Init() {
+	if !loadFromCli() {
+		loadFromEnv()
+	}
+	validateCfg()
+	fmt.Println(banner)
 }
 
 func loadFromCli() bool {
@@ -83,7 +75,7 @@ func loadFromEnv() {
 	var m map[string]string
 	var err error
 	for _, f := range files {
-		if m, err = godotenv.Read(util.RootDir(f)); err == nil {
+		if m, err = godotenv.Read(RootDir(f)); err == nil {
 			break
 		}
 	}
@@ -100,6 +92,7 @@ func loadFromEnv() {
 		}
 		cfg[k] = v
 	}
+
 }
 
 func validateCfg() {

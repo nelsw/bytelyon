@@ -6,17 +6,12 @@ import (
 	"io"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	. "github.com/nelsw/bytelyon/internal/config"
-	. "github.com/nelsw/bytelyon/internal/util"
 	"github.com/rs/zerolog/log"
 )
 
-var bucket = AppName("-", "db", Mode())
-
 // DeleteObject removes an object from the s3 bucket with the given key.
-func DeleteObject(ctx context.Context, c *s3.Client, key string) error {
+func DeleteObject(ctx context.Context, c *s3.Client, bucket, key string) error {
 
 	l := log.With().
 		Str("bucket", bucket).
@@ -41,7 +36,7 @@ func DeleteObject(ctx context.Context, c *s3.Client, key string) error {
 }
 
 // GetObject retrieves an object from the s3 bucket with the given key.
-func GetObject(ctx context.Context, c *s3.Client, key string) ([]byte, error) {
+func GetObject(ctx context.Context, c *s3.Client, bucket, key string) ([]byte, error) {
 	l := log.With().
 		Str("bucket", bucket).
 		Str("key", key).
@@ -75,12 +70,12 @@ func GetObject(ctx context.Context, c *s3.Client, key string) ([]byte, error) {
 	return body, nil
 }
 
-// PutObject creates a new object, or replaces an old object with a new object.
-func PutObject(ctx context.Context, c *s3.Client, key string, bdy []byte) error {
+// PutObject creates a new object or replaces an old object with a new object.
+func PutObject(ctx context.Context, c *s3.Client, bucket, key string, bdy []byte) error {
 	l := log.With().
 		Str("bucket", bucket).
 		Str("key", key).
-		Bytes("body", bdy).
+		Int("body", len(bdy)).
 		Logger()
 
 	l.Trace().Msg("putting object")
@@ -102,7 +97,7 @@ func PutObject(ctx context.Context, c *s3.Client, key string, bdy []byte) error 
 }
 
 // PresignGetObject returns a presigned HTTP Request which contains presigned URL, signed headers and HTTP method used.
-func PresignGetObject(ctx context.Context, c *s3.Client, key string, exp time.Duration) (string, error) {
+func PresignGetObject(ctx context.Context, c *s3.Client, bucket, key string, exp time.Duration) (string, error) {
 
 	l := log.With().
 		Str("bucket", bucket).
@@ -123,16 +118,4 @@ func PresignGetObject(ctx context.Context, c *s3.Client, key string, exp time.Du
 	l.Debug().Str("url", out.URL).Msg("got presigned object")
 
 	return out.URL, nil
-}
-
-// New returns a new s3.Client with the given Region, AccessKeyID, and SecretAccessKey.
-func New(args ...context.Context) (*s3.Client, error) {
-	if len(args) == 0 {
-		args = append(args, context.Background())
-	}
-	c, err := config.LoadDefaultConfig(args[0])
-	if err != nil {
-		return nil, err
-	}
-	return s3.NewFromConfig(c), nil
 }

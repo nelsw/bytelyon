@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/base64"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,7 +32,12 @@ func ListResults(c *gin.Context) {
 	} else if botType(c).IsSearch() {
 		arr, err = db.Query(BotSearchResult{}, c.Param("target"))
 	} else {
-		arr, err = db.Query(BotSitemapResult{}, c.Param("target"))
+		var b []byte
+		if b, err = base64.URLEncoding.DecodeString(c.Param("target")); err != nil {
+			errRequest(c, err)
+			return
+		}
+		arr, err = db.Query(BotSitemapResult{}, string(b))
 	}
 
 	if err != nil {

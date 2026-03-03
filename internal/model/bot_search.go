@@ -1,9 +1,9 @@
 package model
 
 import (
-	"encoding/base64"
 	"fmt"
-	"time"
+
+	"github.com/google/uuid"
 )
 
 type BotSearch struct {
@@ -12,12 +12,12 @@ type BotSearch struct {
 	State    BroCtxState `json:"state" dynamodbav:"State,boolean"`
 }
 
-func (b BotSearch) PageDataPath(url, ext string) string {
-	return fmt.Sprintf("users/%s/bots/search/%s/%s/%s.%s",
+func (b BotSearch) PageDataPath(id uuid.UUID, idx int, ext string) string {
+	return fmt.Sprintf("users/%s/bots/search/%s/%s/%d.%s",
 		b.Bot.UserID,
 		b.Bot.Target,
-		b.UpdatedAt.Truncate(time.Minute),
-		base64.URLEncoding.EncodeToString([]byte(url)),
+		id,
+		idx,
 		ext,
 	)
 }

@@ -22,9 +22,15 @@ func init() {
 
 func main() {
 
+	l := log.With().Int("pid", os.Getpid()).Logger()
+
 	mgr := manager.New()
 
+	l.Info().Msg("starting manager")
+
 	go mgr.Start()
+
+	l.Info().Msg("started bot manager")
 
 	// Wait for the interrupt signal to gracefully shut down the server with a timeout of 5 seconds.
 	quit := make(chan os.Signal, 1)
@@ -32,7 +38,11 @@ func main() {
 	// kill -2 is syscall.SIGINT
 	// kill -9 is syscall.SIGKILL but can't be caught, so don't need to add it
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	l.Info().Msg("Listening for quit signal")
 	<-quit
+
+	l.Info().Msg("quitting")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -42,5 +52,5 @@ func main() {
 	}
 
 	<-ctx.Done()
-	log.Info().Int("port", config.Port()).Msg("Server exiting")
+	l.Info().Msg("exiting")
 }

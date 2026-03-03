@@ -43,14 +43,17 @@ type PageData struct {
 }
 
 func (p *PageData) Parse(content string) {
+
 	if !strings.HasPrefix(p.URL, "https://www.google.com") {
 		return
 	}
+
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
 	if err != nil {
 		log.Warn().Err(err).Msg("Page - failed to parse html")
 		return
 	}
+
 	m := map[DatumType][]*Datum{
 		SponsoredDatumType:           {},
 		OrganicDatumType:             {},
@@ -64,9 +67,23 @@ func (p *PageData) Parse(content string) {
 	}
 
 	fillSponsoredData(doc, content, m)
+
 	fillOrganicData(content, m)
+	if arr := fillOrganicDataV2(doc); len(arr) > len(m[OrganicDatumType]) {
+		m[OrganicDatumType] = arr
+	}
+
 	fillPeopleAlsoAskData(doc, m)
+	if arr := fillPeopleAlsoAskDataV2(doc); len(arr) > len(m[PeopleAlsoAskDatumType]) {
+		m[PeopleAlsoAskDatumType] = arr
+	}
+
 	fillPeopleAlsoSearchForData(doc, m)
+	if arr := fillPeopleAlsoSearchForDataV2(doc); len(arr) > len(m[PeopleAlsoSearchForDatumType]) {
+		m[PeopleAlsoSearchForDatumType] = arr
+	}
+
+	p.JSON = m
 }
 
 func fillOrganicData(content string, m map[DatumType][]*Datum) {
@@ -140,6 +157,123 @@ func fillOrganicData(content string, m map[DatumType][]*Datum) {
 			m[ArticleDatumType] = append(m[ArticleDatumType], d)
 		}
 	}
+}
+
+func fillOrganicDataV2(doc *goquery.Document) []*Datum {
+
+	e := doc.Find("a").FilterFunction(func(i int, s *goquery.Selection) bool {
+		href, ok := s.Attr("href")
+		return ok &&
+			!strings.Contains(href, "google.com") &&
+			strings.HasPrefix(href, "/url") &&
+			strings.Contains(href, "&url=")
+	})
+
+	if e == nil {
+		return nil
+	}
+
+	var arr []*Datum
+	for _, e = range e.EachIter() {
+
+		l, r, k := strings.Cut(e.AttrOr("href", ""), "&url=")
+		if !k {
+			continue
+		}
+
+		URL := r
+		if i := strings.LastIndex(URL, "/"); i > 0 {
+			URL = URL[:i]
+		}
+
+		for ok := true; ok; _, ok = e.Attr("class") {
+			e = e.Parent()
+		}
+
+		data, err := e.Html()
+		if err != nil {
+			continue
+		}
+
+		data = strings.ReplaceAll(data, "</a>", "")
+		data = strings.ReplaceAll(data, "</div>", "")
+		data = strings.ReplaceAll(data, "</span>", "")
+		parts := strings.Split(data, "<div>")
+
+		var dollars []string
+
+		for x := 0; x < len(parts); x++ {
+
+			chump := chomp(parts[x])
+
+			for _, chunk := range strings.Split(chump, "<") {
+
+				l, r, k = strings.Cut(chunk, ">")
+
+				var money string
+				if !k {
+					money = l
+				} else {
+					money = r
+				}
+
+				if money == "" || money == "More results" {
+					continue
+				}
+
+				money = strings.TrimPrefix(money, " · ")
+				money = strings.TrimPrefix(money, "More results")
+				money = strings.TrimSuffix(money, "Previous")
+
+				dollars = append(dollars, money)
+			}
+		}
+
+		if len(dollars) == 0 {
+			continue
+		}
+
+		var first, second, last string
+		for _, d := range dollars {
+			d = strings.TrimSpace(d)
+			if len(d) < 12 && !strings.Contains(URL, d) {
+				continue
+			}
+			if strings.Contains(d, "›") || strings.Contains(URL, d) {
+				last = d
+				continue
+			}
+
+			d = html.UnescapeString(d)
+			if first == "" {
+				first = d
+				continue
+			}
+			if second == "" {
+				second = d
+				continue
+			}
+			if len(d) > len(second) {
+				second = d
+			}
+		}
+
+		if len(first) > len(second) {
+			tmp := first
+			first = second
+			second = tmp
+		}
+
+		arr = append(arr, &Datum{
+			Position: len(arr),
+			Link:     URL,
+			Title:    first,
+			Snippet:  second,
+			Source:   last,
+		})
+	}
+
+	return arr
 }
 
 func fillSponsoredData(doc *goquery.Document, content string, m map[DatumType][]*Datum) {
@@ -242,6 +376,41 @@ func fillPeopleAlsoAskData(doc *goquery.Document, m map[DatumType][]*Datum) {
 		})
 	})
 }
+func fillPeopleAlsoAskDataV2(doc *goquery.Document) []*Datum {
+	e := doc.Find("span:contains('People also ask')")
+	if e == nil {
+		return nil
+	}
+
+	var i int
+	for i == 0 {
+		i = e.Siblings().Size()
+		e = e.Parent()
+	}
+
+	e = e.Find("div").FilterFunction(func(i int, s *goquery.Selection) bool {
+		return strings.HasSuffix(s.Text(), "?")
+	})
+	if e == nil {
+		return nil
+	}
+
+	x := make(map[string]bool)
+	m := make(map[int]string)
+	for _, e = range e.EachIter() {
+		if _, ok := x[e.Text()]; ok {
+			continue
+		}
+		x[e.Text()] = true
+		m[len(m)] = e.Text()
+	}
+
+	d := make([]*Datum, 0, len(m))
+	for i = 0; i < len(m)-1; i++ {
+		d[i] = &Datum{Position: i + 1, Title: m[i]}
+	}
+	return d
+}
 
 func fillPeopleAlsoSearchForData(doc *goquery.Document, m map[DatumType][]*Datum) {
 	doc.Find("span").Each(func(i int, sel *goquery.Selection) {
@@ -273,6 +442,39 @@ func fillPeopleAlsoSearchForData(doc *goquery.Document, m map[DatumType][]*Datum
 			})
 		})
 	})
+}
+func fillPeopleAlsoSearchForDataV2(doc *goquery.Document) []*Datum {
+	e := doc.Find("accordion-entry-search-icon")
+	if e == nil {
+		return nil
+	}
+
+	x := make(map[string]bool)
+	m := make(map[int]string)
+	for _, e = range e.EachIter() {
+		if _, ok := x[e.Text()]; ok {
+			continue
+		}
+		x[e.Text()] = true
+		m[len(m)] = e.Text()
+	}
+
+	d := make([]*Datum, 0, len(m))
+	for i := 0; i < len(m)-1; i++ {
+		d[i] = &Datum{Position: i + 1, Title: m[i]}
+	}
+	return d
+}
+
+func chomp(s string) string {
+	for len(s) > 0 && s[0] == '<' {
+		idx := strings.Index(s, ">")
+		if idx < 0 {
+			break
+		}
+		s = s[idx+1:]
+	}
+	return s
 }
 
 // products: <product-viewer-entrypoint

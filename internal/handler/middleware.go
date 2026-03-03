@@ -50,7 +50,7 @@ func Logger() gin.HandlerFunc {
 		t := time.Now()
 		c.Next()
 		fmt.Printf("%s GIN %s > %s %v\n",
-			logger.BlackIntense+time.Now().Format(time.Kitchen)+logger.Default,
+			logger.BlackIntense+time.Now().Format("15:04:05")+logger.Default,
 			logger.BlackBackground+c.FullPath()+logger.Cyan,
 			logger.Default+time.Since(t).String(),
 			c.Writer.Status(),

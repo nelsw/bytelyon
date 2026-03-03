@@ -14,7 +14,6 @@ type BotSearchResult struct {
 	Model
 	ID     uuid.UUID  `json:"ID" dynamodbav:"ID,binary"`
 	Target string     `json:"target" dynamodbav:"Target,string"`
-	URL    string     `json:"url" dynamodbav:"URL,string"`
 	Pages  []PageData `json:"pages" dynamodbav:"Pages,omitempty"`
 }
 

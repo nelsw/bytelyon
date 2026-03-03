@@ -18,22 +18,14 @@ const (
 	NewsBotType    BotType = "news"
 )
 
-func BotEntities() []Entity {
-	return []Entity{
-		NewsBotType.BotEntity(),
-		SearchBotType.BotEntity(),
-		SitemapBotType.BotEntity(),
-	}
-}
-
 func (t BotType) BotEntity(a ...any) Entity {
 	switch t {
 	case SearchBotType:
-		return &BotSearch{Bot: Bot{Model: Make(a...)}}
+		return &BotSearch{Bot: Bot{Model: Make(a...), Type: t}}
 	case SitemapBotType:
-		return &BotSitemap{Bot: Bot{Model: Make(a...)}}
+		return &BotSitemap{Bot: Bot{Model: Make(a...), Type: t}}
 	case NewsBotType:
-		return &BotNews{Bot: Bot{Model: Make(a...)}}
+		return &BotNews{Bot: Bot{Model: Make(a...), Type: t}}
 	}
 	return nil
 }

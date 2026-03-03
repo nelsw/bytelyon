@@ -11,11 +11,30 @@ import (
 )
 
 func DeleteResult(c *gin.Context) {
-	key := Data{
-		"Target": c.Param("target"),
-		"ID":     uuid.MustParse(c.Param("id")),
+
+	var err error
+
+	var key Data
+
+	if botType(c).IsNews() {
+		var b []byte
+		b, err = base64.RawURLEncoding.DecodeString(c.Param("id"))
+		key = Data{"Target": c.Param("target"), "ID": string(b)}
+	} else if botType(c).IsSitemap() {
+		var b []byte
+		b, err = base64.RawURLEncoding.DecodeString(c.Param("target"))
+		var id uuid.UUID
+		id, err = uuid.Parse(c.Param("id"))
+		key = Data{"Target": string(b), "ID": id}
+	} else {
+		var id uuid.UUID
+		id, err = uuid.Parse(c.Param("id"))
+		key = Data{"Target": c.Param("target"), "ID": id}
 	}
-	if err := db.Wipe(botType(c).BotEntity(), key); err != nil {
+
+	if err != nil {
+		badRequest(c, err)
+	} else if err = db.Wipe(botType(c).ResultEntity(), key); err != nil {
 		errRequest(c, err)
 	} else {
 		c.Status(http.StatusOK)
@@ -33,7 +52,7 @@ func ListResults(c *gin.Context) {
 		arr, err = db.Query(BotSearchResult{}, c.Param("target"))
 	} else {
 		var b []byte
-		if b, err = base64.URLEncoding.DecodeString(c.Param("target")); err != nil {
+		if b, err = base64.RawURLEncoding.DecodeString(c.Param("target")); err != nil {
 			errRequest(c, err)
 			return
 		}

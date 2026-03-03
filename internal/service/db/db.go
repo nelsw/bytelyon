@@ -146,7 +146,12 @@ func Migrate(ee ...Entity) error {
 
 // Wipe removes an item from a DynamoDB table.
 func Wipe(e Entity, v any) error {
-	l := log.With().Str("name", *TableName(e)).Logger()
+	l := log.
+		With().
+		Any("key", v).
+		Any("entity", e).
+		Str("name", *TableName(e)).
+		Logger()
 
 	l.Trace().Msg("deleting item")
 

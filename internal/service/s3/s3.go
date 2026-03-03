@@ -8,7 +8,6 @@ import (
 	aws "github.com/aws/aws-sdk-go-v2/config"
 	S3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	client "github.com/nelsw/bytelyon/internal/client/s3"
-	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/nelsw/bytelyon/internal/util"
 )
 
@@ -16,7 +15,7 @@ var (
 	s3  *S3.Client
 	ctx context.Context
 
-	bucket = func() string { return "bytelyon-db-" + config.Mode() }
+	bucket = func() string { return "bytelyon-public" }
 )
 
 func init() {

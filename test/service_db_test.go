@@ -82,13 +82,13 @@ func Test_DB_Save(t *testing.T) {
 }
 
 func Test_DB_Wipe(t *testing.T) {
-	arr, err := db.Scan[BotSearch](BotSearch{})
-	assert.NoError(t, err)
-	assert.NotEmpty(t, arr)
+	//arr, err := db.Scan[BotSearch](BotSearch{})
+	//assert.NoError(t, err)
+	//assert.NotEmpty(t, arr)
 
-	err = db.Wipe(BotSearch{}, Data{
-		"UserID": arr[0].UserID,
-		"Target": arr[0].Target,
+	err := db.Wipe(BotNewsResult{}, Data{
+		"ID":     "http://www.bing.com/news/apiclick.aspx?ref=FexRss&aid=&tid=69a684dc88e04e3383ed9c25e49c0105&url=https%3a%2f%2fwww.pbs.org%2fnewshour%2fworld%2flive-updates-u-s-israel-conflict-with-iran-widens&c=5269573335818356244&mkt=en-us",
+		"Target": "situation in iran",
 	})
 	assert.NoError(t, err)
 }

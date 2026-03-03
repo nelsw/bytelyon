@@ -15,15 +15,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var errJSON = func(err any) Data {
-	return Data{"error": err}
-}
-
 func botType(c *gin.Context) BotType    { return c.MustGet("BOT_TYPE").(BotType) }
 func userID(c *gin.Context) uuid.UUID   { return c.MustGet("USER_ID").(uuid.UUID) }
 func creds(c *gin.Context) *Credentials { return c.MustGet("CREDS").(*Credentials) }
 
 var tokenResponse = func(c *gin.Context, a any) {
+	log.Debug().Msg("token response OK")
 	c.JSON(http.StatusOK, Data{
 		"isAuthenticated": true,
 		"context": Data{
@@ -31,29 +28,50 @@ var tokenResponse = func(c *gin.Context, a any) {
 		},
 	})
 }
-
 var badRequest = func(c *gin.Context, a any) {
 	log.Warn().Msgf("Bad Request: %v", a)
-	c.AbortWithStatusJSON(http.StatusBadRequest, Data{"error": fmt.Sprint(a)})
+	c.JSON(http.StatusBadRequest, Data{"error": fmt.Sprint(a)})
 }
 var unauthorized = func(c *gin.Context, a any) {
 	log.Warn().Msgf("Unauthorized: %v", a)
-	c.AbortWithStatusJSON(http.StatusUnauthorized, Data{"error": fmt.Sprint(a)})
+	c.JSON(http.StatusUnauthorized, Data{"error": fmt.Sprint(a)})
 }
 var errRequest = func(c *gin.Context, a any) {
 	log.Error().Msgf("Err Request: %v", a)
-	c.AbortWithStatusJSON(http.StatusInternalServerError, Data{"error": fmt.Sprint(a)})
+	c.JSON(http.StatusInternalServerError, Data{"error": fmt.Sprint(a)})
 }
 
+// Logger does exactly what it says on the tin
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		t := time.Now()
-		c.Next()
-		fmt.Printf("%s GIN %s > %s %v\n",
+
+		fmt.Printf("%s %s %s %s %s\n",
 			logger.BlackIntense+time.Now().Format("15:04:05")+logger.Default,
-			logger.BlackBackground+c.FullPath()+logger.Cyan,
-			logger.Default+time.Since(t).String(),
-			c.Writer.Status(),
+			logger.WhiteIntense+"GIN",
+			logger.BlueIntense+c.Request.URL.Path[1:],
+			logger.Cyan+">"+logger.Default,
+			logger.WhiteBoldIntense+c.Request.Method+logger.Default,
+		)
+
+		c.Next()
+
+		codeFn := func(code int) string {
+			if str := fmt.Sprintf(" %d ", code) + logger.Default; code < 300 {
+				return logger.WhiteIntense + logger.GreenBackground + str
+			} else if code <= 400 {
+				return logger.WhiteIntense + logger.YellowBackground + str
+			} else {
+				return logger.WhiteIntense + logger.RedBackground + str
+			}
+		}
+
+		fmt.Printf("%s %s %s %s %s %s\n",
+			logger.BlackIntense+time.Now().Format("15:04:05")+logger.Default,
+			logger.WhiteIntense+"GIN",
+			logger.BlueIntense+c.Request.URL.Path[1:],
+			logger.Cyan+">"+logger.Default,
+			logger.WhiteBoldIntense+c.Request.Method+logger.Default,
+			codeFn(c.Writer.Status()),
 		)
 	}
 }

@@ -34,13 +34,12 @@ func New() *gin.Engine {
 			POST("", CreateBot).
 			PUT("", UpdateBot).
 			GET("", ListBots).
-			DELETE("/id/:id", DeleteBot)
+			DELETE("/target/:target", DeleteBot)
 	}
 	{
-		api.Group("results/:type", ValidateBotType).
-			GET("/target/:target", ListResults).
+		api.Group("results/:type/target/:target", ValidateBotType).
+			GET("", ListResults).
 			DELETE("/id/:id", DeleteResult)
-
 	}
 	return r
 }

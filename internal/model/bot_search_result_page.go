@@ -370,7 +370,7 @@ func fillPeopleAlsoAskData(doc *goquery.Document, m map[DatumType][]*Datum) {
 			return
 		}
 		m[PeopleAlsoAskDatumType] = append(m[PeopleAlsoAskDatumType], &Datum{
-			Position: len(m[PeopleAlsoAskDatumType]) + 1,
+			Position: len(m[PeopleAlsoAskDatumType]),
 			Title:    sel.AttrOr("data-q", ""),
 			Source:   "Google",
 		})
@@ -407,7 +407,7 @@ func fillPeopleAlsoAskDataV2(doc *goquery.Document) []*Datum {
 
 	d := make([]*Datum, 0, len(m))
 	for i = 0; i < len(m)-1; i++ {
-		d[i] = &Datum{Position: i + 1, Title: m[i]}
+		d[i] = &Datum{Position: i, Title: m[i]}
 	}
 	return d
 }
@@ -452,11 +452,15 @@ func fillPeopleAlsoSearchForDataV2(doc *goquery.Document) []*Datum {
 	x := make(map[string]bool)
 	m := make(map[int]string)
 	for _, e = range e.EachIter() {
-		if _, ok := x[e.Text()]; ok {
+		if e.Next() == nil {
 			continue
 		}
-		x[e.Text()] = true
-		m[len(m)] = e.Text()
+		txt := e.Next().Text()
+		if _, ok := x[txt]; ok {
+			continue
+		}
+		x[txt] = true
+		m[len(m)] = txt
 	}
 
 	d := make([]*Datum, 0, len(m))

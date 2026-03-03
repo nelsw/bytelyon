@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/base64"
 	"net/http"
 	"time"
 
@@ -57,6 +58,15 @@ func DeleteBot(c *gin.Context) {
 	key := model.Data{
 		"UserID": userID(c),
 		"Target": c.Param("target"),
+	}
+
+	if botType(c).IsSitemap() {
+		tgt, err := base64.URLEncoding.DecodeString(c.Param("target"))
+		if err != nil {
+			badRequest(c, err)
+			return
+		}
+		key["Target"] = string(tgt)
 	}
 
 	if err := db.Wipe(botType(c).BotEntity(), key); err != nil {

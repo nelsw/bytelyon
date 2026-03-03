@@ -15,7 +15,7 @@ func Test_Service_S3(t *testing.T) {
 		Hello string `json:"hello"`
 	}
 
-	assert.NoError(t, s3.Save("data.json", Data{Hello: "World"}))
+	assert.NoError(t, s3.Save("data.json", []byte(`{"Hello":"World"}`)))
 
 	data, err := s3.Find[Data]("data.json")
 	assert.NoError(t, err)

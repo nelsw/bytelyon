@@ -5,34 +5,34 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/google/uuid"
 	. "github.com/nelsw/bytelyon/internal/util"
 )
 
-type NewsBotData struct {
-	UserID      uuid.UUID `json:"userID" dynamodbav:"UserID,binary"`
-	URL         string    `json:"url" dynamodbav:"URL,binary"`
+type BotNewsResult struct {
+	Model
+	Target      string    `json:"target" dynamodbav:"Target,string"`
+	URL         string    `json:"url" dynamodbav:"ID,string"`
 	Title       string    `json:"title" dynamodbav:"Title,string"`
 	Source      string    `json:"source" dynamodbav:"Source,string"`
 	Description string    `json:"description" dynamodbav:"Description,string"`
 	Published   time.Time `json:"published" dynamodbav:"Published,number"`
 }
 
-func (b NewsBotData) Desc() dynamodb.CreateTableInput {
+func (b BotNewsResult) GetDesc() dynamodb.CreateTableInput {
 	return dynamodb.CreateTableInput{
 		BillingMode: types.BillingModeProvisioned,
 		KeySchema: []types.KeySchemaElement{{
-			AttributeName: Ptr("UserID"),
+			AttributeName: Ptr("Target"),
 			KeyType:       types.KeyTypeHash,
 		}, {
-			AttributeName: Ptr("URL"),
+			AttributeName: Ptr("ID"),
 			KeyType:       types.KeyTypeRange,
 		}},
 		AttributeDefinitions: []types.AttributeDefinition{{
-			AttributeName: Ptr("UserID"),
-			AttributeType: types.ScalarAttributeTypeB,
+			AttributeName: Ptr("Target"),
+			AttributeType: types.ScalarAttributeTypeS,
 		}, {
-			AttributeName: Ptr("URL"),
+			AttributeName: Ptr("ID"),
 			AttributeType: types.ScalarAttributeTypeS,
 		}},
 		ProvisionedThroughput: &types.ProvisionedThroughput{

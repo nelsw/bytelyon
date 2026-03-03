@@ -19,10 +19,10 @@ var (
 )
 
 type Worker struct {
-	*model.NewsBot
+	*model.BotNews
 }
 
-func New(bot *model.NewsBot) *Worker {
+func New(bot *model.BotNews) *Worker {
 	return &Worker{bot}
 }
 
@@ -65,9 +65,11 @@ func (w *Worker) workUrl(url string) {
 
 		wg.Go(func() {
 
+			log.Trace().Any("item", i).Msg("Processing RSS item")
+
 			// if this job is brand new, save all the articles found
 			// else persist articles published after the last update
-			if time.Time(*i.Time).Before(w.UpdatedAt) {
+			if w.CreatedAt != w.UpdatedAt && time.Time(*i.Time).Before(w.UpdatedAt) {
 				log.Debug().Msgf("Skipping old article %s", i.Title)
 				return
 			}
@@ -106,8 +108,9 @@ func (w *Worker) workUrl(url string) {
 				i.Description = i.Description[strings.LastIndex(i.Description, ">")+1:]
 			}
 
-			err = db.Save(&model.NewsBotData{
-				UserID:      w.UserID,
+			err = db.Save(&model.BotNewsResult{
+				Model:       model.Make(w.UserID),
+				Target:      w.Target,
 				URL:         i.URL,
 				Title:       i.Title,
 				Source:      i.Source,
@@ -127,5 +130,5 @@ func (w *Worker) workUrl(url string) {
 		w.Bot.Frequency = 0
 	}
 
-	err = db.Save(w.NewsBot)
+	err = db.Save(w.BotNews)
 }

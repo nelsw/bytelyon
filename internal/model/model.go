@@ -9,35 +9,53 @@ import (
 	. "github.com/nelsw/bytelyon/internal/util"
 )
 
-type SitemapBotData struct {
-	UserID    uuid.UUID `json:"userID" dynamodbav:"UserID,binary"`
+type Model struct {
 	CreatedAt time.Time `json:"createdAt" dynamodbav:"CreatedAt,number"`
-	URL       string    `json:"url" dynamodbav:"URL,string"`
-	Domain    string    `json:"domain" dynamodbav:"Domain,string"`
-	Relative  []string  `json:"relative" dynamodbav:"Relative,stringset"`
-	Remote    []string  `json:"remote" dynamodbav:"Remote,stringset"`
+	UpdatedAt time.Time `json:"updatedAt" dynamodbav:"UpdatedAt,number"`
+	UserID    uuid.UUID `json:"userID" dynamodbav:"UserID,binary"`
 }
 
-func (b SitemapBotData) Desc() dynamodb.CreateTableInput {
+func (m Model) GetDesc() dynamodb.CreateTableInput {
 	return dynamodb.CreateTableInput{
 		BillingMode: types.BillingModeProvisioned,
 		KeySchema: []types.KeySchemaElement{{
 			AttributeName: Ptr("UserID"),
 			KeyType:       types.KeyTypeHash,
-		}, {
-			AttributeName: Ptr("CreatedAt"),
-			KeyType:       types.KeyTypeRange,
 		}},
 		AttributeDefinitions: []types.AttributeDefinition{{
 			AttributeName: Ptr("UserID"),
 			AttributeType: types.ScalarAttributeTypeB,
-		}, {
-			AttributeName: Ptr("CreatedAt"),
-			AttributeType: types.ScalarAttributeTypeN,
 		}},
 		ProvisionedThroughput: &types.ProvisionedThroughput{
 			ReadCapacityUnits:  Ptr(int64(10)),
 			WriteCapacityUnits: Ptr(int64(10)),
 		},
 	}
+}
+
+func Make(a ...any) Model {
+
+	var m Model
+
+	for i, v := range a {
+		if i == 0 {
+			m.UserID = v.(uuid.UUID)
+		} else if i == 1 {
+			m.UpdatedAt = v.(time.Time)
+		} else if i == 2 {
+			m.CreatedAt = v.(time.Time)
+		}
+	}
+
+	if m.UserID == uuid.Nil {
+		m.UserID = uuid.Must(uuid.NewV7())
+	}
+	if m.UpdatedAt.IsZero() {
+		m.UpdatedAt = time.Now()
+	}
+	if m.CreatedAt.IsZero() {
+		m.CreatedAt = m.UpdatedAt
+	}
+
+	return m
 }

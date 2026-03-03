@@ -1,30 +1,13 @@
 package model
 
-import (
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/google/uuid"
-	. "github.com/nelsw/bytelyon/internal/util"
-)
+import "github.com/google/uuid"
 
-type User struct {
-	ID uuid.UUID `json:"id" dynamodbav:"ID,binary"`
+type User struct{ Model }
+
+func NewUser(id uuid.UUID) *User {
+	return &User{Model{UserID: id}}
 }
 
-func (u User) Desc() dynamodb.CreateTableInput {
-	return dynamodb.CreateTableInput{
-		BillingMode: types.BillingModeProvisioned,
-		KeySchema: []types.KeySchemaElement{{
-			AttributeName: Ptr("ID"),
-			KeyType:       types.KeyTypeHash,
-		}},
-		AttributeDefinitions: []types.AttributeDefinition{{
-			AttributeName: Ptr("ID"),
-			AttributeType: types.ScalarAttributeTypeB,
-		}},
-		ProvisionedThroughput: &types.ProvisionedThroughput{
-			ReadCapacityUnits:  Ptr(int64(10)),
-			WriteCapacityUnits: Ptr(int64(10)),
-		},
-	}
+func (u *User) ID() uuid.UUID {
+	return u.Model.UserID
 }

@@ -4,17 +4,17 @@ import (
 	"sort"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/service/db"
-	"github.com/nelsw/bytelyon/internal/util"
 	"github.com/rs/zerolog/log"
 )
 
 type Worker struct {
-	*model.SitemapBot
+	*model.BotSitemap
 }
 
-func New(bot *model.SitemapBot) *Worker {
+func New(bot *model.BotSitemap) *Worker {
 	return &Worker{bot}
 }
 
@@ -28,10 +28,10 @@ func (w *Worker) Work() {
 	sort.Strings(m.Relative())
 	sort.Strings(m.Remote())
 
-	err := db.Save(&model.SitemapBotData{
-		UserID:   w.UserID,
-		URL:      w.Target,
-		Domain:   util.Domain(w.Target),
+	err := db.Save(&model.BotSitemapResult{
+		Model:    model.Make(w.UserID),
+		ID:       uuid.Must(uuid.NewV7()),
+		Target:   w.Target,
 		Relative: m.Relative(),
 		Remote:   m.Remote(),
 	})
@@ -45,5 +45,5 @@ func (w *Worker) Work() {
 		w.Bot.Frequency = 0
 	}
 
-	err = db.Save(w.SitemapBot)
+	err = db.Save(w.BotSitemap)
 }

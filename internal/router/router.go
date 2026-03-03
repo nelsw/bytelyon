@@ -19,28 +19,28 @@ func New() *gin.Engine {
 	cfg.AllowCredentials = true
 	cfg.AllowHeaders = append(cfg.AllowHeaders, "Authorization")
 
-	r.Use(gin.Recovery(), gin.Logger(), cors.New(cfg))
+	r.Use(gin.Recovery(), cors.New(cfg), Logger())
 
 	api := r.Group("/api", ValidateAuth)
 	{
-		api.Group("/user").
-			POST("/login", Login).
-			POST("/forgot-password", ForgotPassword).
-			POST("/signup", Signup).
-			POST("/token/:token", Token)
-		// todo - delete account
+		api.Group("/auth").
+			POST("/login", LoginUser).
+			POST("/reset", ResetPassword).
+			POST("/signup", SignupUser).
+			POST("/token/:id", ProcessToken)
 	}
 	{
-		api.Group("/bots/:type").
-			POST("", SaveBot).
-			PUT("", SaveBot).
-			GET("", GetBots).
-			DELETE("/id/:botID", DeleteBot)
-		{
-			api.Group("/data/:dataID").
-				DELETE("", DeleteBotData).
-				GET("", GetBotData)
-		}
+		api.Group("/bots/:type", ValidateBotType).
+			POST("", CreateBot).
+			PUT("", UpdateBot).
+			GET("", ListBots).
+			DELETE("/id/:id", DeleteBot)
+	}
+	{
+		api.Group("results/:type", ValidateBotType).
+			GET("/target/:target", ListResults).
+			DELETE("/id/:id", DeleteResult)
+
 	}
 	return r
 }

@@ -48,6 +48,13 @@ func Must[T any](t T, err error) T {
 	return t
 }
 
+func Safe[T any](t T, err error) T {
+	if err != nil {
+		log.Warn().Err(err).Msg("suppressing error because who needs sleep?")
+	}
+	return t
+}
+
 func RootDir(parts ...string) string {
 	dir := Must(os.Getwd())
 	for !strings.HasSuffix(dir, "bytelyon") {

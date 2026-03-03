@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nelsw/bytelyon/internal/client/prowl"
 	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/service/db"
@@ -26,14 +27,14 @@ var googleSearchInputSelectors = []string{
 }
 
 type Worker struct {
-	*model.SearchBot
+	*model.BotSearch
 }
 
 func (w *Worker) pageDataPath(url, ext string) string {
 	return w.PageDataPath(url, ext)
 }
 
-func New(job *model.SearchBot) *Worker {
+func New(job *model.BotSearch) *Worker {
 	return &Worker{job}
 }
 
@@ -52,7 +53,11 @@ func (w *Worker) Work() {
 		return
 	}
 
-	data := model.SearchBotData{UserID: w.UserID}
+	data := model.BotSearchResult{
+		Model:  model.Make(w.UserID),
+		Target: w.Target,
+		ID:     uuid.Must(uuid.NewV7()),
+	}
 	if err = db.Save(&data); err != nil {
 		log.Err(err).Msg("Failed to Create Search")
 		return
@@ -90,7 +95,7 @@ func (w *Worker) Work() {
 		w.Bot.Frequency = 0
 	}
 
-	err = db.Save(w.SearchBot)
+	err = db.Save(w.BotSearch)
 }
 
 func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) {
@@ -122,7 +127,7 @@ func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) 
 	return
 }
 
-func (w *Worker) HandleLocator(c *prowl.Client, data model.SearchBotData, page playwright.Page, idx int) (err error) {
+func (w *Worker) HandleLocator(c *prowl.Client, data model.BotSearchResult, page playwright.Page, idx int) (err error) {
 
 	l := page.Locator(`[data-rw]`).Nth(idx)
 	var att string
@@ -171,7 +176,7 @@ func (w *Worker) HandleLocator(c *prowl.Client, data model.SearchBotData, page p
 	return
 }
 
-func (w *Worker) save(s model.SearchBotData, page playwright.Page) error {
+func (w *Worker) save(s model.BotSearchResult, page playwright.Page) error {
 
 	p := model.PageData{URL: page.URL()}
 

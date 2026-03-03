@@ -4,13 +4,14 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/nelsw/bytelyon/internal/config"
 
 	. "github.com/nelsw/bytelyon/internal/util"
 )
 
 type Entity interface {
-	Desc() dynamodb.CreateTableInput
+	GetDesc() dynamodb.CreateTableInput
 }
 
 func TableName(e Entity) *string {
@@ -22,4 +23,14 @@ func TableName(e Entity) *string {
 	}
 	n += strings.Join(SplitByCase(Name(e)), "_")
 	return &n
+}
+
+func KeyName(e Entity) string {
+	d := e.GetDesc()
+	for _, k := range d.KeySchema {
+		if k.KeyType == types.KeyTypeHash {
+			return *k.AttributeName
+		}
+	}
+	return ""
 }

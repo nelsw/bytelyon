@@ -1,9 +1,12 @@
 package model
 
-// SameSiteAttribute is exactly what you think it is; Strict, Lax, or None.
-type SameSiteAttribute string
+import (
+	"encoding/json"
 
-type BrowserContextState struct {
+	"github.com/playwright-community/playwright-go"
+)
+
+type BroCtxState struct {
 	// Cookies to set for context
 	Cookies []struct {
 		Name  string `json:"name"`
@@ -22,7 +25,7 @@ type BrowserContextState struct {
 		// Optional.
 		Secure *bool `json:"secure"`
 		// Optional.
-		SameSite *SameSiteAttribute `json:"sameSite"`
+		SameSite *string `json:"sameSite"`
 	} `json:"cookies"`
 	// localStorage to set for context
 	Origins []struct {
@@ -34,4 +37,11 @@ type BrowserContextState struct {
 			Value string `json:"value"`
 		} `json:"localStorage"`
 	} `json:"origins"`
+}
+
+func (bs *BroCtxState) StorageState() *playwright.OptionalStorageState {
+	b, _ := json.Marshal(bs)
+	var oss playwright.OptionalStorageState
+	_ = json.Unmarshal(b, &oss)
+	return &oss
 }

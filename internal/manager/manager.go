@@ -35,7 +35,7 @@ func (m *Manager) Start() {
 		}
 
 		log.Debug().Msg("bot manager sleeping")
-		time.Sleep(time.Hour * 15)
+		time.Sleep(time.Minute)
 	}
 }
 
@@ -55,7 +55,7 @@ func (m *Manager) work() {
 			m.workSearchBots(user)
 			m.workSitemapBots(user)
 			m.workNewsBots(user)
-			log.Debug().Stringer("user", user.ID).Msg("robots deployed")
+			log.Debug().Msg("robots deployed")
 		})
 	}
 	log.Debug().Msg("waiting for all robots to deploy")
@@ -99,7 +99,7 @@ func (m *Manager) getUsers() []model.User {
 
 func (m *Manager) workSearchBots(user model.User) {
 
-	bots, err := db.Query[model.SearchBot](model.SearchBot{}, "UserID", user.ID)
+	bots, err := db.Query(model.BotSearch{}, user.ID())
 	if err != nil {
 		log.Err(err).Msg("failed to query search bots")
 		return
@@ -108,7 +108,10 @@ func (m *Manager) workSearchBots(user model.User) {
 	var wg sync.WaitGroup
 	for _, b := range bots {
 		wg.Go(func() {
-			if b.IsReady() {
+			if !b.IsReady() {
+				log.Debug().Msgf("search bot is not ready")
+			} else {
+				log.Debug().Msg("search bot is ready to work")
 				search.New(&b).Work()
 			}
 		})
@@ -118,7 +121,7 @@ func (m *Manager) workSearchBots(user model.User) {
 
 func (m *Manager) workSitemapBots(user model.User) {
 
-	bots, err := db.Query[model.SitemapBot](model.SitemapBot{}, "UserID", user.ID)
+	bots, err := db.Query[model.BotSitemap](model.BotSitemap{}, user.ID())
 	if err != nil {
 		log.Err(err).Msg("failed to query sitemap bots")
 		return
@@ -127,7 +130,10 @@ func (m *Manager) workSitemapBots(user model.User) {
 	var wg sync.WaitGroup
 	for _, b := range bots {
 		wg.Go(func() {
-			if b.IsReady() {
+			if !b.IsReady() {
+				log.Debug().Msgf("sitemap bot is not ready")
+			} else {
+				log.Debug().Msg("sitemap bot is ready to work")
 				sitemap.New(&b).Work()
 			}
 		})
@@ -136,7 +142,7 @@ func (m *Manager) workSitemapBots(user model.User) {
 }
 
 func (m *Manager) workNewsBots(user model.User) {
-	bots, err := db.Query[model.NewsBot](model.NewsBot{}, "UserID", user.ID)
+	bots, err := db.Query[model.BotNews](model.BotNews{}, user.ID())
 	if err != nil {
 		log.Err(err).Msg("failed to query news bots")
 		return
@@ -145,7 +151,10 @@ func (m *Manager) workNewsBots(user model.User) {
 	var wg sync.WaitGroup
 	for _, b := range bots {
 		wg.Go(func() {
-			if b.IsReady() {
+			if !b.IsReady() {
+				log.Debug().Msgf("news bot is not ready")
+			} else {
+				log.Debug().Msg("news bot is ready to work")
 				news.New(&b).Work()
 			}
 		})

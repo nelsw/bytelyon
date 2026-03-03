@@ -1,12 +1,13 @@
 package test
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/nelsw/bytelyon/internal/logger"
-	"github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/service/db"
 )
 
@@ -17,17 +18,19 @@ func init() {
 	config.Init()
 	logger.Init()
 	db.Migrate(
-		&model.Email{},
-		&model.NewsBot{},
-		&model.NewsBotData{},
-		&model.Password{},
-		&model.SearchBot{},
-		&model.SearchBotData{},
-		&model.SitemapBot{},
-		&model.SitemapBotData{},
-		&model.Token{},
-		&model.User{},
+	//&model.BotNews{},
+	//&model.BotNewsResult{},
+	//&model.BotSearch{},
+	//&model.BotSearchResult{},
+	//&model.BotSitemap{},
+	//&model.BotSitemapResult{},
+	//&model.Email{},
+	//&model.Password{},
+	//&model.Token{},
+	//&model.User{},
 	)
 }
 
-func Test_Init(t *testing.T) {}
+func Test_Init(t *testing.T) {
+	fmt.Println("Test_Init", time.Now().UnixMilli())
+}

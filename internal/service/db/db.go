@@ -34,27 +34,27 @@ func init() {
 		MigrateTables() {
 		Migrate(
 			&Email{},
-			&NewsBot{},
-			&NewsBotData{},
+			&BotNews{},
+			&BotNewsResult{},
 			&Password{},
-			&SearchBot{},
-			&SearchBotData{},
-			&SitemapBot{},
-			&SitemapBotData{},
+			&BotSearch{},
+			&BotSearchResult{},
+			&BotSitemap{},
+			&BotSitemapResult{},
 			&Token{},
 			&User{},
 		)
 	}
 }
 
-// Make creates a DynamoDB table.
-func Make(e Entity) error {
+// create creates a DynamoDB table.
+func create(e Entity) error {
 
 	l := log.With().Str("name", *TableName(e)).Logger()
 
 	l.Trace().Msg("creating table")
 
-	cti := e.Desc()
+	cti := e.GetDesc()
 	cti.TableName = TableName(e)
 	_, err := db.CreateTable(ctx, &cti)
 
@@ -81,8 +81,8 @@ func Make(e Entity) error {
 	return nil
 }
 
-// Drop deletes the DynamoDB table and all of its data.
-func Drop(e Entity) error {
+// destroy deletes the DynamoDB table and all of its data.
+func destroy(e Entity) error {
 
 	l := log.With().Str("name", *TableName(e)).Logger()
 
@@ -130,8 +130,8 @@ func Migrate(ee ...Entity) error {
 	var wg sync.WaitGroup
 	for _, e := range ee {
 		wg.Go(func() {
-			Drop(e)
-			Make(e)
+			destroy(e)
+			create(e)
 		})
 	}
 
@@ -201,56 +201,58 @@ func Save(e Entity) (err error) {
 
 // Find retrieves an item from the DynamoDB table.
 func Find[E Entity](a any) (e E, err error) {
-	l := log.With().Str("name", *TableName(e)).Logger()
+	l := log.With().
+		Any("any", a).
+		Any("entity", e).
+		Str("name", *TableName(e)).
+		Logger()
 
 	l.Trace().Msg("getting item")
 
 	input := dynamodb.GetItemInput{TableName: TableName(e)}
 	if input.Key, err = attributevalue.MarshalMap(a); err != nil {
-		log.Err(err).Msg("failed to marshal key")
+		l.Err(err).Msg("failed to marshal key")
 		return
 	}
-
-	log.Trace().Msg("getting item")
 
 	var res *dynamodb.GetItemOutput
 	res, err = db.GetItem(ctx, &input)
 
 	if err != nil {
-		log.Err(err).Msg("failed to get item")
+		l.Err(err).Msg("failed to get item")
 		return
 	}
 
 	if res.Item == nil {
-		log.Warn().Msg("item not found")
+		l.Warn().Msg("item not found")
 		return
 	}
 
 	if err = attributevalue.UnmarshalMap(res.Item, &e); err != nil {
-		log.Err(err).Msg("failed to unmarshal item")
+		l.Err(err).Msg("failed to unmarshal item")
 		return
 	}
 
-	log.Debug().Any("item", e).Msg("got item")
+	l.Debug().Any("entity", e).Msg("got item")
 
 	return
 }
 
 // Query items by the hash key.
 // See Bot for a composite key of a hash & range key.
-func Query[E Entity](e E, k string, v any) ([]E, error) {
+func Query[E Entity](e E, a any) ([]E, error) {
 
 	l := log.With().
 		Str("name", *TableName(e)).
-		Str("key", k).
-		Any("val", v).
+		Str("key", KeyName(e)).
+		Any("val", a).
 		Logger()
 
 	l.Trace().Msg("querying items")
 
 	exp, err := expression.
 		NewBuilder().
-		WithKeyCondition(expression.Key(k).Equal(expression.Value(v))).
+		WithKeyCondition(expression.Key(KeyName(e)).Equal(expression.Value(a))).
 		Build()
 
 	if err != nil {

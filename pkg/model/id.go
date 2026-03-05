@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var NewID = func() ID {
+var NewID = func() ulid.ULID {
 	id, err := ulid.New(
 		ulid.Timestamp(time.Now()),
 		rand.New(rand.NewSource(time.Now().UnixNano())),
@@ -17,7 +17,7 @@ var NewID = func() ID {
 	if err != nil {
 		id = ulid.Make()
 	}
-	return ID(id)
+	return id
 }
 
 type ID ulid.ULID

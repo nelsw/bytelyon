@@ -20,16 +20,18 @@ func init() {
 	config.Init()
 	logger.Init()
 	db.Migrate(
-	//Bot{Type: NewsBotType},
-	//Bot{Type: SearchBotType},
-	//Bot{Type: SitemapBotType},
-	//BotNewsResult{},
-	//BotSearch{},
-	//BotSitemapResult{},
-	//Password{},
-	//Token{},
-	//Email{},
-	//User{},
+		Bot{},
+
+		//Bot{Type: NewsBotType},
+		//Bot{Type: SearchBotType},
+		//Bot{Type: SitemapBotType},
+		//BotNewsResult{},
+		//BotSearch{},
+		//BotSitemapResult{},
+		//Password{},
+		//Token{},
+		//Email{},
+		//User{},
 	)
 }
 

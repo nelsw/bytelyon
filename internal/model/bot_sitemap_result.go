@@ -9,14 +9,14 @@ import (
 
 type BotSitemapResult struct {
 	Model
-	ID       uuid.UUID `json:"ID" dynamodbav:"ID,binary"`
+	ID       ulid.ULID `json:"ID" dynamodbav:"ID,binary"`
 	Target   string    `json:"target" dynamodbav:"Target,string"`
 	Relative []string  `json:"relative" dynamodbav:"Relative,stringset"`
 	Remote   []string  `json:"remote" dynamodbav:"Remote,stringset"`
 }
 
 func (b BotSitemapResult) GetDesc() dynamodb.CreateTableInput {
-	return dynamodb.CreateTableInput{
+	return &dynamodb.CreateTableInput{
 		BillingMode: types.BillingModeProvisioned,
 		KeySchema: []types.KeySchemaElement{{
 			AttributeName: Ptr("Target"),

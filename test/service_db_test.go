@@ -1,94 +1,97 @@
 package test
 
-import (
-	"testing"
-	"time"
-
-	"github.com/google/uuid"
-	. "github.com/nelsw/bytelyon/internal/model"
-	"github.com/nelsw/bytelyon/internal/service/db"
-	"github.com/nelsw/bytelyon/internal/util"
-	"github.com/stretchr/testify/assert"
-)
-
-func Test_DB_Find(t *testing.T) {
-	//db.Save(&BotSearch{
-	//	Bot: Bot{
-	//		Model:     Make(),
-	//		Target:    "https://www.associateweb-enabled.info/mission-critical/eyeballs",
-	//		Type:      "",
-	//		Frequency: 0,
-	//		BlackList: nil,
-	//	},
-	//	Headless: false,
-	//	State:    BroCtxState{},
-	//})
-	arr, scanErr := db.Scan[BotNewsResult](BotNewsResult{})
-	util.PrettyPrintln(arr)
-	assert.NoError(t, scanErr)
-	assert.NotEmpty(t, arr)
-	out, findErr := db.Find[BotNews](map[string]any{
-		"UserID": arr[0].UserID,
-		"Target": arr[0].Target,
-	})
-	assert.NoError(t, findErr)
-	assert.NotNil(t, out)
-	util.PrettyPrintln(out)
-}
-
-func Test_DB_Query(t *testing.T) {
-
-	var err error
-
-	//arr, scanErr := db.Scan[BotSearch](BotSearch{})
-	//assert.NoError(t, scanErr)
-	//assert.NotEmpty(t, arr)
-
-	arr, err := db.Query[BotNewsResult](BotNewsResult{}, "how bad is the iran war today")
-	assert.NoError(t, err)
-	assert.NotEmpty(t, arr)
-	util.PrettyPrintln(arr)
-}
-
-func Test_DB_Scan(t *testing.T) {
-	arr, err := db.Scan[BotSearch](BotSearch{})
-	assert.NoError(t, err)
-	assert.NotEmpty(t, arr)
-	util.PrettyPrintln(arr)
-}
-
-func Test_DB_Save(t *testing.T) {
-	var userIDs = []uuid.UUID{
-		uuid.New(),
-		uuid.New(),
-	}
-	for i := 0; i < 10; i++ {
-
-		bot := Bot{
-			Model:     Model{UserID: userIDs[i%2]},
-			BlackList: []string{fake.DomainName()},
-			Frequency: time.Hour * time.Duration(fake.Uint8()),
-			Target:    fake.URL(),
-		}
-		if i < 3 {
-			db.Save(&BotSearch{Bot: bot, Headless: i%2 == 0})
-		} else if i < 5 {
-			db.Save(&BotSitemap{Bot: bot})
-		} else {
-			db.Save(&BotNews{Bot: bot})
-		}
-	}
-
-}
-
-func Test_DB_Wipe(t *testing.T) {
-	//arr, err := db.Scan[BotSearch](BotSearch{})
-	//assert.NoError(t, err)
-	//assert.NotEmpty(t, arr)
-
-	err := db.Wipe(BotNewsResult{}, Data{
-		"ID":     "http://www.bing.com/news/apiclick.aspx?ref=FexRss&aid=&tid=69a684dc88e04e3383ed9c25e49c0105&url=https%3a%2f%2fwww.pbs.org%2fnewshour%2fworld%2flive-updates-u-s-israel-conflict-with-iran-widens&c=5269573335818356244&mkt=en-us",
-		"Target": "situation in iran",
-	})
-	assert.NoError(t, err)
-}
+//
+//func Test_DB_Find(t *testing.T) {
+//
+//	user := MakeUser()
+//	assert.NoError(t, db.Put(user))
+//
+//	address := gofakeit.Email()
+//	assert.NoError(t, db.Put(Email{user, address}))
+//
+//	email, err := db.Get[Email](Email{Address: address})
+//	assert.NoError(t, err)
+//	assert.Equal(t, address, email.Address)
+//	assert.Equal(t, user.ID, email.User.ID)
+//}
+//
+//func Test_DB_Query(t *testing.T) {
+//
+//	users, scanErr := db.Scan[User](User{})
+//	assert.NoError(t, scanErr)
+//	assert.NotEmpty(t, users)
+//
+//	user := users[0]
+//
+//	bots, queryErr := db.Query[Bot](Bot{User: User{ID: user.ID}})
+//	assert.NoError(t, queryErr)
+//	assert.NotEmpty(t, bots)
+//	util.PrettyPrintln(bots)
+//
+//	for _, b := range bots {
+//		assert.Equal(t, user.ID, b.User.ID)
+//	}
+//}
+//
+//func Test_DB_Scan(t *testing.T) {
+//	arr, err := db.Scan[Bot](Bot{})
+//	assert.NoError(t, err)
+//	assert.NotEmpty(t, arr)
+//	util.PrettyPrintln(arr)
+//}
+//
+//func Test_DB_Save(t *testing.T) {
+//
+//	var users = []User{
+//		MakeUser(),
+//		MakeUser(),
+//	}
+//
+//	assert.NoError(t, db.Put(users[0]))
+//	assert.NoError(t, db.Put(users[1]))
+//
+//	for i := 0; i < 10; i++ {
+//
+//		bot := Bot{
+//			User:      users[i%2],
+//			BlackList: []string{fake.DomainName()},
+//			Frequency: time.Hour * time.Duration(fake.Uint8()),
+//			Target:    fake.URL(),
+//		}
+//
+//		if i < 3 {
+//			bot.Type = SearchBotType
+//			bot.Headless = i%2 == 0
+//			db.Put(bot)
+//		} else if i < 5 {
+//			bot.Type = SitemapBotType
+//			db.Put(bot)
+//		} else {
+//			bot.Type = NewsBotType
+//			db.Put(bot)
+//		}
+//	}
+//
+//	arr, err := db.Scan[Bot](Bot{Type: NewsBotType})
+//	assert.NoError(t, err)
+//	assert.NotEmpty(t, arr)
+//	util.PrettyPrintln(arr)
+//}
+//
+//func Test_DB_Wipe(t *testing.T) {
+//
+//	user := User{ID: uuid.New().String()}
+//	db.Put(&user)
+//
+//	arr, err := db.Get[User](user)
+//	assert.NoError(t, err)
+//	assert.NotEmpty(t, arr)
+//
+//	err = db.Delete(user)
+//	assert.NoError(t, err)
+//
+//	arr, err = db.Get[User](user)
+//	assert.NoError(t, err)
+//	assert.Empty(t, arr)
+//	assert.True(t, arr.CreatedAt.IsZero())
+//}

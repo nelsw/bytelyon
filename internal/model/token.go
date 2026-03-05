@@ -12,7 +12,7 @@ type Token struct {
 	Expiry time.Time `json:"expiry" dynamodbav:"Expiry,number"`
 }
 
-func NewResetPasswordToken(userID uuid.UUID) *Token {
+func NewResetPasswordToken(userID ulid.ULID) *Token {
 	return &Token{
 		Model{UserID: userID},
 		ResetPasswordTokenType,
@@ -20,7 +20,7 @@ func NewResetPasswordToken(userID uuid.UUID) *Token {
 	}
 }
 
-func NewConfirmEmailToken(userID uuid.UUID) *Token {
+func NewConfirmEmailToken(userID ulid.ULID) *Token {
 	return &Token{
 		Model{UserID: userID},
 		ConfirmEmailTokenType,

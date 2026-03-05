@@ -9,7 +9,8 @@ import (
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/nelsw/bytelyon/internal/logger"
-	"github.com/nelsw/bytelyon/internal/service/db"
+	"github.com/nelsw/bytelyon/pkg/db"
+	. "github.com/nelsw/bytelyon/pkg/model"
 )
 
 var fake *gofakeit.Faker
@@ -19,21 +20,21 @@ func init() {
 	config.Init()
 	logger.Init()
 	db.Migrate(
-	//&model.BotNews{},
-	//&model.BotNewsResult{},
-	//&model.BotSearch{},
-	//&model.BotSearchResult{},
-	//&model.BotSitemap{},
-	//&model.BotSitemapResult{},
-	//&model.Email{},
-	//&model.Password{},
-	//&model.Token{},
-	//&model.User{},
+	//Bot{Type: NewsBotType},
+	//Bot{Type: SearchBotType},
+	//Bot{Type: SitemapBotType},
+	//BotNewsResult{},
+	//BotSearch{},
+	//BotSitemapResult{},
+	//Password{},
+	//Token{},
+	//Email{},
+	//User{},
 	)
 }
 
 func Test_Init(t *testing.T) {
-	fmt.Println("Test_Init", time.Now().UnixMilli())
+	fmt.Println("Test_Init", time.Now().UnixMilli(), &Email{})
 
 	now := time.Now().Add(time.Duration(rand.Intn(1000000000)) * time.Millisecond)
 

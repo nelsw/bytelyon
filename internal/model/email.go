@@ -28,6 +28,6 @@ func (e Email) GetDesc() dynamodb.CreateTableInput {
 	return d
 }
 
-func NewEmail(userID uuid.UUID, str string) *Email {
+func NewEmail(userID ulid.ULID, str string) *Email {
 	return &Email{Model{UserID: userID}, str}
 }

@@ -16,7 +16,7 @@ func (p Password) Authenticate(text string) error {
 	return bcrypt.CompareHashAndPassword(p.Hash, []byte(text))
 }
 
-func NewPassword(userID uuid.UUID, text string) *Password {
+func NewPassword(userID ulid.ULID, text string) *Password {
 	return &Password{
 		Model: Model{UserID: userID},
 		Hash:  Must(bcrypt.GenerateFromPassword([]byte(text), bcrypt.MinCost)),

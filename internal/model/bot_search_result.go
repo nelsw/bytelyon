@@ -12,13 +12,13 @@ import (
 
 type BotSearchResult struct {
 	Model
-	ID     uuid.UUID  `json:"ID" dynamodbav:"ID,binary"`
+	ID     ulid.ULID  `json:"ID" dynamodbav:"ID,binary"`
 	Target string     `json:"target" dynamodbav:"Target,string"`
 	Pages  []PageData `json:"pages" dynamodbav:"Pages,omitempty"`
 }
 
 func (b BotSearchResult) GetDesc() dynamodb.CreateTableInput {
-	return dynamodb.CreateTableInput{
+	return &dynamodb.CreateTableInput{
 		BillingMode: types.BillingModeProvisioned,
 		KeySchema: []types.KeySchemaElement{{
 			AttributeName: Ptr("Target"),

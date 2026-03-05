@@ -12,7 +12,7 @@ type BotSearch struct {
 	State    BroCtxState `json:"state" dynamodbav:"State,boolean"`
 }
 
-func (b BotSearch) PageDataPath(id uuid.UUID, idx int, ext string) string {
+func (b BotSearch) PageDataPath(id ulid.ULID, idx int, ext string) string {
 	return fmt.Sprintf("users/%s/bots/search/%s/%s/%d.%s",
 		b.Bot.UserID,
 		b.Bot.Target,

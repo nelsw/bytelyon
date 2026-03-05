@@ -27,7 +27,7 @@ func ProcessToken(c *gin.Context) {
 		errRequest(c, err)
 		return
 	}
-	if tkn.UserID == uuid.Nil {
+	if tkn.UserID == ulid.Zero {
 		badRequest(c, "token not found")
 		return
 	}
@@ -99,7 +99,7 @@ func SignupUser(c *gin.Context) {
 	}
 
 	var model Model
-	if email.UserID != uuid.Nil {
+	if email.UserID != ulid.Zero {
 		model = email.Model
 	} else {
 		model = createNewUser(c, creds(c))
@@ -139,7 +139,7 @@ func createNewUser(c *gin.Context, creds *Credentials) Model {
 func ResetPassword(c *gin.Context) {
 
 	email, err := db.Find[Email](Data{"Address": creds(c).Username})
-	if err != nil || email.UserID == uuid.Nil {
+	if err != nil || email.UserID == ulid.Zero {
 		badRequest(c, "failed to find email; try signing up?")
 		return
 	}

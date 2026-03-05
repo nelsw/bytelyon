@@ -4,10 +4,10 @@ import "github.com/google/uuid"
 
 type User struct{ Model }
 
-func NewUser(id uuid.UUID) *User {
+func NewUser(id ulid.ULID) *User {
 	return &User{Model{UserID: id}}
 }
 
-func (u *User) ID() uuid.UUID {
+func (u *User) ID() ulid.ULID {
 	return u.Model.UserID
 }

@@ -29,7 +29,7 @@ type Worker struct {
 	*model.BotSearch
 }
 
-func (w *Worker) pageDataPath(id uuid.UUID, idx int, ext string) string {
+func (w *Worker) pageDataPath(id ulid.ULID, idx int, ext string) string {
 	return w.PageDataPath(id, idx, ext)
 }
 

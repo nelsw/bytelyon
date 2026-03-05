@@ -12,9 +12,9 @@ import (
 
 var tokenErr = errors.New("invalid JWT token (either expired or unprocessable")
 
-func NewJWT(userID uuid.UUID) (tkn string, err error) {
+func NewJWT(userID ulid.ULID) (tkn string, err error) {
 
-	ƒ := func(userID uuid.UUID) jwt.Claims {
+	ƒ := func(userID ulid.ULID) jwt.Claims {
 		return jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(time.Minute * 30)),
 			ID:        uuid.NewString(),
@@ -34,11 +34,11 @@ func NewJWT(userID uuid.UUID) (tkn string, err error) {
 	return
 }
 
-func ParseUserID(s string) (uuid.UUID, error) {
+func ParseUserID(s string) (ulid.ULID, error) {
 
 	log.Trace().Msg("parsing user id from JWT")
 
-	id := uuid.Nil
+	id := ulid.Zero
 
 	t, err := jwt.ParseWithClaims(s, &jwt.RegisteredClaims{}, func(*jwt.Token) (any, error) { return JwtKey(), nil })
 

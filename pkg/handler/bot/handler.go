@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"encoding/base64"
 	"net/http"
 
 	. "github.com/nelsw/bytelyon/pkg/api"
@@ -9,15 +8,36 @@ import (
 	. "github.com/nelsw/bytelyon/pkg/model"
 )
 
+// api/user/login
+// api/user/reset
+// api/user/signup
+// api/user/token/:token
+
+// api/bots/type/:type
+// api/bots/type/:type/target/:target
+// api/bots/type/:type/target/:target/id/:id
+
+// Handler
 func Handler(r Request) (Response, error) {
 
 	r.Log()
 
+	b := Bot{
+		UserID: r.UserID(),
+		Type:   BotType(r.Query("type")),
+		Target: r.Query("target"),
+		ID:     r.Query("id"),
+	}
+
+	if err := b.Validate(); err != nil {
+		return r.BAD(err), nil
+	}
+
 	switch r.Method() {
 	case http.MethodDelete:
-		return handleDelete(r), nil
+		return handleDelete(r, b), nil
 	case http.MethodGet:
-		return handleGet(r), nil
+		return handleGet(r, b), nil
 	case http.MethodPost:
 		fallthrough
 	case http.MethodPut:
@@ -27,44 +47,16 @@ func Handler(r Request) (Response, error) {
 	return r.NI(), nil
 }
 
-func handleDelete(r Request) Response {
+func handleDelete(r Request, b Bot) Response {
 
-	bot := Bot{
-		UserID: r.UserID(),
-		Target: r.Param("target"),
-		Type:   BotType(r.Param("type")),
-	}
-
-	if err := bot.Validate(); err != nil {
-		return r.BAD(err)
-	}
-
-	if bot.Type.IsSitemap() {
-		tgt, err := r.Base64Param("target", base64.URLEncoding)
-		if err != nil {
-			return r.BAD(err)
-		}
-		bot.Target = string(tgt)
-	}
-
-	if err := db.Delete(bot); err != nil {
+	if err := db.Delete(b); err != nil {
 		return r.BAD(err)
 	}
 	return r.NC()
 }
 
-func handleGetBot(r Request) Response {
-
-	bot := Bot{
-		UserID: r.UserID(),
-		Type:   BotType(r.Param("type")),
-	}
-
-	if err := bot.Validate(); err != nil {
-		return r.BAD(err)
-	}
-
-	arr, err := db.Query[Bot](bot)
+func handleGet(r Request, b Bot) Response {
+	arr, err := db.Query[Bot](b)
 	if err != nil {
 		return r.BAD(err)
 	}
@@ -73,26 +65,14 @@ func handleGetBot(r Request) Response {
 
 func handlePut(r Request) Response {
 
-	in := Bot{
-		UserID: r.UserID(),
-		Target: r.Param("target"),
-		Type:   BotType(r.Param("type")),
-	}
-
-	if err := in.Validate(); err != nil {
+	var b Bot
+	if err := Body[Bot](r, b); err != nil {
 		return r.BAD(err)
 	}
 
-	out, err := Body[Bot](r, in)
-	if err != nil {
+	b.UserID = r.UserID()
+	if err := db.Put(b); err != nil {
 		return r.BAD(err)
 	}
-	out.UserID = in.UserID
-	out.Target = in.Target
-	out.Type = in.Type
-
-	if err = db.Put(out); err != nil {
-		return r.BAD(err)
-	}
-	return r.OK(out)
+	return r.OK(b)
 }

@@ -7,13 +7,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	. "github.com/nelsw/bytelyon/pkg/util"
+	"github.com/oklog/ulid/v2"
 )
 
 var userTable = func() *string { return Ptr(os.Getenv("MODE") + "_ByteLyon_User") }
-var NewUser = func() *User { return &User{ID: NewID()} }
+
+var NewUser = func() *User { return &User{ID: ulid.Make()} }
 
 type User struct {
-	ID ID `json:"id"`
+	ID        ulid.ULID `json:"id"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 func (u *User) Get() *dynamodb.GetItemInput {
@@ -24,12 +27,13 @@ func (u *User) Get() *dynamodb.GetItemInput {
 		},
 	}
 }
+
 func (u User) Put() *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
 		TableName: userTable(),
 		Item: map[string]types.AttributeValue{
 			"id":        &types.AttributeValueMemberS{Value: u.ID.String()},
-			"createdAt": &types.AttributeValueMemberS{Value: u.ID.CreatedAt().Format(time.RFC3339Nano)},
+			"createdAt": &types.AttributeValueMemberS{Value: u.CreatedAt.Format(time.RFC3339Nano)},
 		},
 	}
 }

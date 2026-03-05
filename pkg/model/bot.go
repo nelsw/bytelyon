@@ -32,16 +32,21 @@ type BotAlias struct {
 }
 
 type Bot struct {
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	UserID    ulid.ULID
-	Target    string
+	UserID ulid.ULID
 
-	Type      BotType
+	Type BotType
+
+	Target string
+
+	ID any
+
 	Frequency time.Duration
 	BlackList []string
 	Headless  bool
 	State     BroCtxState
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (b Bot) Validate() error {

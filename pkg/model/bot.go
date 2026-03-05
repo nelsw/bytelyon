@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -22,7 +21,7 @@ type URL string
 
 type BotAlias struct {
 	UserID    string      `json:"id"`
-	Target    []byte      `json:"target"`
+	Target    string      `json:"target"`
 	Type      BotType     `json:"type"`
 	Frequency string      `json:"frequency"`
 	BlackList []string    `json:"blackList"`
@@ -36,7 +35,7 @@ type Bot struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	UserID    ulid.ULID
-	Target    []byte
+	Target    string
 
 	Type      BotType
 	Frequency time.Duration
@@ -45,23 +44,10 @@ type Bot struct {
 	State     BroCtxState
 }
 
-func (b Bot) decodeTarget() ([]byte, error) {
-	return base64.RawURLEncoding.DecodeString(string(b.Target))
-}
-
-func (b Bot) encodeTarget() string {
-	return base64.RawURLEncoding.EncodeToString(b.Target)
-}
-
 func (b Bot) Validate() error {
-	url, err := b.decodeTarget()
-	if err != nil {
-		log.Warn().Err(err).Msg("bad url")
-		return err
-	}
-	if b.Type == SitemapBotType && !strings.HasPrefix(string(url), "https://") {
+	if b.Type == SitemapBotType && !strings.HasPrefix(b.Target, "https://") {
 		return sitemapTargetErr
-	} else if err = b.Type.Validate(); err != nil {
+	} else if err := b.Type.Validate(); err != nil {
 		return err
 	}
 	return nil
@@ -107,7 +93,7 @@ func (b Bot) Get() *dynamodb.GetItemInput {
 		TableName: b.tableName(),
 		Key: map[string]types.AttributeValue{
 			"userID": &types.AttributeValueMemberB{Value: b.UserID.Bytes()},
-			"target": &types.AttributeValueMemberB{Value: b.Target},
+			"target": &types.AttributeValueMemberS{Value: b.Target},
 		},
 	}
 }
@@ -190,7 +176,7 @@ func (b *Bot) MarshalDynamoDBAttributeValue() (types.AttributeValue, error) {
 
 	m := map[string]types.AttributeValue{
 		"userID":    &types.AttributeValueMemberB{Value: b.UserID.Bytes()},
-		"target":    &types.AttributeValueMemberB{Value: b.Target},
+		"target":    &types.AttributeValueMemberS{Value: b.Target},
 		"type":      &types.AttributeValueMemberS{Value: b.Type.String()},
 		"frequency": &types.AttributeValueMemberS{Value: b.Frequency.String()},
 		"blackList": &types.AttributeValueMemberSS{Value: b.BlackList},
@@ -214,7 +200,7 @@ func (b *Bot) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error
 	}
 
 	_ = b.UserID.UnmarshalBinary(m["userID"].(*types.AttributeValueMemberB).Value)
-	b.Target = m["target"].(*types.AttributeValueMemberB).Value
+	b.Target = m["target"].(*types.AttributeValueMemberS).Value
 	b.Type = BotType(m["type"].(*types.AttributeValueMemberS).Value)
 	b.Frequency, _ = time.ParseDuration(m["frequency"].(*types.AttributeValueMemberS).Value)
 	b.BlackList = m["blackList"].(*types.AttributeValueMemberSS).Value

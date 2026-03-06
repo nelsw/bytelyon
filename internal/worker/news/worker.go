@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/internal/client/fetch"
-	"github.com/nelsw/bytelyon/internal/model"
-	"github.com/nelsw/bytelyon/internal/service/db"
+	"github.com/nelsw/bytelyon/pkg/db"
+	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/rs/zerolog/log"
 )
 
@@ -19,10 +19,11 @@ var (
 )
 
 type Worker struct {
-	*model.BotNews
+	*model.News
+
 }
 
-func New(bot *model.BotNews) *Worker {
+func New(bot *model.News) *Worker {
 	return &Worker{bot}
 }
 
@@ -69,7 +70,9 @@ func (w *Worker) workUrl(url string) {
 
 			// if this job is brand new, save all the articles found
 			// else persist articles published after the last update
-			if w.CreatedAt != w.UpdatedAt && time.Time(*i.Time).Before(w.UpdatedAt) {
+
+			if w.UserID.Timestamp().Sub(w.UpdatedAt) !=  &&
+				time.Time(*i.Time).Before(w.UpdatedAt) {
 				log.Debug().Msgf("Skipping old article %s", i.Title)
 				return
 			}
@@ -79,7 +82,7 @@ func (w *Worker) workUrl(url string) {
 			sourceParts := strings.Split(i.Source, " ")
 			parts := append(titleParts, sourceParts...)
 			for _, p := range parts {
-				if _, ok := w.Ignore()[p]; ok {
+				if _, ok := w.Rules[p]; ok {
 					log.Info().Msgf("Skipping blacklisted article %s", p)
 					return
 				}
@@ -108,15 +111,14 @@ func (w *Worker) workUrl(url string) {
 				i.Description = i.Description[strings.LastIndex(i.Description, ">")+1:]
 			}
 
-			err = db.Save(&model.BotNewsResult{
-				Model:       model.Make(w.UserID),
-				Target:      w.Target,
-				URL:         i.URL,
+			w.Items[model.URL(i.URL)] = model.Item{
+				URL:         model.URL(i.URL),
 				Title:       i.Title,
 				Source:      i.Source,
 				Description: i.Description,
 				Published:   time.Time(*i.Time),
-			})
+				CreatedAt:   time.Now(),
+			}
 
 			if err != nil {
 				log.Warn().Err(err).Msg("failed to save news article")
@@ -125,10 +127,5 @@ func (w *Worker) workUrl(url string) {
 	}
 	wg.Wait()
 
-	w.Bot.UpdatedAt = time.Now()
-	if w.Bot.Frequency == 1 {
-		w.Bot.Frequency = 0
-	}
-
-	err = db.Save(w.BotNews)
+	err = db.Put(w.News)
 }

@@ -1,7 +1,6 @@
 package model
 
 import (
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -11,7 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var emailTable = func() *string { return Ptr(os.Getenv("MODE") + "_ByteLyon_Email") }
+var emailTable = func() *string { return Ptr("ByteLyon_Email") }
 
 // Email represents a single mail address, the User it belongs to, a token for address confirmation.
 type Email struct {
@@ -22,9 +21,6 @@ type Email struct {
 	// UserID is the ID of the User this Email belongs to.
 	UserID ulid.ULID `json:"id"`
 
-	// CreatedAt is the time when the Email was created.
-	CreatedAt time.Time `json:"createdAt"`
-
 	// VerifiedAt is the time when the Email was verified.
 	VerifiedAt time.Time `json:"verifiedAt"`
 }
@@ -34,7 +30,6 @@ func (e Email) Scan() *dynamodb.ScanInput {
 		TableName: emailTable(),
 	}
 }
-
 func (e Email) Create() *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
 		TableName: emailTable(),
@@ -60,16 +55,13 @@ func (e Email) Get() *dynamodb.GetItemInput {
 	}
 }
 func (e Email) Put() *dynamodb.PutItemInput {
-	if e.CreatedAt.IsZero() {
-		e.CreatedAt = time.Now().UTC()
-	}
 	return &dynamodb.PutItemInput{
 		TableName: emailTable(),
 		Item: map[string]types.AttributeValue{
 			"address":    &types.AttributeValueMemberS{Value: e.Address},
 			"userID":     &types.AttributeValueMemberB{Value: e.UserID.Bytes()},
-			"createdAt":  &types.AttributeValueMemberS{Value: e.CreatedAt.Format(time.RFC3339Nano)},
 			"verifiedAt": &types.AttributeValueMemberS{Value: e.VerifiedAt.Format(time.RFC3339Nano)},
+			"createdAt":  &types.AttributeValueMemberS{Value: e.UserID.Timestamp().Format(time.RFC3339Nano)},
 		},
 	}
 }
@@ -84,7 +76,6 @@ func (e *Email) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err err
 
 	e.Address = m["address"].(*types.AttributeValueMemberS).Value
 	_ = e.UserID.UnmarshalBinary(m["userID"].(*types.AttributeValueMemberB).Value)
-	e.CreatedAt, _ = time.Parse(time.RFC3339Nano, m["createdAt"].(*types.AttributeValueMemberS).Value)
 	e.VerifiedAt, _ = time.Parse(time.RFC3339Nano, e.VerifiedAt.Format(time.RFC3339Nano))
 	return nil
 }

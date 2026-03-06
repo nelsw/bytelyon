@@ -1,7 +1,6 @@
 package model
 
 import (
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -10,20 +9,20 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-var userTable = func() *string { return Ptr(os.Getenv("MODE") + "_ByteLyon_User") }
+var userTable = func() *string { return Ptr("ByteLyon_User") }
 
-var NewUser = func() *User { return &User{ID: ulid.Make()} }
+var NewUser = func() *User { return &User{ID: NewULID()} }
+var MakeUser = func() User { return User{ID: NewULID()} }
 
 type User struct {
-	ID        ulid.ULID `json:"id"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID ulid.ULID `json:"id"`
 }
 
 func (u *User) Get() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
 		TableName: userTable(),
 		Key: map[string]types.AttributeValue{
-			"id": &types.AttributeValueMemberS{Value: u.ID.String()},
+			"id": &types.AttributeValueMemberB{Value: u.ID.Bytes()},
 		},
 	}
 }
@@ -32,8 +31,8 @@ func (u User) Put() *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
 		TableName: userTable(),
 		Item: map[string]types.AttributeValue{
-			"id":        &types.AttributeValueMemberS{Value: u.ID.String()},
-			"createdAt": &types.AttributeValueMemberS{Value: u.CreatedAt.Format(time.RFC3339Nano)},
+			"id":        &types.AttributeValueMemberB{Value: u.ID.Bytes()},
+			"createdAt": &types.AttributeValueMemberS{Value: u.ID.Timestamp().Format(time.RFC3339Nano)},
 		},
 	}
 }
@@ -49,8 +48,7 @@ func (u *User) Create() *dynamodb.CreateTableInput {
 			{AttributeName: Ptr("id"), KeyType: types.KeyTypeHash},
 		},
 		AttributeDefinitions: []types.AttributeDefinition{
-			{AttributeName: Ptr("id"), AttributeType: types.ScalarAttributeTypeS},
-			{AttributeName: Ptr("createdAt"), AttributeType: types.ScalarAttributeTypeS},
+			{AttributeName: Ptr("id"), AttributeType: types.ScalarAttributeTypeB},
 		},
 		ProvisionedThroughput: &types.ProvisionedThroughput{
 			ReadCapacityUnits:  Ptr(int64(10)),

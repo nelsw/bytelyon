@@ -27,11 +27,12 @@ func Signup(r Request) Response {
 		return r.BAD(err)
 	}
 
+	var user *User
 	var userID ulid.ULID
 	if email.UserID != ulid.Zero {
 		userID = email.UserID
 	} else {
-		user := NewUser()
+		user = NewUser()
 		if err = db.Put(user); err != nil {
 			log.Error().Err(err).Msg("failed to put user on signup")
 			r.BAD(err)
@@ -57,7 +58,7 @@ func Signup(r Request) Response {
 	}
 
 	var jwt string
-	if jwt, err = NewJWT(userID); err != nil {
+	if jwt, err = NewJWT(user); err != nil {
 		log.Error().Err(err).Msg("failed to generate JWT token")
 		return r.BAD(err)
 	}

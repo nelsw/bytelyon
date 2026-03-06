@@ -3,6 +3,7 @@ package auth
 import (
 	"strings"
 
+	"github.com/nelsw/bytelyon/internal/util"
 	. "github.com/nelsw/bytelyon/pkg/api"
 	. "github.com/nelsw/bytelyon/pkg/model"
 	"github.com/oklog/ulid/v2"
@@ -46,7 +47,7 @@ func Handler(r Request) (AuthResponse, error) {
 	} else if userID, err = creds.Authenticate(); err != nil {
 		log.Warn().Err(err).Msg("authentication failed!")
 		return r.AuthErr(err), nil
-	} else if token, err = NewJWT(userID); err != nil {
+	} else if token, err = NewJWT(util.Ptr(User{ID: userID})); err != nil {
 		log.Err(err).Msg("JWT creation failed!")
 		return r.AuthErr(err), nil
 	}

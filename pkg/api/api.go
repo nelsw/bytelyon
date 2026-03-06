@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -13,6 +14,10 @@ import (
 type AuthResponse events.APIGatewayV2CustomAuthorizerSimpleResponse
 type Response events.APIGatewayV2HTTPResponse
 type Request events.APIGatewayV2HTTPRequest
+
+func (r Request) BotType() (model.Type, error) {
+	return model.DetermineType(r.Query("type"))
+}
 
 func Body[T any](req Request, in T) (err error) {
 	if err = json.Unmarshal([]byte(req.Body), &in); err != nil {

@@ -5,11 +5,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nelsw/bytelyon/internal/model"
-	"github.com/nelsw/bytelyon/internal/service/db"
 	"github.com/nelsw/bytelyon/internal/worker/news"
 	"github.com/nelsw/bytelyon/internal/worker/search"
 	"github.com/nelsw/bytelyon/internal/worker/sitemap"
+	"github.com/nelsw/bytelyon/pkg/db"
+	. "github.com/nelsw/bytelyon/pkg/model"
 	"github.com/rs/zerolog/log"
 )
 
@@ -26,22 +26,26 @@ func (m *Manager) Start() {
 	log.Info().Msg("bot manager started")
 
 	for !m.stop {
+
 		log.Debug().Msg("bot manager working")
+
 		m.done = false
 		m.work()
+		m.done = true
 
-		if m.done = true; m.stop {
+		if m.stop {
 			return
 		}
 
 		log.Debug().Msg("bot manager sleeping")
+
 		time.Sleep(15 * time.Second)
 	}
 }
 
 func (m *Manager) work() {
 
-	users, err := db.Scan[model.User](model.User{})
+	users, err := db.Scan[User](&User{})
 	if err != nil {
 		log.Error().Err(err).Msg("user scan failed")
 		return
@@ -88,8 +92,8 @@ func (m *Manager) Stop(ctx context.Context) error {
 	}
 }
 
-func (m *Manager) getUsers() []model.User {
-	arr, err := db.Scan[model.User](model.User{})
+func (m *Manager) getUsers() []User {
+	arr, err := db.Scan[User](&User{})
 	if err != nil {
 		log.Err(err).Msg("failed to scan users")
 		return nil
@@ -97,9 +101,15 @@ func (m *Manager) getUsers() []model.User {
 	return arr
 }
 
-func (m *Manager) workSearchBots(user model.User) {
+type Robot interface {
+}
 
-	bots, err := db.Query(model.BotSearch{}, user.ID())
+func (m *Manager) workSearchBots(user User) {
+
+	bots, err := db.Query[Search](Bot[Search]{
+		UserID: user.ID,
+	})
+
 	if err != nil {
 		log.Err(err).Msg("failed to query search bots")
 		return
@@ -119,9 +129,9 @@ func (m *Manager) workSearchBots(user model.User) {
 	wg.Wait()
 }
 
-func (m *Manager) workSitemapBots(user model.User) {
+func (m *Manager) workSitemapBots(user User) {
 
-	bots, err := db.Query[model.BotSitemap](model.BotSitemap{}, user.ID())
+	bots, err := db.Query[BotSitemap](BotSitemap{}, user.ID())
 	if err != nil {
 		log.Err(err).Msg("failed to query sitemap bots")
 		return
@@ -141,8 +151,8 @@ func (m *Manager) workSitemapBots(user model.User) {
 	wg.Wait()
 }
 
-func (m *Manager) workNewsBots(user model.User) {
-	bots, err := db.Query[model.BotNews](model.BotNews{}, user.ID())
+func (m *Manager) workNewsBots(user User) {
+	bots, err := db.Query[News](News{})
 	if err != nil {
 		log.Err(err).Msg("failed to query news bots")
 		return

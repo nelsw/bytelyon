@@ -41,9 +41,6 @@ func (w *Worker) Work() {
 	}
 
 	w.Bot.UpdatedAt = time.Now()
-	if w.Bot.Frequency == 1 {
-		w.Bot.Frequency = 0
-	}
 
 	err = db.Save(w.BotSitemap)
 }

@@ -1,7 +1,6 @@
 package model
 
 import (
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -11,7 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var tokenTable = func() *string { return Ptr(os.Getenv("MODE") + "_ByteLyon_Token") }
+var tokenTable = func() *string { return Ptr("ByteLyon_Token") }
 
 type TokenType string
 

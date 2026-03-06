@@ -6,10 +6,35 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/html"
 )
+
+var NewSearch = func(
+	uid ulid.ULID,
+	tgt Target,
+	rls map[string]bool,
+) *Search {
+	return &Search{
+		UserID: uid,
+		Target: tgt,
+		Rules:  rls,
+	}
+}
+
+type Search struct {
+	ID       ulid.ULID
+	UserID   ulid.ULID
+	Target   Target
+	Headless bool
+	State    BroCtxState
+	Rules    map[string]bool
+	Pages    map[URL]Page
+}
 
 type Page struct {
 	IDX   int       `json:"idx"`
@@ -20,14 +45,22 @@ type Page struct {
 	JSON  PageGraph `json:"json"`
 }
 
-func (p Page) Item() map[string]types.AttributeValue {
-	return map[string]types.AttributeValue{
-		"IDX":   &types.AttributeValueMemberN{Value: strconv.Itoa(p.IDX)},
-		"URL":   &types.AttributeValueMemberS{Value: p.URL},
-		"Title": &types.AttributeValueMemberS{Value: p.Title},
-		"IMG":   &types.AttributeValueMemberS{Value: p.IMG},
-		"HTML":  &types.AttributeValueMemberS{Value: p.HTML},
-		"JSON":  &types.AttributeValueMemberM{Value: p.Item()},
+func (b Search) AddPage(p Page, d Page) {
+	b.Pages[URL(d.URL)] = p
+}
+
+func (b Search) String() string  { return "search" }
+func (b Search) Table() *string  { return util.Ptr("Search_Bot") }
+func (b Search) Validate() error { return nil }
+func (b Search) StoragePath(n any, ext string) string {
+	return fmt.Sprintf("users/%s/bots/search/%s/%s/%d.%s",
+		b.UserID, b.Target, b.ID, n, ext)
+}
+
+func (b Search) Put() *dynamodb.PutItemInput {
+	return &dynamodb.PutItemInput{
+		TableName: b.Table(),
+		// todo
 	}
 }
 
@@ -472,3 +505,50 @@ func chomp(s string) string {
 // ads: href="/aclk?
 // role="heading"
 // <g-card
+
+type PageGraph map[PageSection][]*SectionDatum
+
+func (p PageGraph) Item() map[string]types.AttributeValue {
+
+	var item = make(map[string]types.AttributeValue)
+
+	for section, data := range p {
+		var items []types.AttributeValue
+		for _, d := range data {
+			items = append(items, &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
+				"Position": &types.AttributeValueMemberN{Value: strconv.Itoa(d.Position)},
+				"Title":    &types.AttributeValueMemberS{Value: d.Title},
+				"Link":     &types.AttributeValueMemberS{Value: d.Link},
+				"Source":   &types.AttributeValueMemberS{Value: d.Source},
+				"Snippet":  &types.AttributeValueMemberS{Value: d.Snippet},
+				"Price":    &types.AttributeValueMemberN{Value: strconv.FormatFloat(d.Price, 'f', -1, 64)},
+			}})
+		}
+		item[string(section)] = &types.AttributeValueMemberL{Value: items}
+	}
+
+	return item
+}
+
+type PageSection string
+
+const (
+	SponsoredDatumType           PageSection = "sponsored"
+	OrganicDatumType             PageSection = "organic"
+	VideoDatumType               PageSection = "video"
+	ForumDatumType               PageSection = "forum"
+	ArticleDatumType             PageSection = "article"
+	PopularProductsDatumType     PageSection = "popular_products"
+	MoreProductsDatumType        PageSection = "more_products"
+	PeopleAlsoAskDatumType       PageSection = "people_also_ask"
+	PeopleAlsoSearchForDatumType PageSection = "people_also_search_for"
+)
+
+type SectionDatum struct {
+	Position int     `json:"position"`
+	Title    string  `json:"title"`
+	Link     string  `json:"link"`
+	Source   string  `json:"source"`
+	Snippet  string  `json:"snippet"`
+	Price    float64 `json:"price,omitempty"`
+}

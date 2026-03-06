@@ -2,12 +2,10 @@ package model
 
 import (
 	"encoding/json"
-	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	. "github.com/nelsw/bytelyon/pkg/util"
@@ -15,14 +13,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var sitemapTargetErr = fmt.Errorf("bad url, must begin with https://")
-
-type URL string
-
 type BotAlias struct {
-	UserID    string      `json:"id"`
-	Target    string      `json:"target"`
-	Type      BotType     `json:"type"`
+	UserID    string      `json:"userID"`
+	Target    Target      `json:"target"`
+	Type      Type        `json:"type"`
 	Frequency string      `json:"frequency"`
 	BlackList []string    `json:"blackList"`
 	Headless  bool        `json:"headless"`
@@ -31,38 +25,27 @@ type BotAlias struct {
 	CreatedAt string      `json:"createdAt"`
 }
 
-type Bot struct {
-	UserID ulid.ULID
-
-	Type BotType
-
-	Target string
-
-	ID any
-
+type Bot[T Type] struct {
+	BotID     ulid.ULID
+	UserID    ulid.ULID
+	T         Type
+	Target    Target
 	Frequency time.Duration
 	BlackList []string
-	Headless  bool
-	State     BroCtxState
-
-	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
-func (b Bot) Validate() error {
-	if b.Type == SitemapBotType && !strings.HasPrefix(b.Target, "https://") {
-		return sitemapTargetErr
-	} else if err := b.Type.Validate(); err != nil {
-		return err
-	}
-	return nil
+func (b Bot[T]) Validate() error {
+	// todo: validate frequency
+	err := b.T.Validate()
+	return err
 }
 
-func (b Bot) IsReady() bool {
+func (b Bot[T]) IsReady() bool {
 	return b.Frequency > 0 && b.UpdatedAt.Add(b.Frequency).Before(time.Now().UTC())
 }
 
-func (b Bot) Ignore() map[string]bool {
+func (b Bot[T]) Ignore() map[string]bool {
 	var m = make(map[string]bool)
 	for _, s := range b.BlackList {
 		m[s] = true
@@ -70,53 +53,51 @@ func (b Bot) Ignore() map[string]bool {
 	return m
 }
 
-func (b *Bot) tableName() *string {
-	switch b.Type {
-	case SearchBotType:
-		return Ptr(os.Getenv("MODE") + "_ByteLyon_Bot_Search")
-	case SitemapBotType:
-		Ptr(os.Getenv("MODE") + "_ByteLyon_Bot_Sitemap")
-	case NewsBotType:
-		Ptr(os.Getenv("MODE") + "_ByteLyon_Bot_News")
+func (b Bot[T]) Scan() *dynamodb.ScanInput {
+	return &dynamodb.ScanInput{
+		TableName: b.T.Table(),
 	}
-	log.Warn().Msg("bot type not found?!")
-	return nil
 }
-
-func (b Bot) Query() *dynamodb.QueryInput {
+func (b Bot[T]) Query() *dynamodb.QueryInput {
+	keyEx := expression.Key("userID").Equal(expression.Value(b.UserID.Bytes()))
+	expr, err := expression.NewBuilder().WithKeyCondition(keyEx).Build()
+	if err != nil {
+		log.Err(err).Msg("failed to build expression")
+		return nil
+	}
 	return &dynamodb.QueryInput{
-		TableName:              b.tableName(),
-		KeyConditionExpression: Ptr("userID = :uid"),
-		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":uid": &types.AttributeValueMemberB{Value: b.UserID.Bytes()},
-		},
+		TableName:                 b.T.Table(),
+		KeyConditionExpression:    expr.KeyCondition(),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
 	}
 }
-
-func (b Bot) Get() *dynamodb.GetItemInput {
+func (b Bot[T]) Get() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: b.tableName(),
+		TableName: b.T.Table(),
 		Key: map[string]types.AttributeValue{
 			"userID": &types.AttributeValueMemberB{Value: b.UserID.Bytes()},
-			"target": &types.AttributeValueMemberS{Value: b.Target},
+			"target": &types.AttributeValueMemberS{Value: b.Target.String()},
 		},
 	}
 }
-
-func (b Bot) Put() *dynamodb.PutItemInput {
-	if b.CreatedAt.IsZero() {
-		b.CreatedAt = time.Now().UTC()
+func (b Bot[T]) Put() *dynamodb.PutItemInput {
+	if b.Frequency == 1 {
+		b.Frequency = 0
 	}
-	item, _ := attributevalue.MarshalMap(b)
+	item, err := attributevalue.MarshalMap(&b)
+	if err != nil {
+		log.Err(err).Msg("failed to marshal bot to dynamodb item!")
+	}
 	return &dynamodb.PutItemInput{
-		TableName: b.tableName(),
+		TableName: b.T.Table(),
 		Item:      item,
 	}
 }
 
-func (b Bot) Create() *dynamodb.CreateTableInput {
+func (b Bot[T]) Create() *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
-		TableName: b.tableName(),
+		TableName: b.T.Table(),
 		KeySchema: []types.KeySchemaElement{
 			{AttributeName: Ptr("userID"), KeyType: types.KeyTypeHash},
 			{AttributeName: Ptr("target"), KeyType: types.KeyTypeRange},
@@ -133,24 +114,19 @@ func (b Bot) Create() *dynamodb.CreateTableInput {
 	}
 }
 
-func (b *Bot) MarshalJSON() ([]byte, error) {
-	var a = BotAlias{
+func (b *Bot[T]) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&BotAlias{
 		UserID:    b.UserID.String(),
 		Target:    b.Target,
-		Type:      b.Type,
+		Type:      b.T,
 		Frequency: b.Frequency.String(),
 		BlackList: b.BlackList,
-		CreatedAt: b.CreatedAt.Format(time.RFC3339Nano),
+		CreatedAt: b.BotID.Timestamp().Format(time.RFC3339Nano),
 		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
-	}
-	if b.Type == SearchBotType {
-		a.Headless = b.Headless
-		a.State = b.State
-	}
-	return json.Marshal(&a)
+	})
 }
 
-func (b *Bot) UnmarshalJSON(data []byte) (err error) {
+func (b *Bot[T]) UnmarshalJSON(data []byte) (err error) {
 
 	var alias BotAlias
 	if err = json.Unmarshal(data, &alias); err != nil {
@@ -159,44 +135,33 @@ func (b *Bot) UnmarshalJSON(data []byte) (err error) {
 		return err
 	} else if b.UpdatedAt, err = time.Parse(time.RFC3339Nano, alias.UpdatedAt); err != nil {
 		return err
-	} else if b.CreatedAt, err = time.Parse(time.RFC3339Nano, alias.CreatedAt); err != nil {
-		return err
 	} else if b.UserID, err = ulid.Parse(alias.UserID); err != nil {
 		return err
 	}
 
 	b.Target = alias.Target
-	b.Type = alias.Type
+	b.T = alias.Type
 	b.BlackList = alias.BlackList
-
-	if b.Type == SearchBotType {
-		b.Headless = alias.Headless
-		b.State = alias.State
-	}
 
 	return
 }
 
-func (b *Bot) MarshalDynamoDBAttributeValue() (types.AttributeValue, error) {
+func (b *Bot[T]) MarshalDynamoDBAttributeValue() (types.AttributeValue, error) {
 
 	m := map[string]types.AttributeValue{
 		"userID":    &types.AttributeValueMemberB{Value: b.UserID.Bytes()},
-		"target":    &types.AttributeValueMemberS{Value: b.Target},
-		"type":      &types.AttributeValueMemberS{Value: b.Type.String()},
+		"target":    &types.AttributeValueMemberS{Value: b.Target.String()},
+		"type":      &types.AttributeValueMemberS{Value: b.T.String()},
 		"frequency": &types.AttributeValueMemberS{Value: b.Frequency.String()},
 		"blackList": &types.AttributeValueMemberSS{Value: b.BlackList},
-		"createdAt": &types.AttributeValueMemberS{Value: b.CreatedAt.Format(time.RFC3339Nano)},
+		"createdAt": &types.AttributeValueMemberS{Value: b.BotID.Timestamp().Format(time.RFC3339Nano)},
 		"updatedAt": &types.AttributeValueMemberS{Value: time.Now().UTC().Format(time.RFC3339Nano)},
-	}
-	if b.Type == SearchBotType {
-		m["headless"] = &types.AttributeValueMemberBOOL{Value: b.Headless}
-		m["state"] = &types.AttributeValueMemberM{Value: b.State.item()}
 	}
 
 	return &types.AttributeValueMemberM{Value: m}, nil
 }
 
-func (b *Bot) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error) {
+func (b *Bot[T]) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error) {
 
 	m := v.(*types.AttributeValueMemberM).Value
 	if m == nil {
@@ -205,16 +170,11 @@ func (b *Bot) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error
 	}
 
 	_ = b.UserID.UnmarshalBinary(m["userID"].(*types.AttributeValueMemberB).Value)
-	b.Target = m["target"].(*types.AttributeValueMemberS).Value
-	b.Type = BotType(m["type"].(*types.AttributeValueMemberS).Value)
+	b.Target, _ = ConstructTarget(m["target"].(*types.AttributeValueMemberS).Value)
+	b.T, _ = DetermineType(m["type"].(*types.AttributeValueMemberS).Value)
 	b.Frequency, _ = time.ParseDuration(m["frequency"].(*types.AttributeValueMemberS).Value)
 	b.BlackList = m["blackList"].(*types.AttributeValueMemberSS).Value
-	b.CreatedAt, _ = time.Parse(time.RFC3339Nano, m["createdAt"].(*types.AttributeValueMemberS).Value)
 	b.UpdatedAt, _ = time.Parse(time.RFC3339Nano, m["updatedAt"].(*types.AttributeValueMemberS).Value)
-	if b.Type == SearchBotType {
-		b.Headless = m["headless"].(*types.AttributeValueMemberBOOL).Value
-		b.State.unmarshal(m["state"].(*types.AttributeValueMemberM))
-	}
 
 	return nil
 }

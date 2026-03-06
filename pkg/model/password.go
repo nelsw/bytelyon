@@ -1,10 +1,8 @@
 package model
 
 import (
-	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	. "github.com/nelsw/bytelyon/internal/util"
@@ -13,12 +11,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var passwordTable = func() *string { return Ptr(os.Getenv("MODE") + "_ByteLyon_Password") }
+var passwordTable = func() *string { return Ptr("ByteLyon_Password") }
 
 type Password struct {
-	UserID    ulid.ULID
-	Hash      []byte
-	CreatedAt time.Time
+	UserID ulid.ULID
+	Hash   []byte
 }
 
 // Compare compares a bcrypt hashed password with its possible
@@ -28,7 +25,7 @@ func (p Password) Compare(text string) error {
 }
 
 // Generate returns the bcrypt hash of the password at the given cost.
-func (p Password) Generate(text string) (err error) {
+func (p *Password) Generate(text string) (err error) {
 	p.Hash, err = bcrypt.GenerateFromPassword([]byte(text), bcrypt.MinCost)
 	return
 }
@@ -58,22 +55,16 @@ func (p Password) Get() *dynamodb.GetItemInput {
 	}
 }
 func (p Password) Put() *dynamodb.PutItemInput {
-	if p.CreatedAt.IsZero() {
-		p.CreatedAt = time.Now().UTC()
-	}
-	item, _ := attributevalue.MarshalMap(p)
 	return &dynamodb.PutItemInput{
 		TableName: passwordTable(),
-		Item:      item,
+		Item: map[string]types.AttributeValue{
+			"userID":    &types.AttributeValueMemberB{Value: p.UserID.Bytes()},
+			"hash":      &types.AttributeValueMemberB{Value: p.Hash},
+			"createdAt": &types.AttributeValueMemberS{Value: p.UserID.Timestamp().Format(time.RFC3339Nano)},
+		},
 	}
 }
-func (p *Password) MarshalDynamoDBAttributeValue() (types.AttributeValue, error) {
-	return &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
-		"userID":    &types.AttributeValueMemberB{Value: p.UserID.Bytes()},
-		"hash":      &types.AttributeValueMemberB{Value: p.Hash},
-		"createdAt": &types.AttributeValueMemberS{Value: p.CreatedAt.Format(time.RFC3339Nano)},
-	}}, nil
-}
+
 func (p *Password) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error) {
 
 	m := v.(*types.AttributeValueMemberM).Value
@@ -82,9 +73,8 @@ func (p *Password) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err 
 		return nil
 	}
 
-	_ = p.UserID.UnmarshalBinary([]byte(m["userID"].(*types.AttributeValueMemberS).Value))
+	_ = p.UserID.UnmarshalBinary(m["userID"].(*types.AttributeValueMemberB).Value)
 	p.Hash = m["hash"].(*types.AttributeValueMemberB).Value
-	p.CreatedAt, _ = time.Parse(time.RFC3339Nano, m["createdAt"].(*types.AttributeValueMemberS).Value)
 
 	return nil
 }

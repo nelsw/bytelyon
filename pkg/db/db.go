@@ -19,7 +19,7 @@ var tableExistsEx *types.TableAlreadyExistsException
 var ctx = context.Background()
 var db = aws.DB()
 
-// create creates a DynamoDB table.
+// Create creates a DynamoDB table.
 func Create(t Creatable) error {
 
 	log.Trace().Any("table", t.Create().TableName).Msg("creating table")
@@ -91,7 +91,7 @@ func Migrate(tt ...Creatable) error {
 	l := log.With().Int("size", len(tt)).Logger()
 
 	for _, e := range tt {
-		//Drop(e.Create().tableName)
+		Drop(e.Create().TableName)
 		Create(e)
 	}
 

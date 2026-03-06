@@ -126,5 +126,5 @@ func (c *Credentials) Authenticate() (userID ulid.ULID, err error) {
 	}
 	log.Debug().Msg("password correct")
 
-	return ulid.Zero, nil
+	return email.UserID, nil
 }

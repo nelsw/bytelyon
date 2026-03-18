@@ -43,8 +43,8 @@ type Bot struct {
 	// Headless is a flag indicating whether the bot should run in headless mode.
 	Headless bool
 
-	// State is the browser state of the bot, containing cookies and origins.
-	State BroCtxState
+	// Fingerprint is the browser state of the bot, containing cookies and origins.
+	Fingerprint Fingerprint
 }
 
 func (b *Bot) Validate() error {
@@ -56,6 +56,17 @@ func (b *Bot) Validate() error {
 		return fmt.Errorf("bad url, must begin with https://")
 	}
 	return nil
+}
+
+func (b *Bot) StoragePath(n any, ext string) string {
+	return fmt.Sprintf("users/%s/bots/%s/%s/%s/%d.%s",
+		b.UserID,
+		b.Type,
+		b.Target,
+		b.ID,
+		n,
+		ext,
+	)
 }
 
 // IsReady returns true if the bot is ready to run.
@@ -125,11 +136,11 @@ func (b *Bot) MarshalDynamoDBAttributeValue() (types.AttributeValue, error) {
 
 	if b.Type == SearchBotType {
 		value["headless"] = &types.AttributeValueMemberBOOL{Value: b.Headless}
-		m, err := attributevalue.MarshalMap(&b.State)
+		m, err := attributevalue.MarshalMap(&b.Fingerprint)
 		if err != nil {
 			return nil, err
 		}
-		value["state"] = &types.AttributeValueMemberM{Value: m}
+		value["fingerprint"] = &types.AttributeValueMemberM{Value: m}
 	}
 
 	return &types.AttributeValueMemberM{Value: value}, nil
@@ -168,8 +179,8 @@ func (b *Bot) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error
 	if val, ok := m["headless"]; ok {
 		b.Headless = val.(*types.AttributeValueMemberBOOL).Value
 	}
-	if val, ok := m["state"]; ok {
-		if err = attributevalue.UnmarshalMap(val.(*types.AttributeValueMemberM).Value, &b.State); err != nil {
+	if val, ok := m["fingerprint"]; ok {
+		if err = attributevalue.UnmarshalMap(val.(*types.AttributeValueMemberM).Value, &b.Fingerprint); err != nil {
 			return fmt.Errorf("failed to unmarshal state: %w", err)
 		}
 	}
@@ -197,7 +208,7 @@ func (b *Bot) MarshalJSON() ([]byte, error) {
 
 	if b.Type == SearchBotType {
 		m["headless"] = b.Headless
-		m["state"] = b.State
+		m["fingerprint"] = b.Fingerprint
 	}
 
 	return json.Marshal(m)
@@ -250,8 +261,8 @@ func (b *Bot) UnmarshalJSON(data []byte) (err error) {
 		b.Headless = val.(bool)
 	}
 
-	if val, ok := m["state"]; ok {
-		b.State = val.(BroCtxState)
+	if val, ok := m["fingerprint"]; ok {
+		b.Fingerprint = val.(Fingerprint)
 	}
 
 	return

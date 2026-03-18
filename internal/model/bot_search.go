@@ -9,7 +9,7 @@ import (
 type BotSearch struct {
 	Bot
 	Headless bool        `json:"headless" dynamodbav:"Headless,boolean"`
-	State    BroCtxState `json:"state" dynamodbav:"State,boolean"`
+	State    BroCtxState `json:"state" dynamodbav:"Fingerprint,boolean"`
 }
 
 func (b BotSearch) PageDataPath(id ulid.ULID, idx int, ext string) string {

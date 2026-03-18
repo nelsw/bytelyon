@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/internal/worker/news"
+	"github.com/nelsw/bytelyon/internal/worker/search"
 	"github.com/nelsw/bytelyon/internal/worker/sitemap"
 	"github.com/nelsw/bytelyon/pkg/db"
 	. "github.com/nelsw/bytelyon/pkg/model"
@@ -55,12 +56,11 @@ func (m *Manager) work() {
 
 	var wg sync.WaitGroup
 	for _, user := range users {
-		wg.Go(func() {
-			//m.workSearchBots(user)
-			//m.workSitemapBots(user)
-			m.workNewsBots(user.ID)
-		})
+		wg.Go(func() { m.workNewsBots(user.ID) })
+		wg.Go(func() { m.workSitemapBots(user.ID) })
+		wg.Go(func() { m.workSearchBots(user.ID) })
 	}
+
 	log.Debug().Msg("waiting for all robots to deploy")
 	wg.Wait()
 	log.Debug().Msg("all robots deployed")
@@ -91,34 +91,31 @@ func (m *Manager) Stop(ctx context.Context) error {
 	}
 }
 
-// func (m *Manager) workSearchBots(user User) {
-//
-//		bots, err := db.Query[Bot[Search]](Bot[Search]{
-//			UserID: user.URL,
-//		})
-//
-//		if err != nil {
-//			log.Err(err).Msg("failed to query search bots")
-//			return
-//		}
-//
-//		var wg sync.WaitGroup
-//		for _, b := range bots {
-//
-//			wg.Go(func() {
-//				if !b.IsReady() {
-//					log.Debug().Msgf("search bot is not ready")
-//				} else {
-//					log.Debug().Msg("search bot is ready to work")
-//					search.New(&b).Work()
-//				}
-//			})
-//		}
-//		wg.Wait()
-//	}
+func (m *Manager) workSearchBots(userID ulid.ULID) {
+
+	bots, err := db.Query(&Bot{UserID: userID, Type: SearchBotType})
+	if err != nil {
+		log.Err(err).Msg("failed to query search bots")
+		return
+	}
+
+	var wg sync.WaitGroup
+	for _, b := range bots {
+		wg.Go(func() {
+			if !b.IsReady() {
+				log.Debug().Msgf("search bot is not ready")
+			} else {
+				log.Debug().Msg("search bot is ready to work")
+				search.New(b).Work()
+			}
+		})
+	}
+	wg.Wait()
+}
+
 func (m *Manager) workSitemapBots(userID ulid.ULID) {
 
-	bots, err := db.Query(&Sitemap{Bot: Bot{UserID: userID, Type: SitemapBotType}})
+	bots, err := db.Query(&Bot{UserID: userID, Type: SitemapBotType})
 	if err != nil {
 		log.Err(err).Msg("failed to query sitemap bots")
 		return

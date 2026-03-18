@@ -27,7 +27,7 @@ type Cookie struct {
 	SameSite *string `json:"sameSite"`
 }
 
-type Storage struct {
+type LocalStorage struct {
 	// Name of the header.
 	Name string `json:"name"`
 	// Value of the header.
@@ -37,23 +37,23 @@ type Storage struct {
 type Origin struct {
 	Origin string `json:"origin"`
 	// LocalStorage to set for context
-	LocalStorage []Storage `json:"localStorage"`
+	LocalStorage []LocalStorage `json:"localStorage"`
 }
 
-type BroCtxState struct {
+type Fingerprint struct {
 	// Cookies to set for context
 	Cookies []Cookie `json:"cookies"`
 	// Origins to set for context
 	Origins []Origin `json:"origins"`
 }
 
-func (bs BroCtxState) StorageState() *playwright.OptionalStorageState {
-	b, _ := json.Marshal(&bs)
+func (s Fingerprint) StorageState() *playwright.OptionalStorageState {
+	b, _ := json.Marshal(&s)
 	var oss playwright.OptionalStorageState
 	_ = json.Unmarshal(b, &oss)
 	return &oss
 }
 
-func (bs BroCtxState) String() string {
-	return fmt.Sprintf("{cookies:%d, origins:%d}", len(bs.Cookies), len(bs.Origins))
+func (s Fingerprint) String() string {
+	return fmt.Sprintf("{cookies:%d, origins:%d}", len(s.Cookies), len(s.Origins))
 }

@@ -195,7 +195,7 @@ func (b *Bot) MarshalJSON() ([]byte, error) {
 		"id":        b.ID.String(),
 		"target":    b.Target,
 		"type":      b.Type.String(),
-		"frequency": b.Frequency.String(),
+		"frequency": b.Frequency.Nanoseconds(),
 	}
 
 	if !b.WorkedAt.IsZero() {
@@ -242,9 +242,7 @@ func (b *Bot) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	if _, ok := m["frequency"]; ok {
-		if b.Frequency, err = time.ParseDuration(m["frequency"].(string)); err != nil {
-			return fmt.Errorf("failed to parse frequency: %w", err)
-		}
+		b.Frequency = time.Duration(m["frequency"].(int64))
 	}
 
 	if _, ok := m["workedAt"]; ok {

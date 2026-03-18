@@ -121,14 +121,19 @@ func (b *BotResult) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err
 }
 
 func (b *BotResult) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]any{
+	m := map[string]any{
 		"userId": b.UserID.String(),
 		"botId":  b.BotID.String(),
 		"id":     b.ID.String(),
 		"type":   b.Type.String(),
 		"target": b.Target,
-		"data":   b.Data,
-	})
+	}
+
+	for k, v := range b.Data {
+		m[k] = v
+	}
+
+	return json.Marshal(m)
 }
 
 func (b *BotResult) UnmarshalJSON(data []byte) (err error) {

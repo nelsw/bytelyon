@@ -14,6 +14,7 @@ import (
 	. "github.com/nelsw/bytelyon/internal/config"
 	. "github.com/nelsw/bytelyon/internal/model"
 	. "github.com/nelsw/bytelyon/internal/util"
+	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/rs/zerolog/log"
 )
 
@@ -307,12 +308,12 @@ func Scan[E Entity](e E, args ...any) (arr []E, err error) {
 	input := &dynamodb.ScanInput{TableName: TableName(e)}
 
 	if len(args) > 0 {
-		f := args[0].(string)
-		input.FilterExpression = &f
-		if input.ExpressionAttributeValues, err = attributevalue.MarshalMap(args[1]); err != nil {
-			l.Err(err).Msg("failed to marshal query filter express values")
-			return
-		}
+		//f := args[0].(string)
+		//input.FilterExpression = &f
+		//if input.ExpressionAttributeValues, err = attributevalue.MarshalMap(args[1]); err != nil {
+		//	l.Err(err).Msg("failed to marshal query filter express values")
+		//	return
+		//}
 	}
 
 	var lastEvaluatedKey map[string]types.AttributeValue = nil
@@ -326,7 +327,7 @@ func Scan[E Entity](e E, args ...any) (arr []E, err error) {
 			l.Err(err).Msg("failed to scan item")
 			return
 		}
-
+		util.PrettyPrintln(result.Items)
 		var items []E
 		if err = attributevalue.UnmarshalListOfMaps(result.Items, &items); err != nil {
 			l.Err(err).Msg("failed to unmarshal items")

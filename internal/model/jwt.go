@@ -7,14 +7,15 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	. "github.com/nelsw/bytelyon/internal/config"
+	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 
 var tokenErr = errors.New("invalid JWT token (either expired or unprocessable")
 
-func NewJWT(userID uuid.UUID) (tkn string, err error) {
+func NewJWT(userID ulid.ULID) (tkn string, err error) {
 
-	ƒ := func(userID uuid.UUID) jwt.Claims {
+	ƒ := func(userID ulid.ULID) jwt.Claims {
 		return jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(time.Minute * 30)),
 			ID:        uuid.NewString(),
@@ -34,11 +35,11 @@ func NewJWT(userID uuid.UUID) (tkn string, err error) {
 	return
 }
 
-func ParseUserID(s string) (uuid.UUID, error) {
+func ParseUserID(s string) (ulid.ULID, error) {
 
 	log.Trace().Msg("parsing user id from JWT")
 
-	id := uuid.Nil
+	id := ulid.Zero
 
 	t, err := jwt.ParseWithClaims(s, &jwt.RegisteredClaims{}, func(*jwt.Token) (any, error) { return JwtKey(), nil })
 
@@ -57,12 +58,12 @@ func ParseUserID(s string) (uuid.UUID, error) {
 		return id, err
 	}
 
-	if id, err = uuid.Parse(s); err != nil {
+	if id, err = ulid.Parse(s); err != nil {
 		log.Err(err).Msg("unable to parse user id (UUID parse err)")
 		return id, err
 	}
 
-	log.Debug().Stringer("ID", id).Msg("parsed user id")
+	log.Debug().Stringer("URL", id).Msg("parsed user id")
 
 	return id, nil
 }

@@ -11,28 +11,25 @@ import (
 type BotNewsResult struct {
 	Model
 	Target      string    `json:"target" dynamodbav:"Target,string"`
-	URL         string    `json:"url" dynamodbav:"ID,string"`
+	URL         string    `json:"url" dynamodbav:"URL,string"`
 	Title       string    `json:"title" dynamodbav:"Title,string"`
 	Source      string    `json:"source" dynamodbav:"Source,string"`
 	Description string    `json:"description" dynamodbav:"Description,string"`
 	Published   time.Time `json:"published" dynamodbav:"Published,number"`
 }
 
-func (b BotNewsResult) GetDesc() dynamodb.CreateTableInput {
-	return dynamodb.CreateTableInput{
+func (b BotNewsResult) Create() *dynamodb.CreateTableInput {
+	return &dynamodb.CreateTableInput{
 		BillingMode: types.BillingModeProvisioned,
-		KeySchema: []types.KeySchemaElement{{
-			AttributeName: Ptr("Target"),
-			KeyType:       types.KeyTypeHash,
-		}, {
-			AttributeName: Ptr("ID"),
-			KeyType:       types.KeyTypeRange,
-		}},
+		KeySchema: []types.KeySchemaElement{
+			{AttributeName: Ptr("target"), KeyType: types.KeyTypeHash},
+			{AttributeName: Ptr("id"), KeyType: types.KeyTypeRange},
+		},
 		AttributeDefinitions: []types.AttributeDefinition{{
-			AttributeName: Ptr("Target"),
+			AttributeName: Ptr("target"),
 			AttributeType: types.ScalarAttributeTypeS,
 		}, {
-			AttributeName: Ptr("ID"),
+			AttributeName: Ptr("id"),
 			AttributeType: types.ScalarAttributeTypeS,
 		}},
 		ProvisionedThroughput: &types.ProvisionedThroughput{

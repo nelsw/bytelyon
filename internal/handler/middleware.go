@@ -8,15 +8,15 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/nelsw/bytelyon/internal/logger"
 	. "github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/service/db"
+	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 
 func botType(c *gin.Context) BotType    { return c.MustGet("BOT_TYPE").(BotType) }
-func userID(c *gin.Context) uuid.UUID   { return c.MustGet("USER_ID").(uuid.UUID) }
+func userID(c *gin.Context) ulid.ULID   { return c.MustGet("USER_ID").(ulid.ULID) }
 func creds(c *gin.Context) *Credentials { return c.MustGet("CREDS").(*Credentials) }
 
 var tokenResponse = func(c *gin.Context, a any) {
@@ -167,7 +167,7 @@ func validateBasicAuth(c *gin.Context, token string) (ok bool) {
 	var email Email
 	if email, err = db.Find[Email](Data{"Address": username}); err != nil {
 		badRequest(c, err)
-	} else if email.UserID == uuid.Nil {
+	} else if email.UserID == ulid.Zero {
 		badRequest(c, "email not found; try signing up.")
 	}
 

@@ -43,3 +43,12 @@ func New() *gin.Engine {
 	}
 	return r
 }
+
+// api/user/login
+// api/user/reset
+// api/user/signup
+// api/user/token/:token
+
+// api/bots/type/:type
+// api/bots/type/:type/target/:target
+// api/bots/type/:type/target/:target/id/:id

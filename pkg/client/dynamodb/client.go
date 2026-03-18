@@ -1,0 +1,114 @@
+package client
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/nelsw/bytelyon/internal/config"
+	"github.com/rs/zerolog/log"
+)
+
+var notFoundEx *types.ResourceNotFoundException
+var tableExistsEx *types.TableAlreadyExistsException
+
+func DeleteItem(ctx context.Context, c *dynamodb.Client, input *dynamodb.DeleteItemInput) error {
+	input.TableName = tableName(input.TableName)
+	_, err := c.DeleteItem(ctx, input)
+	if err == nil || errors.Is(err, notFoundEx) {
+		return nil
+	}
+	return err
+}
+
+func GetItem(ctx context.Context, c *dynamodb.Client, input *dynamodb.GetItemInput) (map[string]types.AttributeValue, error) {
+	input.TableName = tableName(input.TableName)
+	out, err := c.GetItem(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	return out.Item, nil
+}
+
+func PutItem(ctx context.Context, c *dynamodb.Client, input *dynamodb.PutItemInput) error {
+	input.TableName = tableName(input.TableName)
+	log.Info().Any("item", input.Item).Msg("putting item " + *input.TableName)
+	_, err := c.PutItem(ctx, input)
+	return err
+}
+
+func QueryItems(ctx context.Context, c *dynamodb.Client, input *dynamodb.QueryInput) (arr []map[string]types.AttributeValue, err error) {
+	input.TableName = tableName(input.TableName)
+	var res *dynamodb.QueryOutput
+	for paginator := dynamodb.NewQueryPaginator(c, input); paginator.HasMorePages(); {
+		if res, err = paginator.NextPage(ctx); err != nil {
+			return
+		}
+		for _, item := range res.Items {
+			arr = append(arr, item)
+		}
+	}
+	return
+}
+
+func ScanItems(ctx context.Context, c *dynamodb.Client, input *dynamodb.ScanInput) ([]map[string]types.AttributeValue, error) {
+	input.TableName = tableName(input.TableName)
+	var lastEvaluatedKey map[string]types.AttributeValue = nil
+	var out []map[string]types.AttributeValue
+	for {
+		input.ExclusiveStartKey = lastEvaluatedKey
+
+		result, err := c.Scan(ctx, input)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to scan item")
+			return nil, err
+		}
+
+		out = append(out, result.Items...)
+
+		if result.LastEvaluatedKey == nil {
+			break
+		}
+
+		lastEvaluatedKey = result.LastEvaluatedKey
+	}
+
+	return out, nil
+}
+
+func CreateTable(ctx context.Context, c *dynamodb.Client, input *dynamodb.CreateTableInput) error {
+	input.TableName = tableName(input.TableName)
+
+	if _, err := c.CreateTable(ctx, input); err != nil && errors.Is(err, tableExistsEx) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	return dynamodb.
+		NewTableExistsWaiter(c).
+		Wait(ctx, &dynamodb.DescribeTableInput{TableName: input.TableName}, 5*time.Minute)
+}
+
+func DeleteTable(ctx context.Context, c *dynamodb.Client, input *dynamodb.DeleteTableInput) error {
+	input.TableName = tableName(input.TableName)
+	if _, err := c.DeleteTable(ctx, input); err != nil && errors.Is(err, notFoundEx) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	return dynamodb.
+		NewTableNotExistsWaiter(c).
+		Wait(ctx, &dynamodb.DescribeTableInput{TableName: input.TableName}, 5*time.Minute)
+
+}
+
+func tableName(ptr *string) *string {
+	val := "ByteLyon_" + *ptr
+	if config.Mode() != "release" {
+		val = config.Mode() + "_" + val
+	}
+	log.Info().Str("table", val).Send()
+	return &val
+}

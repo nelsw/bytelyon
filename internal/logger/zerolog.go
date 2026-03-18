@@ -35,7 +35,8 @@ func MakeZerolog() zerolog.Logger {
 				return Default + l + Default
 			}
 		},
-		TimeFormat: "15:04:05",
+		TimeFormat:  "15:04:05",
+		FieldsOrder: []string{"table"},
 	})
 
 	if config.IsReleaseMode() {

@@ -24,6 +24,18 @@ func (v *Time) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 		return err
 	}
 
-	*v = Time(t)
+	*v = Time(t.UTC())
 	return nil
+}
+
+func (v *Time) String() string {
+	return v.UTC().Format(time.RFC3339)
+}
+
+func (v *Time) Before(t time.Time) bool {
+	return time.Time(*v).UTC().Before(t)
+}
+
+func (v *Time) UTC() time.Time {
+	return time.Time(*v).UTC()
 }

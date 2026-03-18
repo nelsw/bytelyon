@@ -5,14 +5,15 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/google/uuid"
 	. "github.com/nelsw/bytelyon/internal/util"
+	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/oklog/ulid/v2"
 )
 
 type Model struct {
 	CreatedAt time.Time `json:"createdAt" dynamodbav:"CreatedAt,number"`
 	UpdatedAt time.Time `json:"updatedAt" dynamodbav:"UpdatedAt,number"`
-	UserID    uuid.UUID `json:"userID" dynamodbav:"UserID,binary"`
+	UserID    ulid.ULID `json:"userID" dynamodbav:"UserID,binary"`
 }
 
 func (m Model) GetDesc() dynamodb.CreateTableInput {
@@ -39,7 +40,7 @@ func Make(a ...any) Model {
 
 	for i, v := range a {
 		if i == 0 {
-			m.UserID = v.(uuid.UUID)
+			m.UserID = v.(ulid.ULID)
 		} else if i == 1 {
 			m.UpdatedAt = v.(time.Time)
 		} else if i == 2 {
@@ -47,8 +48,8 @@ func Make(a ...any) Model {
 		}
 	}
 
-	if m.UserID == uuid.Nil {
-		m.UserID = uuid.Must(uuid.NewV7())
+	if m.UserID == ulid.Zero {
+		m.UserID = model.NewULID()
 	}
 	if m.UpdatedAt.IsZero() {
 		m.UpdatedAt = time.Now()

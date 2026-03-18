@@ -1,13 +1,15 @@
 package model
 
-import "github.com/google/uuid"
+import (
+	"github.com/oklog/ulid/v2"
+)
 
 type User struct{ Model }
 
-func NewUser(id uuid.UUID) *User {
+func NewUser(id ulid.ULID) *User {
 	return &User{Model{UserID: id}}
 }
 
-func (u *User) ID() uuid.UUID {
+func (u *User) ID() ulid.ULID {
 	return u.Model.UserID
 }

@@ -3,7 +3,6 @@ package search
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/nelsw/bytelyon/internal/client/prowl"
 	"github.com/nelsw/bytelyon/internal/service/s3"
@@ -73,9 +72,9 @@ func (w *Worker) Work() {
 		return
 	}
 
-	log.Debug().Int("locators", locatorCount).Msg("Locators Found")
+	log.Info().Int("locators", locatorCount).Msg("Locators Found")
 
-	if w.Ignore["*"] {
+	if _, ok := w.Ignore["*"]; ok {
 		log.Info().Msg("Ignoring all targets; Finished Search")
 		return
 	}
@@ -87,9 +86,6 @@ func (w *Worker) Work() {
 	}
 
 	log.Err(err).Msg("Finished Search")
-
-	w.WorkedAt = time.Now().UTC()
-	err = db.PutItem(w)
 }
 
 func (w *Worker) VisitGoogle(c *prowl.Client) (page playwright.Page, err error) {

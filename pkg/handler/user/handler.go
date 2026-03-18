@@ -4,6 +4,7 @@ import (
 	"github.com/nelsw/bytelyon/internal/service/ses"
 	. "github.com/nelsw/bytelyon/pkg/api"
 	"github.com/nelsw/bytelyon/pkg/db"
+	"github.com/nelsw/bytelyon/pkg/handler/auth"
 	. "github.com/nelsw/bytelyon/pkg/model"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
@@ -12,8 +13,30 @@ import (
 // api/user/reset
 // api/user/signup
 // api/user/token/:token
-func Handler() {
+func Handler(r Request) (Response, error) {
 
+	r.Log()
+
+	switch r.Query("q") {
+	case "login":
+		return Login(r), nil
+	case "signup":
+		return Signup(r), nil
+		//case "reset":
+		//	return Reset(r), nil
+		//case "token":
+		//	return Token(r), nil
+	}
+
+	return r.NI(), nil
+}
+
+func Login(r Request) Response {
+	resp, _ := auth.Handler(r)
+	if resp.IsAuthorized {
+		return r.OK(resp.Context)
+	}
+	return r.BAD(resp.Context)
 }
 
 func Signup(r Request) Response {

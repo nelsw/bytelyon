@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 
@@ -31,17 +32,28 @@ func Handler(r Request) (Response, error) {
 //
 // result: /bots?type=...&target=...&id=...
 func handleDelete(r Request) Response {
+
+	botType := model.BotType(r.Query("type"))
+	target := r.Query("target")
+	if botType == model.SitemapBotType {
+		tar, err := base64.StdEncoding.DecodeString(target)
+		if err != nil {
+			return r.BAD(err)
+		}
+		target = string(tar)
+	}
+
 	bot, err := db.Get(&model.Bot{
 		UserID: r.UserID(),
-		Target: r.Query("target"),
-		Type:   model.BotType(r.Query("type")),
+		Target: target,
+		Type:   botType,
 	})
 	if err != nil {
 		return r.BAD(err)
 	}
 
 	var results []*model.BotResult
-	results, err = db.Query(&model.BotResult{BotID: bot.ID, Type: bot.Type})
+	results, err = db.Query(&model.BotResult{BotID: bot.ID, Type: botType})
 
 	if r.Query("id") != "" {
 		for _, result := range results {

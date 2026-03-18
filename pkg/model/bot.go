@@ -242,7 +242,7 @@ func (b *Bot) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	if _, ok := m["frequency"]; ok {
-		b.Frequency = time.Duration(m["frequency"].(int64))
+		b.Frequency = time.Duration(m["frequency"].(float64))
 	}
 
 	if _, ok := m["workedAt"]; ok {

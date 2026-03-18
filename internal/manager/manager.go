@@ -107,6 +107,9 @@ func (m *Manager) workSearchBots(userID ulid.ULID) {
 			} else {
 				log.Debug().Msg("search bot is ready to work")
 				search.New(b).Work()
+
+				b.WorkedAt = time.Now().UTC()
+				err = db.PutItem(b)
 			}
 		})
 	}

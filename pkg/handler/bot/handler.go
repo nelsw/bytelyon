@@ -29,14 +29,40 @@ func Handler(r Request) (Response, error) {
 //
 //	bot: /bots?type=...&target=...
 //
-// result: /bots?type=...&botId=...&id=...
+// result: /bots?type=...&target=...&id=...
 func handleDelete(r Request) Response {
-	err := db.Delete(&model.Bot{
+	bot, err := db.Get(&model.Bot{
 		UserID: r.UserID(),
 		Target: r.Query("target"),
 		Type:   model.BotType(r.Query("type")),
 	})
 	if err != nil {
+		return r.BAD(err)
+	}
+
+	var results []*model.BotResult
+	results, err = db.Query(&model.BotResult{BotID: bot.ID, Type: bot.Type})
+
+	if r.Query("id") != "" {
+		for _, result := range results {
+			if result.ID.String() == r.Query("id") {
+				err = db.Delete(result)
+				if err != nil {
+					return r.BAD(err)
+				}
+				return r.NC()
+			}
+		}
+	}
+
+	for _, result := range results {
+		err = db.Delete(result)
+		if err != nil {
+			return r.BAD(err)
+		}
+	}
+
+	if err = db.Delete(bot); err != nil {
 		return r.BAD(err)
 	}
 	return r.NC()
@@ -46,7 +72,7 @@ func handleDelete(r Request) Response {
 //
 //	bots: /bots?type=...
 //
-// results: /bots?type=...&botId=...
+// results: /bots?type=...&id=...
 func handleGet(r Request) Response {
 
 	bots, err := db.Query(&model.Bot{
@@ -57,13 +83,13 @@ func handleGet(r Request) Response {
 		return r.BAD(err)
 	}
 
-	if r.Query("botId") == "" {
+	if r.Query("id") == "" {
 		return r.OK(bots)
 	}
 
 	var results []*model.BotResult
 	for _, bot := range bots {
-		if bot.ID.String() != r.Query("botId") {
+		if bot.ID.String() != r.Query("id") {
 			continue
 		}
 		results, err = db.Query(&model.BotResult{

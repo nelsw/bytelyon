@@ -9,16 +9,9 @@ import (
 	"github.com/nelsw/bytelyon/pkg/model"
 )
 
-// api/bots/type/:type
-// api/bots/type/:type/target/:target
-// api/bots/type/:type/target/:target/id/:id
-
-// Handler
 func Handler(r Request) (Response, error) {
 
 	r.Log()
-
-	// todo - validation
 
 	switch r.Method() {
 	case http.MethodDelete:
@@ -32,6 +25,11 @@ func Handler(r Request) (Response, error) {
 	return r.NI(), nil
 }
 
+// handleDelete deletes a bot or bot result from the database using the following routes:
+//
+//	bot: /bots?type=...&target=...
+//
+// result: /bots?type=...&botId=...&id=...
 func handleDelete(r Request) Response {
 	err := db.Delete(&model.Bot{
 		UserID: r.UserID(),
@@ -44,6 +42,11 @@ func handleDelete(r Request) Response {
 	return r.NC()
 }
 
+// handleGet queries the database for bots and bot results using the following routes:
+//
+//	bots: /bots?type=...
+//
+// results: /bots?type=...&botId=...
 func handleGet(r Request) Response {
 
 	bots, err := db.Query(&model.Bot{
@@ -54,13 +57,13 @@ func handleGet(r Request) Response {
 		return r.BAD(err)
 	}
 
-	if r.Query("id") == "" {
+	if r.Query("botId") == "" {
 		return r.OK(bots)
 	}
 
 	var results []*model.BotResult
 	for _, bot := range bots {
-		if bot.ID.String() != r.Query("id") {
+		if bot.ID.String() != r.Query("botId") {
 			continue
 		}
 		results, err = db.Query(&model.BotResult{
@@ -77,6 +80,7 @@ func handleGet(r Request) Response {
 	return r.OK(results)
 }
 
+// handlePut creates or updates a bot in the database for the given body.
 func handlePut(r Request) Response {
 
 	var b model.Bot

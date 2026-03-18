@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -15,23 +14,12 @@ type AuthResponse events.APIGatewayV2CustomAuthorizerSimpleResponse
 type Response events.APIGatewayV2HTTPResponse
 type Request events.APIGatewayV2HTTPRequest
 
-func (r Request) BotType() (model.Type, error) {
-	return model.DetermineType(r.Query("type"))
-}
-
-func Body[T any](req Request, in T) (err error) {
-	if err = json.Unmarshal([]byte(req.Body), &in); err != nil {
-		log.Err(err).Msgf("Failed to unmarshal body for [%t:%v]", in, in)
-	}
-	return
-}
-
 func (r Request) UserID() ulid.ULID {
-	if id, ok := r.RequestContext.Authorizer.Lambda["userID"]; ok {
-		return id.(ulid.ULID)
+	if _, ok := r.RequestContext.Authorizer.Lambda["userId"]; !ok {
+		return ulid.Zero
 	}
-	log.Warn().Msg("user id not found in request context?!")
-	return ulid.Zero
+	id, _ := ulid.Parse(r.RequestContext.Authorizer.Lambda["userId"].(string))
+	return id
 }
 
 func (r Request) Authorization() string { return r.Headers["authorization"] }
@@ -75,25 +63,29 @@ func (r Request) Response(code int, a ...any) Response {
 			"Access-Control-Allow-Origin":  "*",
 			"Access-Control-Allow-Headers": "authorization, content-type,",
 			"Access-Control-Allow-Methods": "*",
-			"Content-Type":                 "application/json",
+			"Content-BotType":              "application/json",
 		},
 	}
 }
 
-func (r Request) AuthOK(userID ...ulid.ULID) AuthResponse { return r.AuthResponse(true, userID) }
-func (r Request) AuthErr(a any) AuthResponse              { return r.AuthResponse(false, a) }
-func (r Request) AuthResponse(ok bool, a ...any) AuthResponse {
+func (r Request) AuthOK(userID ulid.ULID, tkn string) AuthResponse {
+	return r.AuthResponse(true, userID.String(), tkn)
+}
+
+func (r Request) AuthErr(err error) AuthResponse {
+	return r.AuthResponse(false, err.Error())
+}
+
+func (r Request) AuthResponse(ok bool, s ...string) AuthResponse {
+
+	log.Debug().Msgf("AuthResponse: %v:%s", ok, s)
 
 	ctx := make(map[string]any)
-	if len(a) > 0 {
-		switch t := a[0].(type) {
-		case ulid.ULID:
-			ctx["userID"] = t
-		case string:
-			ctx["message"] = t
-		case error:
-			ctx["message"] = t.Error()
-		}
+	if !ok {
+		ctx["error"] = s[0]
+	} else {
+		ctx["userId"] = s[0]
+		ctx["token"] = s[1]
 	}
 
 	log.Log().
@@ -112,6 +104,6 @@ func (r Request) MarshalZerologObject(evt *zerolog.Event) {
 		Str("method", r.Method()).
 		Str("authorization", r.Authorization()).
 		Str("path", r.RawPath).
-		Str("query", r.RawQueryString).
+		Any("query", r.QueryStringParameters).
 		Bool("body", len(r.Body) > 0)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	. "github.com/nelsw/bytelyon/internal/config"
+	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 
@@ -57,12 +58,12 @@ func ParseUserID(s string) (ulid.ULID, error) {
 		return id, err
 	}
 
-	if id, err = uuid.Parse(s); err != nil {
+	if id, err = ulid.Parse(s); err != nil {
 		log.Err(err).Msg("unable to parse user id (UUID parse err)")
 		return id, err
 	}
 
-	log.Debug().Stringer("ID", id).Msg("parsed user id")
+	log.Debug().Stringer("URL", id).Msg("parsed user id")
 
 	return id, nil
 }

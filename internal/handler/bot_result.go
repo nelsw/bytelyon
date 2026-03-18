@@ -19,17 +19,17 @@ func DeleteResult(c *gin.Context) {
 	if botType(c).IsNews() {
 		var b []byte
 		b, err = base64.RawURLEncoding.DecodeString(c.Param("id"))
-		key = Data{"Target": c.Param("target"), "ID": string(b)}
+		key = Data{"Target": c.Param("target"), "URL": string(b)}
 	} else if botType(c).IsSitemap() {
 		var b []byte
 		b, err = base64.RawURLEncoding.DecodeString(c.Param("target"))
 		var id uuid.UUID
 		id, err = uuid.Parse(c.Param("id"))
-		key = Data{"Target": string(b), "ID": id}
+		key = Data{"Target": string(b), "URL": id}
 	} else {
 		var id uuid.UUID
 		id, err = uuid.Parse(c.Param("id"))
-		key = Data{"Target": c.Param("target"), "ID": id}
+		key = Data{"Target": c.Param("target"), "URL": id}
 	}
 
 	if err != nil {

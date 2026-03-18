@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/rs/zerolog/log"
 	"golang.org/x/net/html"
 )
 
@@ -18,16 +19,43 @@ var (
 	regex = regexp.MustCompile(`/articles/(?P<encoded_url>[^?]+)`)
 )
 
-func decodeURL(s string) (string, error) {
+func decodeURL(s string) string {
+
+	if strings.Contains(s, "bing.com") {
+		s = decodeBingURL(s)
+	} else if strings.Contains(s, "google.com") {
+		var err error
+		if s, err = decodeGoogleURL(s); err != nil {
+			log.Warn().Err(err).Msg("failed to decode Google URL")
+		}
+	}
+
+	return s
+}
+
+func decodeBingURL(s string) string {
+	s, _ = url.QueryUnescape(s)
+	_, r, rOk := strings.Cut(s, "url=")
+	if !rOk {
+		return s
+	}
+	l, _, lOk := strings.Cut(r, "&c=")
+	if !lOk {
+		return r
+	}
+	return l
+}
+
+func decodeGoogleURL(s string) (string, error) {
 	res, err := http.Get(s)
 	if err != nil {
-		return "", err
+		return s, err
 	}
 	defer res.Body.Close()
 
 	var doc *html.Node
 	if doc, err = html.Parse(res.Body); err != nil {
-		return "", err
+		return s, err
 	}
 
 	return decodeNode(doc, regex.FindStringSubmatch(s)[1])

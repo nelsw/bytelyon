@@ -6,37 +6,12 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/nelsw/bytelyon/pkg/util"
-	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/html"
 )
 
-var NewSearch = func(
-	uid ulid.ULID,
-	tgt Target,
-	rls map[string]bool,
-) *Search {
-	return &Search{
-		UserID: uid,
-		Target: tgt,
-		Rules:  rls,
-	}
-}
-
-type Search struct {
-	ID       ulid.ULID
-	UserID   ulid.ULID
-	Target   Target
-	Headless bool
-	State    BroCtxState
-	Rules    map[string]bool
-	Pages    map[URL]Page
-}
-
-type Page struct {
+type SearchPage struct {
 	IDX   int       `json:"idx"`
 	URL   string    `json:"url"`
 	Title string    `json:"title"`
@@ -45,26 +20,7 @@ type Page struct {
 	JSON  PageGraph `json:"json"`
 }
 
-func (b Search) AddPage(p Page, d Page) {
-	b.Pages[URL(d.URL)] = p
-}
-
-func (b Search) String() string  { return "search" }
-func (b Search) Table() *string  { return util.Ptr("Search_Bot") }
-func (b Search) Validate() error { return nil }
-func (b Search) StoragePath(n any, ext string) string {
-	return fmt.Sprintf("users/%s/bots/search/%s/%s/%d.%s",
-		b.UserID, b.Target, b.ID, n, ext)
-}
-
-func (b Search) Put() *dynamodb.PutItemInput {
-	return &dynamodb.PutItemInput{
-		TableName: b.Table(),
-		// todo
-	}
-}
-
-func (p *Page) Parse(content string) {
+func (p *SearchPage) Parse(content string) {
 
 	if !strings.HasPrefix(p.URL, "https://www.google.com") {
 		return
@@ -72,7 +28,7 @@ func (p *Page) Parse(content string) {
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
 	if err != nil {
-		log.Warn().Err(err).Msg("Page - failed to parse html")
+		log.Warn().Err(err).Msg("SearchPage - failed to parse html")
 		return
 	}
 

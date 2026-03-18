@@ -2,43 +2,40 @@ package model
 
 import (
 	"testing"
+
+	"github.com/nelsw/bytelyon/pkg/db"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_User(t *testing.T) {
+	t.Setenv("MODE", "release")
+	var err error
+	exp := NewUser()
+	act := new(User)
 
-	//db.Create(&User{})
-	//
-	//exp := NewUser()
-	//err := db.Put(exp)
-	//assert.NoError(t, err)
-	//
-	//var act User
-	//act, err = db.Get[User](&User{ID: exp.ID})
-	//assert.NoError(t, err)
-	//assert.Equal(t, exp.ID, act.ID)
-	//
-	//err = db.Delete(&User{ID: exp.ID})
-	//assert.NoError(t, err)
-	//
-	//act, err = db.Get[User](&User{ID: exp.ID})
-	//assert.Empty(t, act)
+	// migrate
+	db.Migrate(&User{})
 
-	//for i := 0; i < 50; i++ {
-	//	db.Put(&User{ID: NewULID()})
-	//}
+	// put
+	assert.NoError(t, db.Put(exp))
+	assert.NoError(t, db.Put(NewUser()))
+	assert.NoError(t, db.Put(NewUser()))
 
-	//out, err := db.Scan[User](&User{})
-	//assert.NoError(t, err)
-	////assert.NotEmpty(t, out)
-	////util.PrettyPrintln(out)
-	//fmt.Println(len(out))
-	//for i := 0; i < 100; i++ {
-	//	u := out[i]
-	//	bots, berr := db.Query[Bot](Bot{Type: SearchBotType, UserID: u.ID})
-	//	if berr != nil {
-	//		t.Errorf("failed to query bots for user %s: %v", u.ID, berr)
-	//		continue
-	//	}
-	//	util.PrettyPrintln(bots)
-	//}
+	// get
+	act, err = db.Get(&User{ID: exp.ID})
+	assert.NoError(t, err)
+	assert.Equal(t, exp.ID, act.ID)
+
+	// scan
+	var arr []*User
+	arr, err = db.Scan(&User{})
+	size := len(arr)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, size)
+
+	// delete
+	assert.NoError(t, db.Delete(arr[0]))
+	arr, err = db.Scan(&User{})
+	assert.NoError(t, err)
+	assert.Len(t, arr, size-1)
 }

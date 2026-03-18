@@ -1,38 +1,42 @@
 package model
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	. "github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
-	"github.com/rs/zerolog/log"
 )
-
-var emailTable = func() *string { return Ptr("ByteLyon_Email") }
 
 // Email represents a single mail address, the User it belongs to, a token for address confirmation.
 type Email struct {
 
 	// Address is a unique email address and primary key of the Email table.
-	Address string `json:"address"`
+	Address string `json:"address" dynamodbav:"address"`
 
-	// UserID is the ID of the User this Email belongs to.
-	UserID ulid.ULID `json:"id"`
+	// UserID is the URL of the User this Email belongs to.
+	UserID ulid.ULID `json:"userId" dynamodbav:"userId"`
 
 	// VerifiedAt is the time when the Email was verified.
-	VerifiedAt time.Time `json:"verifiedAt"`
+	VerifiedAt time.Time `json:"verifiedAt" dynamodbav:"verifiedAt"`
 }
 
-func (e Email) Scan() *dynamodb.ScanInput {
+func (e *Email) TableName() *string {
+	return Ptr("Email")
+}
+
+func (e *Email) Scan() *dynamodb.ScanInput {
 	return &dynamodb.ScanInput{
-		TableName: emailTable(),
+		TableName: e.TableName(),
 	}
 }
-func (e Email) Create() *dynamodb.CreateTableInput {
+func (e *Email) Create() *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
-		TableName: emailTable(),
+		TableName: e.TableName(),
 		KeySchema: []types.KeySchemaElement{
 			{AttributeName: Ptr("address"), KeyType: types.KeyTypeHash},
 		},
@@ -46,36 +50,30 @@ func (e Email) Create() *dynamodb.CreateTableInput {
 		BillingMode: types.BillingModeProvisioned,
 	}
 }
-func (e Email) Get() *dynamodb.GetItemInput {
+func (e *Email) Get() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: emailTable(),
+		TableName: e.TableName(),
 		Key: map[string]types.AttributeValue{
 			"address": &types.AttributeValueMemberS{Value: e.Address},
 		},
 	}
 }
-func (e Email) Put() *dynamodb.PutItemInput {
+func (e *Email) Put() *dynamodb.PutItemInput {
+	item, _ := attributevalue.MarshalMap(e)
 	return &dynamodb.PutItemInput{
-		TableName: emailTable(),
-		Item: map[string]types.AttributeValue{
-			"address":    &types.AttributeValueMemberS{Value: e.Address},
-			"userID":     &types.AttributeValueMemberB{Value: e.UserID.Bytes()},
-			"verifiedAt": &types.AttributeValueMemberS{Value: e.VerifiedAt.Format(time.RFC3339Nano)},
-			"createdAt":  &types.AttributeValueMemberS{Value: e.UserID.Timestamp().Format(time.RFC3339Nano)},
-		},
+		TableName: e.TableName(),
+		Item:      item,
 	}
 }
 
 func (e *Email) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error) {
-
-	m := v.(*types.AttributeValueMemberM).Value
-	if m == nil {
-		log.Warn().Msg("email unmarshal value was nil!")
-		return nil
+	var m map[string]types.AttributeValue
+	if m = v.(*types.AttributeValueMemberM).Value; m == nil {
+		return errors.New("bot unmarshal value was nil")
+	} else if e.UserID, err = ulid.ParseStrict(m["userId"].(*types.AttributeValueMemberS).Value); err != nil {
+		return fmt.Errorf("failed to parse userId: %w", err)
 	}
-
 	e.Address = m["address"].(*types.AttributeValueMemberS).Value
-	_ = e.UserID.UnmarshalBinary(m["userID"].(*types.AttributeValueMemberB).Value)
-	e.VerifiedAt, _ = time.Parse(time.RFC3339Nano, e.VerifiedAt.Format(time.RFC3339Nano))
-	return nil
+
+	return
 }

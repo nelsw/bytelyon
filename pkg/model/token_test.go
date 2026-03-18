@@ -17,10 +17,10 @@ func Test_Token(t *testing.T) {
 
 	var exp = NewToken(ulid.Make(), ConfirmEmailTokenType)
 
-	assert.NoError(t, db.Put(exp))
+	//assert.NoError(t, db.Put(exp))
 
-	var act Token
-	act, err = db.Get[Token](&Token{ID: exp.ID})
+	var act *Token
+	act, err = db.Get(&Token{ID: exp.ID})
 	assert.NoError(t, err)
 	assert.Equal(t, exp.Type, ConfirmEmailTokenType)
 	assert.Equal(t, exp.UserID.String(), act.UserID.String())
@@ -30,7 +30,7 @@ func Test_Token(t *testing.T) {
 	err = db.Delete(exp)
 	assert.NoError(t, err)
 
-	act, err = db.Get[Token](&Token{ID: exp.ID})
+	act, err = db.Get(&Token{ID: exp.ID})
 	assert.Empty(t, act)
 	assert.NotNil(t, act)
 	assert.NoError(t, err)

@@ -11,7 +11,7 @@ import (
 type BotNewsResult struct {
 	Model
 	Target      string    `json:"target" dynamodbav:"Target,string"`
-	URL         string    `json:"url" dynamodbav:"ID,string"`
+	URL         string    `json:"url" dynamodbav:"URL,string"`
 	Title       string    `json:"title" dynamodbav:"Title,string"`
 	Source      string    `json:"source" dynamodbav:"Source,string"`
 	Description string    `json:"description" dynamodbav:"Description,string"`

@@ -5,8 +5,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/google/uuid"
 	. "github.com/nelsw/bytelyon/internal/util"
+	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/oklog/ulid/v2"
 )
 
 type Model struct {
@@ -16,7 +17,7 @@ type Model struct {
 }
 
 func (m Model) GetDesc() dynamodb.CreateTableInput {
-	return &dynamodb.CreateTableInput{
+	return dynamodb.CreateTableInput{
 		BillingMode: types.BillingModeProvisioned,
 		KeySchema: []types.KeySchemaElement{{
 			AttributeName: Ptr("UserID"),
@@ -48,7 +49,7 @@ func Make(a ...any) Model {
 	}
 
 	if m.UserID == ulid.Zero {
-		m.UserID = uuid.Must(uuid.NewV7())
+		m.UserID = model.NewULID()
 	}
 	if m.UpdatedAt.IsZero() {
 		m.UpdatedAt = time.Now()

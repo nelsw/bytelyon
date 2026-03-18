@@ -1,6 +1,8 @@
 package model
 
-import "github.com/google/uuid"
+import (
+	"github.com/oklog/ulid/v2"
+)
 
 type User struct{ Model }
 

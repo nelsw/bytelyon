@@ -1,8 +1,8 @@
 package model
 
 import (
-	"github.com/google/uuid"
 	. "github.com/nelsw/bytelyon/internal/util"
+	"github.com/oklog/ulid/v2"
 	"golang.org/x/crypto/bcrypt"
 )
 

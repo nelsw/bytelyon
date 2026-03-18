@@ -33,7 +33,7 @@ type Token struct {
 	Expiry time.Time `json:"expiry"`
 }
 
-func (t *Token) Create() *dynamodb.CreateTableInput {
+func (t Token) Create() *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
 		TableName: tokenTable(),
 		KeySchema: []types.KeySchemaElement{
@@ -49,7 +49,7 @@ func (t *Token) Create() *dynamodb.CreateTableInput {
 		BillingMode: types.BillingModeProvisioned,
 	}
 }
-func (t *Token) Get() *dynamodb.GetItemInput {
+func (t Token) Get() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
 		TableName: tokenTable(),
 		Key: map[string]types.AttributeValue{
@@ -57,7 +57,7 @@ func (t *Token) Get() *dynamodb.GetItemInput {
 		},
 	}
 }
-func (t *Token) Put() *dynamodb.PutItemInput {
+func (t Token) Put() *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
 		TableName: tokenTable(),
 		Item: map[string]types.AttributeValue{
@@ -80,7 +80,7 @@ func (t *Token) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err err
 	_ = t.ID.UnmarshalBinary(m["id"].(*types.AttributeValueMemberB).Value)
 	_ = t.UserID.UnmarshalBinary(m["userID"].(*types.AttributeValueMemberB).Value)
 	t.Type = TokenType(m["type"].(*types.AttributeValueMemberS).Value)
-	t.Expiry, _ = time.Parse(time.RFC3339Nano, t.Expiry.Format(time.RFC3339))
+	t.Expiry, _ = time.Parse(time.RFC3339, t.Expiry.Format(time.RFC3339))
 
 	return nil
 }

@@ -11,6 +11,7 @@ import (
 	. "github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/service/db"
 	"github.com/nelsw/bytelyon/internal/service/ses"
+	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 

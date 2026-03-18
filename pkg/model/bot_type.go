@@ -2,27 +2,39 @@ package model
 
 import (
 	"fmt"
+	"regexp"
+
+	"github.com/nelsw/bytelyon/internal/util"
 )
 
+var validationRegex = regexp.MustCompile(`^(search|news|sitemap)$`)
 var ErrBotTypeFn = func(a any) error {
-	return fmt.Errorf("invalid bot type; must be one of [search, news, or sitemap]; got: [%s]", a)
+	return fmt.Errorf("invalid bot type; need any [search, news, sitemap]; got: [%s]", a)
 }
 
-type Type interface {
-	Validate() error
-	Table() *string
-	String() string
-}
+type BotType string
 
-func DetermineType(s string) (Type, error) {
-	switch s {
-	case "search":
-		return Search{}, nil
-	case "news":
-		return News{}, nil
-	case "sitemap":
-		return Sitemap{}, nil
-	default:
-		return nil, ErrBotTypeFn(s)
+const (
+	SearchBotType  BotType = "search"
+	SitemapBotType BotType = "sitemap"
+	NewsBotType    BotType = "news"
+)
+
+func (t BotType) Validate() error {
+	if validationRegex.MatchString(t.String()) {
+		return nil
 	}
+	return ErrBotTypeFn(t)
+}
+
+func (t BotType) String() string {
+	return string(t)
+}
+
+func (t BotType) TableName(args ...string) *string {
+	s := "Bot_" + util.Capitalize(t.String())
+	if len(args) > 0 {
+		s += "_" + util.Capitalize(args[0])
+	}
+	return &s
 }

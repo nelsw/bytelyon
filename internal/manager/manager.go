@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/internal/worker/news"
-	"github.com/nelsw/bytelyon/internal/worker/search"
 	"github.com/nelsw/bytelyon/internal/worker/sitemap"
 	"github.com/nelsw/bytelyon/pkg/db"
 	. "github.com/nelsw/bytelyon/pkg/model"
+	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 
@@ -39,13 +39,13 @@ func (m *Manager) Start() {
 
 		log.Debug().Msg("bot manager sleeping")
 
-		time.Sleep(15 * time.Second)
+		time.Sleep(15 * time.Minute)
 	}
 }
 
 func (m *Manager) work() {
 
-	users, err := db.Scan[User](&User{})
+	users, err := db.Scan(&User{})
 	if err != nil {
 		log.Error().Err(err).Msg("user scan failed")
 		return
@@ -56,10 +56,9 @@ func (m *Manager) work() {
 	var wg sync.WaitGroup
 	for _, user := range users {
 		wg.Go(func() {
-			m.workSearchBots(user)
-			m.workSitemapBots(user)
-			m.workNewsBots(user)
-			log.Debug().Msg("robots deployed")
+			//m.workSearchBots(user)
+			//m.workSitemapBots(user)
+			m.workNewsBots(user.ID)
 		})
 	}
 	log.Debug().Msg("waiting for all robots to deploy")
@@ -92,46 +91,34 @@ func (m *Manager) Stop(ctx context.Context) error {
 	}
 }
 
-func (m *Manager) getUsers() []User {
-	arr, err := db.Scan[User](&User{})
-	if err != nil {
-		log.Err(err).Msg("failed to scan users")
-		return nil
-	}
-	return arr
-}
+// func (m *Manager) workSearchBots(user User) {
+//
+//		bots, err := db.Query[Bot[Search]](Bot[Search]{
+//			UserID: user.URL,
+//		})
+//
+//		if err != nil {
+//			log.Err(err).Msg("failed to query search bots")
+//			return
+//		}
+//
+//		var wg sync.WaitGroup
+//		for _, b := range bots {
+//
+//			wg.Go(func() {
+//				if !b.IsReady() {
+//					log.Debug().Msgf("search bot is not ready")
+//				} else {
+//					log.Debug().Msg("search bot is ready to work")
+//					search.New(&b).Work()
+//				}
+//			})
+//		}
+//		wg.Wait()
+//	}
+func (m *Manager) workSitemapBots(userID ulid.ULID) {
 
-type Robot interface {
-}
-
-func (m *Manager) workSearchBots(user User) {
-
-	bots, err := db.Query[Search](Bot[Search]{
-		UserID: user.ID,
-	})
-
-	if err != nil {
-		log.Err(err).Msg("failed to query search bots")
-		return
-	}
-
-	var wg sync.WaitGroup
-	for _, b := range bots {
-		wg.Go(func() {
-			if !b.IsReady() {
-				log.Debug().Msgf("search bot is not ready")
-			} else {
-				log.Debug().Msg("search bot is ready to work")
-				search.New(&b).Work()
-			}
-		})
-	}
-	wg.Wait()
-}
-
-func (m *Manager) workSitemapBots(user User) {
-
-	bots, err := db.Query[BotSitemap](BotSitemap{}, user.ID())
+	bots, err := db.Query(&Sitemap{Bot: Bot{UserID: userID, Type: SitemapBotType}})
 	if err != nil {
 		log.Err(err).Msg("failed to query sitemap bots")
 		return
@@ -144,19 +131,20 @@ func (m *Manager) workSitemapBots(user User) {
 				log.Debug().Msgf("sitemap bot is not ready")
 			} else {
 				log.Debug().Msg("sitemap bot is ready to work")
-				sitemap.New(&b).Work()
+				sitemap.New(b).Work()
 			}
 		})
 	}
 	wg.Wait()
 }
 
-func (m *Manager) workNewsBots(user User) {
-	bots, err := db.Query[News](News{})
+func (m *Manager) workNewsBots(userID ulid.ULID) {
+	bots, err := db.Query(&Bot{UserID: userID, Type: NewsBotType})
 	if err != nil {
 		log.Err(err).Msg("failed to query news bots")
 		return
 	}
+	log.Debug().Int("size", len(bots)).Msg("news bots found")
 
 	var wg sync.WaitGroup
 	for _, b := range bots {
@@ -165,7 +153,7 @@ func (m *Manager) workNewsBots(user User) {
 				log.Debug().Msgf("news bot is not ready")
 			} else {
 				log.Debug().Msg("news bot is ready to work")
-				news.New(&b).Work()
+				news.New(b).Work()
 			}
 		})
 	}

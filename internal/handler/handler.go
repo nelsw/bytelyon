@@ -1,4 +1,4 @@
-package manager
+package handler
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/nelsw/bytelyon/internal/client/prowl"
 	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/nelsw/bytelyon/internal/logger"
+	"github.com/nelsw/bytelyon/internal/manager"
 	"github.com/rs/zerolog/log"
 )
 
@@ -21,7 +22,7 @@ func Run() {
 
 	l := log.With().Int("pid", os.Getpid()).Logger()
 
-	mgr := New()
+	mgr := manager.New()
 
 	l.Info().Msg("starting manager")
 

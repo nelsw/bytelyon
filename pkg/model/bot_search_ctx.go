@@ -2,11 +2,9 @@ package model
 
 import (
 	"encoding/json"
+	"fmt"
 
-	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/playwright-community/playwright-go"
-	"github.com/rs/zerolog/log"
 )
 
 type Cookie struct {
@@ -45,6 +43,7 @@ type Origin struct {
 type BroCtxState struct {
 	// Cookies to set for context
 	Cookies []Cookie `json:"cookies"`
+	// Origins to set for context
 	Origins []Origin `json:"origins"`
 }
 
@@ -55,15 +54,6 @@ func (bs BroCtxState) StorageState() *playwright.OptionalStorageState {
 	return &oss
 }
 
-func (bs BroCtxState) item() map[string]types.AttributeValue {
-	i, err := attributevalue.MarshalMap(&bs)
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to marshal BroCtxState to DB item!")
-		return map[string]types.AttributeValue{}
-	}
-	return i
-}
-
-func (bs *BroCtxState) unmarshal(i types.AttributeValue) error {
-	return attributevalue.Unmarshal(i, bs)
+func (bs BroCtxState) String() string {
+	return fmt.Sprintf("{cookies:%d, origins:%d}", len(bs.Cookies), len(bs.Origins))
 }

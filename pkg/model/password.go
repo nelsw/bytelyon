@@ -1,17 +1,15 @@
 package model
 
 import (
-	"time"
+	"errors"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	. "github.com/nelsw/bytelyon/internal/util"
 	"github.com/oklog/ulid/v2"
-	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
 )
-
-var passwordTable = func() *string { return Ptr("ByteLyon_Password") }
 
 type Password struct {
 	UserID ulid.ULID
@@ -30,14 +28,18 @@ func (p *Password) Generate(text string) (err error) {
 	return
 }
 
-func (p Password) Create() *dynamodb.CreateTableInput {
+func (p *Password) TableName() *string {
+	return Ptr("Password")
+}
+
+func (p *Password) Create() *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
-		TableName: passwordTable(),
+		TableName: p.TableName(),
 		KeySchema: []types.KeySchemaElement{
-			{AttributeName: Ptr("userID"), KeyType: types.KeyTypeHash},
+			{AttributeName: Ptr("userId"), KeyType: types.KeyTypeHash},
 		},
 		AttributeDefinitions: []types.AttributeDefinition{
-			{AttributeName: Ptr("userID"), AttributeType: types.ScalarAttributeTypeB},
+			{AttributeName: Ptr("userId"), AttributeType: types.ScalarAttributeTypeS},
 		},
 		ProvisionedThroughput: &types.ProvisionedThroughput{
 			ReadCapacityUnits:  Ptr(int64(10)),
@@ -46,35 +48,31 @@ func (p Password) Create() *dynamodb.CreateTableInput {
 		BillingMode: types.BillingModeProvisioned,
 	}
 }
-func (p Password) Get() *dynamodb.GetItemInput {
+func (p *Password) Get() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: passwordTable(),
+		TableName: p.TableName(),
 		Key: map[string]types.AttributeValue{
-			"userID": &types.AttributeValueMemberB{Value: p.UserID.Bytes()},
+			"userId": &types.AttributeValueMemberS{Value: p.UserID.String()},
 		},
 	}
 }
-func (p Password) Put() *dynamodb.PutItemInput {
+func (p *Password) Put() *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
-		TableName: passwordTable(),
+		TableName: p.TableName(),
 		Item: map[string]types.AttributeValue{
-			"userID":    &types.AttributeValueMemberB{Value: p.UserID.Bytes()},
-			"hash":      &types.AttributeValueMemberB{Value: p.Hash},
-			"createdAt": &types.AttributeValueMemberS{Value: p.UserID.Timestamp().Format(time.RFC3339Nano)},
+			"userId": &types.AttributeValueMemberS{Value: p.UserID.String()},
+			"hash":   &types.AttributeValueMemberB{Value: p.Hash},
 		},
 	}
 }
 
 func (p *Password) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error) {
-
-	m := v.(*types.AttributeValueMemberM).Value
-	if m == nil {
-		log.Warn().Msg("password unmarshal value was nil!")
-		return nil
+	var m map[string]types.AttributeValue
+	if m = v.(*types.AttributeValueMemberM).Value; m == nil {
+		return errors.New("bot unmarshal value was nil")
+	} else if p.UserID, err = ulid.ParseStrict(m["userId"].(*types.AttributeValueMemberS).Value); err != nil {
+		return fmt.Errorf("failed to parse userId: %w", err)
 	}
-
-	_ = p.UserID.UnmarshalBinary(m["userID"].(*types.AttributeValueMemberB).Value)
 	p.Hash = m["hash"].(*types.AttributeValueMemberB).Value
-
-	return nil
+	return
 }

@@ -10,9 +10,7 @@ import (
 )
 
 func Test_Email(t *testing.T) {
-
-	//db.Drop(emailTable())
-	db.Create(Email{})
+	t.Setenv("MODE", "release")
 
 	var err error
 	var exp = Email{
@@ -21,23 +19,22 @@ func Test_Email(t *testing.T) {
 	}
 	assert.NoError(t, db.Put(&exp))
 
-	var act Email
-	act, err = db.Get[Email](&Email{Address: exp.Address})
+	var act *Email
+	act, err = db.Get(&Email{Address: exp.Address})
 	assert.NoError(t, err)
 	assert.Equal(t, exp.Address, act.Address)
+	assert.Equal(t, exp.UserID, act.UserID)
 	assert.True(t, act.VerifiedAt.IsZero())
 
-	var arr []Email
-	arr, err = db.Scan[Email](&Email{})
+	var arr []*Email
+	arr, err = db.Scan(&Email{})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, arr)
 
 	err = db.Delete(&exp)
 	assert.NoError(t, err)
 
-	act, err = db.Get[Email](&Email{Address: exp.Address})
-	assert.Empty(t, act)
-	assert.NotNil(t, act)
+	arr, err = db.Scan(&Email{})
 	assert.NoError(t, err)
-	assert.True(t, act.UserID.IsZero())
+	assert.Empty(t, arr)
 }

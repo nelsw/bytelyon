@@ -9,11 +9,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// api/user/reset
+// api/user/signup
+// api/user/token/:token
 func Handler() {
-
-}
-
-func Login() {
 
 }
 
@@ -21,18 +20,17 @@ func Signup(r Request) Response {
 
 	creds := &Credentials{}
 
-	email, err := db.Get[Email](&Email{})
+	email, err := db.Get(&Email{})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get email on signup")
 		return r.BAD(err)
 	}
 
-	var user *User
 	var userID ulid.ULID
 	if email.UserID != ulid.Zero {
 		userID = email.UserID
 	} else {
-		user = NewUser()
+		user := NewUser()
 		if err = db.Put(user); err != nil {
 			log.Error().Err(err).Msg("failed to put user on signup")
 			r.BAD(err)
@@ -58,7 +56,7 @@ func Signup(r Request) Response {
 	}
 
 	var jwt string
-	if jwt, err = NewJWT(user); err != nil {
+	if jwt, err = NewJWT(userID); err != nil {
 		log.Error().Err(err).Msg("failed to generate JWT token")
 		return r.BAD(err)
 	}
@@ -76,7 +74,7 @@ func ValidateToken() {
 }
 
 func ResetPassword(r Request, address string) Response {
-	email, err := db.Get[Email](&Email{Address: address})
+	email, err := db.Get(&Email{Address: address})
 	if err != nil || email.UserID == ulid.Zero {
 		return r.BAD(map[string]string{"error": "failed to find email; try signing up?"})
 	}

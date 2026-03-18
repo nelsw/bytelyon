@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/nelsw/bytelyon/internal/logger"
 	. "github.com/nelsw/bytelyon/internal/model"
 	"github.com/nelsw/bytelyon/internal/service/db"
+	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 

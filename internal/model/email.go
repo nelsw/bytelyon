@@ -3,8 +3,8 @@ package model
 import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/google/uuid"
 	. "github.com/nelsw/bytelyon/internal/util"
+	"github.com/oklog/ulid/v2"
 )
 
 // Email represents a single mail address, the User it belongs to, a token for address confirmation.

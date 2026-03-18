@@ -19,12 +19,18 @@ var (
 )
 
 type Worker struct {
-	*model.News
-
+	*model.Bot
+	Ignore map[string]bool
 }
 
-func New(bot *model.News) *Worker {
-	return &Worker{bot}
+func New(b *model.Bot) *Worker {
+	w := &Worker{b, make(map[string]bool)}
+	if len(b.BlackList) > 0 {
+		for _, s := range b.BlackList {
+			w.Ignore[s] = true
+		}
+	}
+	return w
 }
 
 func (w *Worker) Work() {
@@ -38,6 +44,11 @@ func (w *Worker) Work() {
 
 	for _, url := range urls {
 		w.workUrl(url)
+	}
+
+	w.WorkedAt = time.Now().UTC()
+	if err := db.PutItem(w); err != nil {
+		log.Err(err).Msg("Failed to update news bot")
 	}
 }
 
@@ -70,11 +81,12 @@ func (w *Worker) workUrl(url string) {
 
 			// if this job is brand new, save all the articles found
 			// else persist articles published after the last update
-
-			if w.UserID.Timestamp().Sub(w.UpdatedAt) !=  &&
-				time.Time(*i.Time).Before(w.UpdatedAt) {
-				log.Debug().Msgf("Skipping old article %s", i.Title)
-				return
+			if !w.WorkedAt.IsZero() && i.Time.Before(w.WorkedAt) {
+				log.Debug().
+					Stringer("published", i.Time).
+					Stringer("worked", w.WorkedAt).
+					Msgf("Skipping old article %s", i.Title)
+				//return
 			}
 
 			// check article data for blacklisted keywords
@@ -82,19 +94,18 @@ func (w *Worker) workUrl(url string) {
 			sourceParts := strings.Split(i.Source, " ")
 			parts := append(titleParts, sourceParts...)
 			for _, p := range parts {
-				if _, ok := w.Rules[p]; ok {
+				if _, ok := w.Ignore[p]; ok {
 					log.Info().Msgf("Skipping blacklisted article %s", p)
 					return
 				}
 			}
 
-			// work some magic to circumvent Googles bot protection
-			if strings.Contains(url, "google.com") {
-				if u, decodeErr := decodeURL(i.URL); decodeErr != nil {
-					log.Warn().Err(decodeErr).Send()
-				} else {
-					i.URL = u
-				}
+			// work some magic to circumvent protected urls
+			i.URL = decodeURL(i.URL)
+
+			// check if the source is blank and use the news source if it is
+			if i.Source == "" && i.NewsSource != "" {
+				i.Source = i.NewsSource
 			}
 
 			// scrub the source off the title and use it if the item source is blank
@@ -111,14 +122,13 @@ func (w *Worker) workUrl(url string) {
 				i.Description = i.Description[strings.LastIndex(i.Description, ">")+1:]
 			}
 
-			w.Items[model.URL(i.URL)] = model.Item{
-				URL:         model.URL(i.URL),
-				Title:       i.Title,
-				Source:      i.Source,
-				Description: i.Description,
-				Published:   time.Time(*i.Time),
-				CreatedAt:   time.Now(),
-			}
+			err = db.PutItem(w.NewBotResult(
+				"url", i.URL,
+				"title", i.Title,
+				"source", i.Source,
+				"description", i.Description,
+				"publishedAt", i.Time.UTC(),
+			))
 
 			if err != nil {
 				log.Warn().Err(err).Msg("failed to save news article")
@@ -127,5 +137,4 @@ func (w *Worker) workUrl(url string) {
 	}
 	wg.Wait()
 
-	err = db.Put(w.News)
 }

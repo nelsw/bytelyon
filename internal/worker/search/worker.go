@@ -47,7 +47,7 @@ func (w *Worker) Work() {
 	}
 
 	if err = w.save(google); err != nil {
-		log.Err(err).Msg("Failed to Save Search Page (Google)")
+		log.Err(err).Msg("Failed to Save Search SearchPage (Google)")
 		return
 	}
 
@@ -145,9 +145,9 @@ func (w *Worker) HandleLocator(c *prowl.Client, page playwright.Page, idx int) (
 
 	log.Debug().Int("pages", len(c.BrowserContext.Pages())).Msg("Pages")
 	if err = w.save(targetPage); err != nil {
-		log.Warn().Err(err).Msg("Failed to Save Search Page (Target)")
+		log.Warn().Err(err).Msg("Failed to Save Search SearchPage (Target)")
 	} else {
-		log.Info().Msgf("Saved Search Page [%s]", targetPage.URL())
+		log.Info().Msgf("Saved Search SearchPage [%s]", targetPage.URL())
 	}
 	err = targetPage.Close()
 	return
@@ -155,7 +155,7 @@ func (w *Worker) HandleLocator(c *prowl.Client, page playwright.Page, idx int) (
 
 func (w *Worker) save(page playwright.Page) (err error) {
 
-	p := model.Page{
+	p := model.SearchPage{
 		IDX: len(w.Pages),
 		URL: page.URL(),
 	}
@@ -172,7 +172,7 @@ func (w *Worker) save(page playwright.Page) (err error) {
 	if len(img) > 0 {
 		p.IMG = w.StoragePath(p.IDX, "png")
 		if err = s3.Save(p.IMG, img); err != nil {
-			log.Warn().Err(err).Msg("Failed to Save Search Page (Screenshot)")
+			log.Warn().Err(err).Msg("Failed to Save Search SearchPage (Screenshot)")
 		}
 	}
 
@@ -184,7 +184,7 @@ func (w *Worker) save(page playwright.Page) (err error) {
 	if len(content) > 0 {
 		p.HTML = w.StoragePath(p.IDX, "html")
 		if err = s3.Save(p.HTML, []byte(content)); err != nil {
-			log.Warn().Err(err).Msg("Failed to Save Search Page (HTML)")
+			log.Warn().Err(err).Msg("Failed to Save Search SearchPage (HTML)")
 		}
 		p.Parse(content)
 	}

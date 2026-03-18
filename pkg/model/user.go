@@ -1,7 +1,8 @@
 package model
 
 import (
-	"time"
+	"errors"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -9,46 +10,41 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-var userTable = func() *string { return Ptr("ByteLyon_User") }
-
-var NewUser = func() *User { return &User{ID: NewULID()} }
-var MakeUser = func() User { return User{ID: NewULID()} }
-
+// User represents a user entity in the system.
 type User struct {
+	// ID is the unique identifier for the user
 	ID ulid.ULID `json:"id"`
 }
 
-func (u *User) Get() *dynamodb.GetItemInput {
+func (u User) Get() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: userTable(),
+		TableName: u.Create().TableName,
 		Key: map[string]types.AttributeValue{
-			"id": &types.AttributeValueMemberB{Value: u.ID.Bytes()},
+			"id": &types.AttributeValueMemberS{Value: u.ID.String()},
 		},
 	}
 }
-
 func (u User) Put() *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
-		TableName: userTable(),
+		TableName: u.Create().TableName,
 		Item: map[string]types.AttributeValue{
-			"id":        &types.AttributeValueMemberB{Value: u.ID.Bytes()},
-			"createdAt": &types.AttributeValueMemberS{Value: u.ID.Timestamp().Format(time.RFC3339Nano)},
+			"id": &types.AttributeValueMemberS{Value: u.ID.String()},
 		},
 	}
 }
-func (u *User) Scan() *dynamodb.ScanInput {
+func (u User) Scan() *dynamodb.ScanInput {
 	return &dynamodb.ScanInput{
-		TableName: userTable(),
+		TableName: u.Create().TableName,
 	}
 }
-func (u *User) Create() *dynamodb.CreateTableInput {
+func (u User) Create() *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
-		TableName: userTable(),
+		TableName: Ptr("User"),
 		KeySchema: []types.KeySchemaElement{
 			{AttributeName: Ptr("id"), KeyType: types.KeyTypeHash},
 		},
 		AttributeDefinitions: []types.AttributeDefinition{
-			{AttributeName: Ptr("id"), AttributeType: types.ScalarAttributeTypeB},
+			{AttributeName: Ptr("id"), AttributeType: types.ScalarAttributeTypeS},
 		},
 		ProvisionedThroughput: &types.ProvisionedThroughput{
 			ReadCapacityUnits:  Ptr(int64(10)),
@@ -57,3 +53,23 @@ func (u *User) Create() *dynamodb.CreateTableInput {
 		BillingMode: types.BillingModeProvisioned,
 	}
 }
+
+func (u *User) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error) {
+	var m map[string]types.AttributeValue
+	if m = v.(*types.AttributeValueMemberM).Value; m == nil {
+		return errors.New("bot unmarshal value was nil")
+	} else if u.ID, err = ulid.ParseStrict(m["id"].(*types.AttributeValueMemberS).Value); err != nil {
+		return fmt.Errorf("failed to parse ulid: %w", err)
+	}
+	return
+}
+
+func (u *User) String() string {
+	return fmt.Sprintf("User {\n"+
+		"\tID: %s\n"+
+		"}",
+		u.ID,
+	)
+}
+
+func NewUser() *User { return &User{ID: NewULID()} }

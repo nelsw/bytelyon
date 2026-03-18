@@ -3,7 +3,7 @@ package model
 import (
 	"fmt"
 
-	"github.com/google/uuid"
+	"github.com/oklog/ulid/v2"
 )
 
 type BotSearch struct {

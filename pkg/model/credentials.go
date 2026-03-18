@@ -73,6 +73,8 @@ func (c *Credentials) ValidateUsername() error {
 
 func (c *Credentials) ValidatePassword() error {
 
+	log.Trace().Msg("validating password")
+
 	if len(c.Password) < 8 {
 		return invalidPasswordLenErr
 	}
@@ -100,21 +102,21 @@ func (c *Credentials) ValidatePassword() error {
 	} else if !number {
 		return invalidPasswordNumberErr
 	}
-
+	log.Trace().Msg("password valid")
 	return nil
 }
 
 func (c *Credentials) Authenticate() (userID ulid.ULID, err error) {
 
-	var email Email
-	if email, err = db.Get[Email](Email{Address: c.Username}); err != nil {
+	var email *Email
+	if email, err = db.Get(&Email{Address: c.Username}); err != nil {
 		log.Warn().Err(err).Msg("email not found")
 		return
 	}
 	log.Debug().Str("email", email.Address).Msg("found email")
 
-	var pass Password
-	if pass, err = db.Get[Password](Password{UserID: email.UserID}); err != nil {
+	var pass *Password
+	if pass, err = db.Get(&Password{UserID: email.UserID}); err != nil {
 		log.Warn().Err(err).Msg("password not found")
 		return
 	}

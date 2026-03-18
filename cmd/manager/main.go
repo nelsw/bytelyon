@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/nelsw/bytelyon/internal/manager"
+	"github.com/nelsw/bytelyon/internal/handler"
 )
 
-func main() { manager.Run() }
+func main() { handler.Run() }

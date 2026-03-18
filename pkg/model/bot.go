@@ -254,7 +254,9 @@ func (b *Bot) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	if val, ok := m["blackList"]; ok {
-		b.BlackList = val.([]string)
+		for i := 0; i < len(val.([]any)); i++ {
+			b.BlackList = append(b.BlackList, val.([]any)[i].(string))
+		}
 	}
 
 	if val, ok := m["headless"]; ok {

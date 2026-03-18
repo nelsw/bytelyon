@@ -82,11 +82,11 @@ func (w *Worker) workUrl(url string) {
 			// if this job is brand new, save all the articles found
 			// else persist articles published after the last update
 			if !w.WorkedAt.IsZero() && i.Time.Before(w.WorkedAt) {
-				log.Debug().
+				log.Info().
 					Stringer("published", i.Time).
 					Stringer("worked", w.WorkedAt).
 					Msgf("Skipping old article %s", i.Title)
-				//return
+				return
 			}
 
 			// check article data for blacklisted keywords
@@ -130,9 +130,7 @@ func (w *Worker) workUrl(url string) {
 				"publishedAt", i.Time.UTC(),
 			))
 
-			if err != nil {
-				log.Warn().Err(err).Msg("failed to save news article")
-			}
+			log.Err(err).Msg("put news result")
 		})
 	}
 	wg.Wait()

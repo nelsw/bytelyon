@@ -3,6 +3,7 @@ package search
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/nelsw/bytelyon/internal/client/prowl"
 	"github.com/nelsw/bytelyon/internal/service/s3"
@@ -87,6 +88,7 @@ func (w *Worker) Work() {
 
 	log.Err(err).Msg("Finished Search")
 
+	w.WorkedAt = time.Now().UTC()
 	err = db.PutItem(w)
 }
 

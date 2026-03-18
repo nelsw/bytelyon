@@ -48,6 +48,7 @@ func MakeSerp(url, content string) Serp {
 		log.Warn().Err(err).Msg("Page - failed to parse html")
 		return nil
 	}
+	log.Info().Msg("Parsing SERP")
 
 	serp.fillSponsoredData(doc, content)
 
@@ -64,7 +65,7 @@ func MakeSerp(url, content string) Serp {
 }
 
 func (s Serp) fillSponsoredData(doc *goquery.Document, content string) {
-
+	log.Info().Msg("Parsing sponsored results")
 	var ids []string
 	doc.Find(`div`).Each(func(i int, sel *goquery.Selection) {
 		if _, ok := sel.Attr("data-merchant-id"); !ok {
@@ -152,6 +153,7 @@ func (s Serp) fillSponsoredData(doc *goquery.Document, content string) {
 }
 
 func (s Serp) fillOrganicData(content string) {
+	log.Info().Msg("Parsing organic results")
 	left := strings.Index(content, `var m={`) + 7
 	content = content[left:]
 	content = content[:strings.Index(content, "};")]
@@ -224,7 +226,7 @@ func (s Serp) fillOrganicData(content string) {
 	}
 }
 func (s Serp) fillOrganicDataV2(doc *goquery.Document) []SerpResult {
-
+	log.Info().Msg("Parsing organic results v2")
 	e := doc.Find("a").FilterFunction(func(i int, s *goquery.Selection) bool {
 		href, ok := s.Attr("href")
 		return ok &&
@@ -341,6 +343,7 @@ func (s Serp) fillOrganicDataV2(doc *goquery.Document) []SerpResult {
 }
 
 func (s Serp) fillPeopleAlsoAskData(doc *goquery.Document) {
+	log.Info().Msg("Parsing People Also Ask results")
 	doc.Find("div[class*='related-question-pair']").Each(func(i int, sel *goquery.Selection) {
 		if sel == nil {
 			return
@@ -353,15 +356,20 @@ func (s Serp) fillPeopleAlsoAskData(doc *goquery.Document) {
 	})
 }
 func (s Serp) fillPeopleAlsoAskDataV2(doc *goquery.Document) []SerpResult {
+	log.Info().Msg("Parsing People Also Ask results v2")
 	e := doc.Find("span:contains('People also ask')")
 	if e == nil {
 		return nil
 	}
-
+	var cnt int
 	var i int
 	for i == 0 {
 		i = e.Siblings().Size()
 		e = e.Parent()
+		cnt++
+		if cnt > 100 {
+			return nil
+		}
 	}
 
 	e = e.Find("div").FilterFunction(func(i int, s *goquery.Selection) bool {
@@ -381,14 +389,15 @@ func (s Serp) fillPeopleAlsoAskDataV2(doc *goquery.Document) []SerpResult {
 		m[len(m)] = e.Text()
 	}
 
-	d := make([]SerpResult, 0, len(m))
-	for i = 0; i < len(m)-1; i++ {
-		d[i] = SerpResult{Position: i, Title: m[i]}
+	var d []SerpResult
+	for i = 0; i < len(m); i++ {
+		d = append(d, SerpResult{Position: len(d), Title: m[i]})
 	}
 	return d
 }
 
 func (s Serp) fillPeopleAlsoSearchForData(doc *goquery.Document) {
+	log.Info().Msg("Parsing People Also Search For results")
 	doc.Find("span").Each(func(i int, sel *goquery.Selection) {
 		if sel == nil || sel.Text() != "People also search for" {
 			return
@@ -420,6 +429,7 @@ func (s Serp) fillPeopleAlsoSearchForData(doc *goquery.Document) {
 	})
 }
 func (s Serp) fillPeopleAlsoSearchForDataV2(doc *goquery.Document) []SerpResult {
+	log.Info().Msg("Parsing People Also Search For results v2")
 	e := doc.Find("accordion-entry-search-icon")
 	if e == nil {
 		return nil
@@ -439,9 +449,9 @@ func (s Serp) fillPeopleAlsoSearchForDataV2(doc *goquery.Document) []SerpResult 
 		m[len(m)] = txt
 	}
 
-	d := make([]SerpResult, 0, len(m))
-	for i := 0; i < len(m)-1; i++ {
-		d[i] = SerpResult{Position: i + 1, Title: m[i]}
+	var d []SerpResult
+	for i := 0; i < len(m); i++ {
+		d = append(d, SerpResult{Position: len(d), Title: m[i]})
 	}
 	return d
 }

@@ -46,20 +46,35 @@ func handleDelete(r Request) Response {
 
 func handleGet(r Request) Response {
 
-	bot := model.Bot{
+	bots, err := db.Query(&model.Bot{
 		UserID: r.UserID(),
 		Type:   model.BotType(r.Query("type")),
-	}
-
-	if target := r.Query("target"); target != "" {
-		bot.Target = target
-	}
-
-	arr, err := db.Query(&bot)
+	})
 	if err != nil {
 		return r.BAD(err)
 	}
-	return r.OK(arr)
+
+	if r.Query("id") == "" {
+		return r.OK(bots)
+	}
+
+	var results []*model.BotResult
+	for _, bot := range bots {
+		if bot.ID.String() != r.Query("id") {
+			continue
+		}
+		results, err = db.Query(&model.BotResult{
+			BotID: bot.ID,
+			Type:  bot.Type,
+		})
+		break
+	}
+
+	if err != nil {
+		return r.BAD(err)
+	}
+
+	return r.OK(results)
 }
 
 func handlePut(r Request) Response {
@@ -67,7 +82,7 @@ func handlePut(r Request) Response {
 	var b model.Bot
 	if err := json.Unmarshal([]byte(r.Body), &b); err != nil {
 		return r.BAD(err)
-	} else if err := b.Validate(); err != nil {
+	} else if err = b.Validate(); err != nil {
 		return r.BAD(err)
 	}
 	b.UserID = r.UserID()

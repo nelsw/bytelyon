@@ -22,7 +22,7 @@ var banner = "\u001B[0;36m" + `
 ` + "\u001B[0m"
 
 var cfg = map[string]any{
-	"MODE":              "debug",
+	"MODE":              os.Getenv("MODE"),
 	"PORT":              8085,
 	"DB_MIGRATE_TABLES": 0,
 	"JWT_SECRET":        "",
@@ -43,6 +43,8 @@ func Init() {
 	}
 	validateCfg()
 	fmt.Println(banner)
+	fmt.Println("mode: ", Mode())
+	fmt.Println()
 }
 
 func loadFromCli() bool {

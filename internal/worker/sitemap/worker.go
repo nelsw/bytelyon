@@ -23,21 +23,12 @@ func (w *Worker) Work() {
 	m.Map(w.Target, 3)
 	m.Wait()
 
-	err := db.PutItem(&model.BotResult{
-		UserID: w.UserID,
-		BotID:  w.ID,
-		ID:     model.NewULID(),
-		Type:   w.Type,
-		Target: w.Target,
-		Data: map[string]any{
-			"relative": m.Relative(),
-			"remote":   m.Remote(),
-		},
-	})
+	err := db.PutItem(w.NewBotResult(
+		"relative", m.Relative(),
+		"remote", m.Remote(),
+	))
 
-	if err != nil {
-		log.Err(err).Msg("Failed to create sitemap")
-	}
+	log.Err(err).Msg("put sitemap result")
 
 	w.WorkedAt = time.Now().UTC()
 	if err = db.PutItem(w); err != nil {

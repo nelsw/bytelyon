@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	. "github.com/nelsw/bytelyon/pkg/util"
@@ -31,7 +30,7 @@ type BotResult struct {
 	Type BotType
 
 	// Data is the result of the bot.
-	Data any
+	Data map[string]any
 }
 
 func (b *BotResult) Create() *dynamodb.CreateTableInput {
@@ -55,7 +54,7 @@ func (b *BotResult) Create() *dynamodb.CreateTableInput {
 
 func (b *BotResult) Get() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: b.Type.TableName(),
+		TableName: b.TableName(),
 		Key: map[string]types.AttributeValue{
 			"botId": &types.AttributeValueMemberS{Value: b.BotID.String()},
 			"id":    &types.AttributeValueMemberS{Value: b.ID.String()},
@@ -79,18 +78,17 @@ func (b *BotResult) TableName() *string {
 }
 
 func (b *BotResult) MarshalDynamoDBAttributeValue() (types.AttributeValue, error) {
-	m, err := attributevalue.MarshalMap(&b.Data)
-	if err != nil {
-		return nil, err
-	}
 
-	m["userId"] = &types.AttributeValueMemberS{Value: b.UserID.String()}
-	m["botId"] = &types.AttributeValueMemberS{Value: b.BotID.String()}
-	m["id"] = &types.AttributeValueMemberS{Value: b.ID.String()}
-	m["type"] = &types.AttributeValueMemberS{Value: b.Type.String()}
-	m["target"] = &types.AttributeValueMemberS{Value: b.Target}
+	val, _ := json.Marshal(b.Data)
 
-	return &types.AttributeValueMemberM{Value: m}, nil
+	return &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
+		"id":     &types.AttributeValueMemberS{Value: b.ID.String()},
+		"userId": &types.AttributeValueMemberS{Value: b.UserID.String()},
+		"botId":  &types.AttributeValueMemberS{Value: b.BotID.String()},
+		"target": &types.AttributeValueMemberS{Value: b.Target},
+		"type":   &types.AttributeValueMemberS{Value: b.Type.String()},
+		"data":   &types.AttributeValueMemberB{Value: val},
+	}}, nil
 }
 
 func (b *BotResult) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error) {
@@ -100,8 +98,8 @@ func (b *BotResult) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err
 		return errors.New("bot result unmarshal value was nil")
 	}
 
-	if err = attributevalue.UnmarshalMap(m["data"].(*types.AttributeValueMemberM).Value, &b.Data); err != nil {
-		return fmt.Errorf("failed to unmarshal state: %w", err)
+	if err = json.Unmarshal(m["data"].(*types.AttributeValueMemberB).Value, &b.Data); err != nil {
+		return fmt.Errorf("failed to unmarshal data: %w", err)
 	}
 
 	if b.UserID, err = ulid.Parse(m["userId"].(*types.AttributeValueMemberS).Value); err != nil {
@@ -148,7 +146,7 @@ func (b *BotResult) UnmarshalJSON(data []byte) (err error) {
 
 	b.Type = BotType(m["type"].(string))
 	b.Target = m["target"].(string)
-	b.Data = m["data"]
+	b.Data = m["data"].(map[string]any)
 
 	return
 }

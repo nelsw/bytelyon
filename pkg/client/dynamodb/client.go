@@ -3,11 +3,11 @@ package client
 import (
 	"context"
 	"errors"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/rs/zerolog/log"
 )
 
@@ -34,6 +34,7 @@ func GetItem(ctx context.Context, c *dynamodb.Client, input *dynamodb.GetItemInp
 
 func PutItem(ctx context.Context, c *dynamodb.Client, input *dynamodb.PutItemInput) error {
 	input.TableName = tableName(input.TableName)
+	log.Info().Any("item", input.Item).Msg("putting item " + *input.TableName)
 	_, err := c.PutItem(ctx, input)
 	return err
 }
@@ -61,6 +62,7 @@ func ScanItems(ctx context.Context, c *dynamodb.Client, input *dynamodb.ScanInpu
 
 		result, err := c.Scan(ctx, input)
 		if err != nil {
+			log.Error().Err(err).Msg("failed to scan item")
 			return nil, err
 		}
 
@@ -104,9 +106,9 @@ func DeleteTable(ctx context.Context, c *dynamodb.Client, input *dynamodb.Delete
 
 func tableName(ptr *string) *string {
 	val := "ByteLyon_" + *ptr
-	if os.Getenv("MODE") != "release" {
-		val = os.Getenv("MODE") + "_" + val
+	if config.Mode() != "release" {
+		val = config.Mode() + "_" + val
 	}
-	log.Trace().Str("table", val).Send()
+	log.Info().Str("table", val).Send()
 	return &val
 }

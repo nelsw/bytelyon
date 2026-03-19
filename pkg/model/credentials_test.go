@@ -6,21 +6,14 @@ import (
 	"testing"
 
 	"github.com/brianvoe/gofakeit/v7"
-	"github.com/nelsw/bytelyon/internal/config"
-	"github.com/nelsw/bytelyon/internal/logger"
 	"github.com/nelsw/bytelyon/pkg/db"
+	"github.com/nelsw/bytelyon/pkg/logger"
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 )
 
-func init() {
-	config.Init()
-	logger.Init()
-}
-
 func TestCredentials_Authenticate(t *testing.T) {
 
-	config.Init()
 	logger.Init()
 
 	//db.Migrate(Email{}, Password{}, User{})

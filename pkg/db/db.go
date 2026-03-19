@@ -7,48 +7,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/nelsw/bytelyon/pkg/aws"
-	client "github.com/nelsw/bytelyon/pkg/client/dynamodb"
+	"github.com/nelsw/bytelyon/pkg/client"
 	. "github.com/nelsw/bytelyon/pkg/contract"
 	"github.com/rs/zerolog/log"
 )
 
 var ctx = context.Background()
 var db = aws.DB()
-
-// createTable creates a DynamoDB table.
-func createTable(t Creatable) error {
-	log.Debug().Any("table", t.Create().TableName).Msg("create")
-	err := client.CreateTable(ctx, db, t.Create())
-	log.Err(err).Any("table", t.Create().TableName).Msg("create")
-	return err
-}
-
-// deleteTable deletes a DynamoDB table.
-func deleteTable(t Creatable) error {
-	log.Debug().Any("table", t.Create().TableName).Msg("delete")
-	err := client.DeleteTable(ctx, db, &dynamodb.DeleteTableInput{TableName: t.Create().TableName})
-	log.Err(err).Any("table", t.Create().TableName).Msg("delete")
-	return err
-}
-
-// Create creates a DynamoDB table.
-func Create(t Creatable) error {
-	log.Debug().Any("table", t.Create().TableName).Msg("create")
-	err := client.CreateTable(ctx, db, t.Create())
-	log.Err(err).Any("table", t.Create().TableName).Msg("create")
-	return err
-}
-
-// Migrate drops and creates the DynamoDB tables defined in the given map.
-// Fails fast if app mode is release or migration config equals false.
-func Migrate(tt ...Creatable) {
-	log.Debug().Int("size", len(tt)).Msg("migrate")
-	for _, t := range tt {
-		deleteTable(t)
-		createTable(t)
-	}
-	log.Info().Int("size", len(tt)).Msg("migrate")
-}
 
 // Delete removes an item from a DynamoDB table.
 func Delete(t Gettable) error {

@@ -1,7 +1,5 @@
 package main
 
-import (
-	"github.com/nelsw/bytelyon/internal/handler"
-)
+import "github.com/nelsw/bytelyon/pkg/handler/manager"
 
-func main() { handler.Run() }
+func main() { manager.Start() }

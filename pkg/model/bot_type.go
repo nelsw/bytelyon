@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/nelsw/bytelyon/internal/util"
+	"github.com/nelsw/bytelyon/pkg/util"
 )
 
 var validationRegex = regexp.MustCompile(`^(search|news|sitemap)$`)
@@ -37,4 +37,8 @@ func (t BotType) TableName(args ...string) *string {
 		s += "_" + util.Capitalize(args[0])
 	}
 	return &s
+}
+
+func BotTypes() []BotType {
+	return []BotType{SearchBotType, NewsBotType, SitemapBotType}
 }

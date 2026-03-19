@@ -11,8 +11,6 @@ import (
 
 func Test_Token(t *testing.T) {
 
-	db.Create(&Token{})
-
 	var err error
 
 	var exp = NewToken(ulid.Make(), ConfirmEmailTokenType)

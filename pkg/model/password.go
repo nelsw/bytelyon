@@ -6,7 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	. "github.com/nelsw/bytelyon/internal/util"
+	. "github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
 	"golang.org/x/crypto/bcrypt"
 )

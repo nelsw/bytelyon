@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 var cfg aws.Config
@@ -19,4 +20,8 @@ func init() {
 
 func DB() *dynamodb.Client {
 	return dynamodb.NewFromConfig(cfg)
+}
+
+func S3() *s3.Client {
+	return s3.NewFromConfig(cfg)
 }

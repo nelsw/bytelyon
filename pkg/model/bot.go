@@ -47,6 +47,12 @@ type Bot struct {
 	Fingerprint Fingerprint
 }
 
+func (b *Bot) Scan() *dynamodb.ScanInput {
+	return &dynamodb.ScanInput{
+		TableName: b.Type.TableName(),
+	}
+}
+
 func (b *Bot) Validate() error {
 	if b.Frequency <= 0 {
 		return errors.New("frequency must be greater than 0")
@@ -96,6 +102,7 @@ func (b *Bot) Query() *dynamodb.QueryInput {
 		KeyConditionExpression:    expr.KeyCondition(),
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
+		ScanIndexForward:          Ptr(false),
 	}
 }
 

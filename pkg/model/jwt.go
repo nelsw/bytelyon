@@ -2,15 +2,16 @@ package model
 
 import (
 	"errors"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/nelsw/bytelyon/internal/config"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 
 var jwtErr = errors.New("invalid JWT token (either expired or unprocessable")
+var jwtKey = []byte(os.Getenv("JWT_SECRET"))
 
 func NewJWT(userID ulid.ULID) (string, error) {
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.RegisteredClaims{
@@ -19,7 +20,7 @@ func NewJWT(userID ulid.ULID) (string, error) {
 		NotBefore: jwt.NewNumericDate(time.Now().UTC()),
 		IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
 		ID:        userID.String(),
-	}).SignedString(config.JwtKey())
+	}).SignedString(jwtKey)
 }
 
 func ParseJWT(s string) (ulid.ULID, error) {
@@ -27,7 +28,7 @@ func ParseJWT(s string) (ulid.ULID, error) {
 	log.Trace().Msg("parsing user id from JWT")
 
 	tkn, err := jwt.ParseWithClaims(s, &jwt.RegisteredClaims{}, func(*jwt.Token) (any, error) {
-		return config.JwtKey(), nil
+		return jwtKey, nil
 	})
 
 	if err != nil {

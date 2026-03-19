@@ -70,6 +70,7 @@ func (b *BotResult) Query() *dynamodb.QueryInput {
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":0": &types.AttributeValueMemberS{Value: b.BotID.String()},
 		},
+		ScanIndexForward: Ptr(false),
 	}
 }
 

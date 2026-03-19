@@ -12,14 +12,9 @@ import (
 
 var ErrInvalidAuthType = errors.New("invalid authorizer type; must be 'Bearer' or 'Basic'")
 
-func Handler(r Request) (AuthResponse, error) {
+func Handler(r Request) (any, error) {
 
 	r.Log()
-
-	if r.IsPreflight() {
-		log.Debug().Msg("preflight request")
-		return r.AuthOK(ulid.Zero, "preflight"), nil
-	}
 
 	tokenType, token, ok := strings.Cut(r.Authorization(), " ")
 
@@ -56,5 +51,13 @@ func Handler(r Request) (AuthResponse, error) {
 	}
 
 	log.Debug().Msg("authentication successful")
+
+	if r.Query("action") == "login" {
+		return r.OK(map[string]any{
+			"token":  token,
+			"userId": userID.String(),
+		}), nil
+	}
+
 	return r.AuthOK(userID, token), nil
 }

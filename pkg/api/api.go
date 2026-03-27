@@ -105,5 +105,5 @@ func (r Request) MarshalZerologObject(evt *zerolog.Event) {
 		Str("authorization", r.Authorization()).
 		Str("path", r.RawPath).
 		Any("query", r.QueryStringParameters).
-		Bool("body", len(r.Body) > 0)
+		Str("body", r.Body)
 }

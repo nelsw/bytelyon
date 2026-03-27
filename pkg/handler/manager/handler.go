@@ -178,24 +178,25 @@ func (m *Manager) work() {
 				log.Error().Err(err).Msg("bot query failed")
 				continue
 			}
-			found = append(found, found...)
-		}
+			log.Info().
+				Int("size", len(found)).
+				Stringer("botType", botType).
+				Stringer("userID", user.ID).
+				Msg("bots found")
 
-		log.Info().
-			Int("size", len(found)).
-			Stringer("userID", user.ID).
-			Msg("bots found")
-
-		for _, bot := range found {
-			if bot.IsReady() {
-				ready = append(ready, bot)
+			var readyCount int
+			for _, b := range found {
+				if b.IsReady() {
+					ready = append(ready, b)
+					readyCount++
+				}
 			}
-		}
 
-		log.Info().
-			Int("size", len(ready)).
-			Stringer("userID", user.ID).
-			Msg("bots ready")
+			log.Info().
+				Int("size", readyCount).
+				Stringer("userID", user.ID).
+				Msg("bots ready")
+		}
 	}
 
 	log.Info().

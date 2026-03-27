@@ -269,7 +269,9 @@ func (b *Bot) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	if val, ok := m["fingerprint"]; ok {
-		b.Fingerprint = val.(Fingerprint)
+		//fng := val.(map[string]any)
+		//b.Fingerprint = val.(Fingerprint)
+		fmt.Println(val)
 	}
 
 	return

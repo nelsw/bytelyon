@@ -15,7 +15,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/job"
-	logger2 "github.com/nelsw/bytelyon/pkg/logger"
+	"github.com/nelsw/bytelyon/pkg/logger"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
@@ -38,13 +38,13 @@ var (
 func init() {
 
 	// print banner on startup as sign of life
-	fmt.Println(logger2.BlueIntense + banner + logger2.Default)
+	fmt.Println(logger.BlueIntense + banner + logger.Default)
 
 	// load the .env file to get app config
 	godotenv.Load()
 
 	// init the global logger now that we have an app mode
-	log.Logger = logger2.MakeZerolog()
+	log.Logger = logger.MakeZerolog()
 
 	// log the app mode and process id for future reference
 	log.Info().
@@ -53,7 +53,7 @@ func init() {
 		Send()
 
 	// install playwright
-	if err := playwright.Install(&playwright.RunOptions{Logger: logger2.NewSlog()}); err != nil {
+	if err := playwright.Install(&playwright.RunOptions{Logger: logger.NewSlog()}); err != nil {
 		log.Fatal().Err(err).Msg("failed to install playwright")
 	}
 	// define a root context

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -128,6 +129,7 @@ func (b *BotResult) MarshalJSON() ([]byte, error) {
 		"id":     b.ID.String(),
 		"type":   b.Type.String(),
 		"target": b.Target,
+		"label":  b.Label(),
 	}
 
 	for k, v := range b.Data {
@@ -160,4 +162,39 @@ func (b *BotResult) UnmarshalJSON(data []byte) (err error) {
 func (b *BotResult) String() string {
 	byt, _ := json.MarshalIndent(b, "", "\t")
 	return string(byt)
+}
+
+func (b *BotResult) Timestamp() time.Time {
+	if b.Type == NewsBotType {
+		a, _ := b.Data["publishedAt"]
+		if utc, err := time.Parse(time.RFC3339, a.(string)); err == nil {
+			return utc.UTC()
+		}
+	}
+	return b.ID.Timestamp().UTC()
+}
+
+func (b *BotResult) Label() string {
+	if b.Type == NewsBotType {
+		return b.Timestamp().Format("01/02/2006")
+	}
+	return b.Timestamp().Format("01/02/2006, 3:04:05PM")
+}
+
+func (b *BotResult) Compare(r *BotResult) int {
+	//if c := b.UserID.Compare(r.UserID); c != 0 {
+	//	return c
+	//}
+	//if c := b.BotID.Compare(r.BotID); c != 0 {
+	//	return c
+	//}
+	//if c := strings.Compare(b.Type.String(), r.Type.String()); c != 0 {
+	//	return c
+	//}
+	//if c := strings.Compare(b.Target, r.Target); c != 0 {
+	//	return c
+	//}
+
+	// define t with the time this result was created in the event the published time isn't ok
+	return b.Timestamp().Compare(r.Timestamp())
 }

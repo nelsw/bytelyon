@@ -298,3 +298,23 @@ func (b *Bot) NewBotResult(args ...any) *BotResult {
 		Data:   m,
 	}
 }
+
+func (b *Bot) Label() string {
+	if b.Type == SitemapBotType {
+		return Domain(b.Target)
+	}
+	return b.Target
+}
+
+func (b *Bot) Compare(z *Bot) int {
+	if c := strings.Compare(b.Type.String(), z.Type.String()); c != 0 {
+		return c
+	}
+	if c := strings.Compare(b.Target, z.Target); c != 0 {
+		return c
+	}
+	if c := strings.Compare(b.Label(), z.Label()); c != 0 {
+		return c
+	}
+	return 0
+}

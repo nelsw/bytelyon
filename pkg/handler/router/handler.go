@@ -8,6 +8,7 @@ import (
 	. "github.com/nelsw/bytelyon/pkg/api"
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/service"
 )
 
 func Handler(r Request) (Response, error) {
@@ -87,35 +88,19 @@ func handleDelete(r Request) Response {
 // results: /bots?type=...&id=...
 func handleGet(r Request) Response {
 
-	bots, err := db.Query(&model.Bot{
-		UserID: r.UserID(),
-		Type:   model.BotType(r.Query("type")),
-	})
-	if err != nil {
-		return r.BAD(err)
-	}
+	nodes := service.BotNodes(r.UserID(), model.BotType(r.Query("type")))
 
 	if r.Query("id") == "" {
-		return r.OK(bots)
+		return r.OK(nodes)
 	}
 
-	var results []*model.BotResult
-	for _, bot := range bots {
-		if bot.ID.String() != r.Query("id") {
-			continue
+	for _, node := range nodes {
+		if node.ID.String() == r.Query("id") {
+			return r.OK(service.BotResultNodes(r.UserID(), node.ID, node.Type))
 		}
-		results, err = db.Query(&model.BotResult{
-			BotID: bot.ID,
-			Type:  bot.Type,
-		})
-		break
 	}
 
-	if err != nil {
-		return r.BAD(err)
-	}
-
-	return r.OK(results)
+	return r.NC()
 }
 
 // handlePut creates or updates a bot in the database for the given body.

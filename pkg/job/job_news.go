@@ -15,7 +15,9 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/nelsw/bytelyon/pkg/client"
 	"github.com/nelsw/bytelyon/pkg/db"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/html"
 )
@@ -67,20 +69,125 @@ type Item struct {
 	Content     string `xml:"-"`
 }
 
-func (i *Item) Hydrate() error {
-	res, err := http.Get("https://ts2.tech/en/silver-price-today-silver-rebounds-4-after-sharp-selloff-but-risks-remain/")
-	if err != nil {
-		return err
+func (i *Item) MarshalZerologObject(evt *zerolog.Event) {
+	evt.Str("url", i.URL).
+		Str("title", i.Title).
+		Stringer("time", i.Time).
+		Str("description", i.Description).
+		Str("source", i.Source).
+		Str("news_source", i.NewsSource).
+		Str("image", i.Image).
+		Str("content", i.Content)
+}
+
+func (i *Item) ContainsKeyword(keyword string) bool {
+
+	log.Info().Str("keyword", keyword).Msg("checking article for keyword")
+
+	if strings.Contains(strings.ToLower(i.Title), keyword) {
+		log.Info().
+			Str("keyword", keyword).
+			Str("title", i.Title).
+			Msg("article title contains keyword")
+		return true
 	}
-	defer res.Body.Close()
+
+	if strings.Contains(strings.ToLower(i.Description), keyword) {
+		log.Info().
+			Str("keyword", keyword).
+			Str("description", i.Description).
+			Msg("article description contains keyword")
+		return true
+	}
+
+	log.Info().Str("keyword", keyword).Msg("article does not contain keyword")
+	return false
+}
+
+func (i *Item) ProcessHTML() {
+
+	log.Info().Object("item", i).Msg("processing item html")
+
+	res, err := http.Get(i.URL)
+	if err != nil {
+		log.Warn().Err(err).Object("item", i).Msg("failed to fetch URL to hydrate news HTML")
+		return
+	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
+
+	var b []byte
+	if b, err = io.ReadAll(res.Body); err != nil {
+		log.Warn().Err(err).Object("item", i).Msg("Failed to read article url bytes")
+		return
+	}
+	i.Content = string(b)
 
 	var doc *goquery.Document
 	if doc, err = goquery.NewDocumentFromReader(res.Body); err != nil {
-		return err
+		log.Warn().Err(err).Msg("failed to create doc to hydrate news HTML")
+		return
 	}
 
-	// todo = fill elements
-	// todo - save html
+	var mm []map[string]string
+
+	doc.Find("meta").Each(func(i int, s *goquery.Selection) {
+		var m = make(map[string]string)
+		for _, str := range []string{"name", "property", "itemprop", "content"} {
+			if at, ok := s.Attr(str); ok {
+				m[str] = at
+			}
+		}
+		if len(m) > 0 {
+			mm = append(mm, m)
+		}
+	})
+
+	for _, m := range mm {
+
+		// define the title if empty
+		if i.Title == "" {
+			if v, k := m["property"]; k && v == "og:title" {
+				if v, k = m["content"]; k {
+					i.Title = v
+				}
+			}
+		}
+
+		// define the description if empty
+		if i.Description == "" {
+			if v, k := m["name"]; k && v == "description" || v == "og:description" || v == "twitter:description" {
+				if v, k = m["content"]; k {
+					i.Description = v
+				}
+			}
+		}
+
+		// define the source if empty
+		if i.Source == "" {
+			if v, k := m["property"]; k && v == "og:site_name" {
+				if v, k = m["content"]; k {
+					i.Source = v
+				}
+			}
+		}
+
+		// define the image if empty
+		if i.Image == "" {
+			if v, k := m["property"]; k && v == "og:image" || v == "twitter:image" {
+				if v, k = m["content"]; k {
+					i.Image = v
+				}
+			}
+		}
+	}
+
+	if i.Title == "" {
+		doc.Find("title").Each(func(idx int, s *goquery.Selection) { i.Title = s.Text() })
+	}
+
+	log.Info().Object("item", i).Msg("processed news HTML")
 }
 
 func (j *Job) doNews() {
@@ -101,7 +208,9 @@ func (j *Job) doNewsFeed(u string) {
 		log.Err(err).Str("url", u).Msg("Failed to fetch RSS feed")
 		return
 	}
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	var b []byte
 	if b, err = io.ReadAll(res.Body); err != nil {
@@ -130,7 +239,7 @@ func (j *Job) doNewsFeed(u string) {
 
 func (j *Job) doNewsFeedArticle(i *Item) {
 
-	log.Trace().Any("item", i).Msg("Processing RSS item")
+	log.Info().Object("item", i).Msg("Processing RSS item (news article)")
 
 	// if this job is brand new, save all the articles found
 	// else persist articles published after the last update
@@ -145,28 +254,12 @@ func (j *Job) doNewsFeedArticle(i *Item) {
 	// work some magic to circumvent protected urls
 	i.URL = decodeURL(i.URL)
 
-	// check article data for blacklisted keywords
-	titleParts := strings.Split(i.Title, " ")
-	sourceParts := strings.Split(i.Source, " ")
-	parts := append(titleParts, sourceParts...)
-	for _, p := range parts {
-		if follow, exists := j.rules[p]; exists && !follow {
-			log.Info().Msgf("Skipping blacklisted article %s", p)
-			return
-		}
-	}
+	// include html data
+	i.ProcessHTML()
 
-	// check if the source is blank and use the news source if it is
-	if i.Source == "" && i.NewsSource != "" {
+	// try to populate an empty source
+	if i.Source == "" {
 		i.Source = i.NewsSource
-	}
-
-	// scrub the source off the title and use it if the item source is blank
-	if l, r, ok := strings.Cut(i.Title, " - "); ok {
-		i.Title = l
-		if i.Source == "" {
-			i.Source = r
-		}
 	}
 
 	// check if the description is HTML
@@ -175,21 +268,89 @@ func (j *Job) doNewsFeedArticle(i *Item) {
 		i.Description = i.Description[strings.LastIndex(i.Description, ">")+1:]
 	}
 
-	err := db.PutItem(j.bot.NewBotResult(
+	// now that the item is populated with data,
+	// check article for blacklisted keywords
+	for kw := range j.rules {
+		if i.ContainsKeyword(kw) {
+			return
+		}
+	}
+
+	// instantiate a new bot result
+	result := j.bot.NewBotResult(
 		"url", i.URL,
 		"title", i.Title,
 		"source", i.Source,
 		"description", i.Description,
 		"publishedAt", i.Time.UTC(),
-	))
+	)
 
-	log.Err(err).Msg("put news result")
+	// save article html if it exits and define the path on the result
+	if i.Content != "" {
+		// define the s3 bucket key for article html
+		key := fmt.Sprintf("users/%s/bots/news/%s/%s.html",
+			j.bot.UserID,
+			j.bot.Target,
+			result.ID,
+		)
+
+		if err := client.PutObject(j.ctx, j.s3, "bytelyon-public", key, []byte(i.Content)); err != nil {
+			log.Warn().Err(err).Object("item", i).Msg("Failed to save news article html")
+		} else {
+			result.Data["content"] = key
+		}
+	}
+
+	// save article image if it exists and define the path on the result
+	if i.Image != "" {
+
+		res, err := http.Get(i.Image)
+		if err != nil {
+			log.Warn().Err(err).Object("item", i).Msg("Failed to download news article")
+		} else {
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(res.Body)
+
+			var b []byte
+			if b, err = io.ReadAll(res.Body); err != nil {
+				log.Warn().Err(err).Object("item", i).Msg("Failed to read news article")
+			} else if _, ext, ok := strings.Cut(i.Image, "."); !ok {
+				log.Warn().
+					Str("image", i.Image).
+					Msg("Failed to parse news article image extension?!")
+			} else {
+				// define the s3 bucket key for article image
+				key := fmt.Sprintf("users/%s/bots/news/%s/%s.%s",
+					j.bot.UserID,
+					j.bot.Target,
+					result.ID,
+					ext,
+				)
+
+				if err = client.PutObject(j.ctx, j.s3, "bytelyon-public", key, b); err != nil {
+					log.Warn().Err(err).Object("item", i).Msg("Failed to save news article image")
+				} else {
+					result.Data["image"] = key
+				}
+			}
+
+		}
+
+	}
+
+	// save the result
+	if err := db.PutItem(result); err != nil {
+		log.Warn().Err(err).Object("item", i).Msg("Failed to save news article")
+	} else {
+		log.Info().Object("item", i).Msg("News article saved")
+	}
 }
 
 func decodeURL(s string) string {
 
 	if strings.Contains(s, "bing.com") {
-		s = decodeBingURL(s)
+		return decodeBingURL(s)
 	} else if strings.Contains(s, "google.com") {
 		var err error
 		if s, err = decodeGoogleURL(s); err != nil {
@@ -218,7 +379,9 @@ func decodeGoogleURL(s string) (string, error) {
 	if err != nil {
 		return s, err
 	}
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	var doc *html.Node
 	if doc, err = html.Parse(res.Body); err != nil {
@@ -276,7 +439,9 @@ func decodeParts(signature, timestamp, base64Str string) (string, error) {
 	if resp, err = client.Do(req); err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}

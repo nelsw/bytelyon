@@ -16,7 +16,7 @@ func PutObject(ctx context.Context, c *s3.Client, bucket, key string, bdy []byte
 		Int("body", len(bdy)).
 		Logger()
 
-	l.Trace().Msg("putting object")
+	l.Info().Msg("putting object")
 
 	_, err := c.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: &bucket,
@@ -29,7 +29,7 @@ func PutObject(ctx context.Context, c *s3.Client, bucket, key string, bdy []byte
 		return err
 	}
 
-	l.Debug().Msg("put object")
+	l.Info().Msg("put object")
 
 	return nil
 }

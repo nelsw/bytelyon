@@ -1,10 +1,8 @@
 package model
 
 import (
-	"maps"
 	"slices"
 	"sort"
-	"time"
 
 	"github.com/rs/zerolog/log"
 )
@@ -36,24 +34,22 @@ func (b BotResults) ToNodes() (nodes Nodes) {
 
 func (b BotResults) ToNewsResultNodes() Nodes {
 
-	var m = make(map[int64]BotResults)
+	var m = make(map[string]BotResults)
 	for _, r := range b {
-		ts := r.Timestamp().Truncate(24 * time.Hour).Unix()
-		m[ts] = append(m[ts], r)
+		m[r.Label()] = append(m[r.Label()], r)
 	}
 
 	var nodes Nodes
-	for _, k := range slices.Sorted(maps.Keys(m)) {
+	for k, v := range m {
 		nodes = append(nodes, &Node{
-			ID:     m[k][0].ID,
-			BotID:  m[k][0].BotID,
-			Label:  m[k][0].Label(),
-			Type:   m[k][0].Type,
-			Target: m[k][0].Target,
-			Rows:   m[k],
+			ID:     v[0].ID,
+			BotID:  v[0].BotID,
+			Label:  k,
+			Type:   v[0].Type,
+			Target: v[0].Target,
+			Rows:   v,
 		})
 	}
-
 	return nodes
 }
 
@@ -66,7 +62,7 @@ func (b BotResults) searchResultNodes() Nodes {
 			Label:  r.Label(),
 			Type:   r.Type,
 			Target: r.Target,
-			Rows:   r.Data["pages"].([]any),
+			Rows:   r.Data["pages"],
 		})
 	}
 	return nodes

@@ -18,7 +18,7 @@ type Password struct {
 
 // Compare compares a bcrypt hashed password with its possible
 // plaintext equivalent. Returns nil on success, or an error on failure.
-func (p Password) Compare(text string) error {
+func (p *Password) Compare(text string) error {
 	return bcrypt.CompareHashAndPassword(p.Hash, []byte(text))
 }
 

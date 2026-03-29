@@ -49,12 +49,12 @@ func (v *Time) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	return nil
 }
 func (v *Time) String() string          { return v.UTC().Format(time.RFC3339) }
-func (v *Time) Before(t time.Time) bool { return time.Time(*v).UTC().Before(t) }
+func (v *Time) Before(t time.Time) bool { return v.UTC().Before(t.UTC()) }
 func (v *Time) UTC() time.Time          { return time.Time(*v).UTC() }
 
 type RSS struct {
 	Channel struct {
-		Items []*Item
+		Items []*Item `xml:"item"`
 	} `xml:"channel"`
 }
 
@@ -191,15 +191,23 @@ func (i *Item) ProcessHTML() {
 }
 
 func (j *Job) doNews() {
+
+	log.Info().Msgf("processing news job %s", j.bot.Target)
+
 	q := strings.ReplaceAll(j.bot.Target, ` `, `+`)
 	urls := []string{
 		fmt.Sprintf("https://news.google.com/rss/search?q=%s&hl=en-US&gl=US&ceid=US:en", q),
 		fmt.Sprintf("https://www.bing.com/news/search?format=rss&q=%s", q),
 		fmt.Sprintf("https://www.bing.com/search?format=rss&q=%s", q),
 	}
+
+	var wg sync.WaitGroup
 	for _, u := range urls {
-		j.doNewsFeed(u)
+		wg.Go(func() { j.doNewsFeed(u) })
 	}
+	wg.Wait()
+
+	log.Info().Msgf("processing news job %s", j.bot.Target)
 }
 
 func (j *Job) doNewsFeed(u string) {
@@ -246,7 +254,7 @@ func (j *Job) doNewsFeedArticle(i *Item) {
 	if !j.bot.WorkedAt.IsZero() && i.Time.Before(j.bot.WorkedAt) {
 		log.Info().
 			Stringer("published", i.Time).
-			Stringer("worked", j.bot.WorkedAt).
+			Time("worked", j.bot.WorkedAt.UTC()).
 			Msgf("Skipping old article %s", i.Title)
 		return
 	}
@@ -298,6 +306,7 @@ func (j *Job) doNewsFeedArticle(i *Item) {
 			log.Warn().Err(err).Object("item", i).Msg("Failed to save news article html")
 		} else {
 			result.Data["content"] = key
+			i.Content = key
 		}
 	}
 
@@ -332,11 +341,10 @@ func (j *Job) doNewsFeedArticle(i *Item) {
 					log.Warn().Err(err).Object("item", i).Msg("Failed to save news article image")
 				} else {
 					result.Data["image"] = key
+					i.Image = key
 				}
 			}
-
 		}
-
 	}
 
 	// save the result

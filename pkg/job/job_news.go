@@ -157,7 +157,14 @@ func (i *Item) ProcessHTML() {
 
 		// define the description if empty
 		if i.Description == "" {
-			if v, k := m["name"]; k && v == "description" || v == "og:description" || v == "twitter:description" {
+			if v, k := m["name"]; k && v == "description" || v == "twitter:description" {
+				if v, k = m["content"]; k {
+					i.Description = v
+				}
+			}
+		}
+		if i.Description == "" {
+			if v, k := m["property"]; k && v == "description" || v == "og:description" {
 				if v, k = m["content"]; k {
 					i.Description = v
 				}
@@ -175,9 +182,18 @@ func (i *Item) ProcessHTML() {
 
 		// define the image if empty
 		if i.Image == "" {
-			if v, k := m["property"]; k && v == "og:image" || v == "twitter:image" {
+			if v, k := m["name"]; k && v == "twitter:image" {
 				if v, k = m["content"]; k {
 					i.Image = v
+					log.Debug().Msg("found image to process news HTML: " + v)
+				}
+			}
+		}
+		if i.Image == "" {
+			if v, k := m["property"]; k && v == "og:image" {
+				if v, k = m["content"]; k {
+					i.Image = v
+					log.Debug().Msg("found image to process news HTML: " + v)
 				}
 			}
 		}
@@ -187,7 +203,7 @@ func (i *Item) ProcessHTML() {
 		doc.Find("title").Each(func(idx int, s *goquery.Selection) { i.Title = s.Text() })
 	}
 
-	log.Info().Object("item", i).Msg("processed news HTML")
+	log.Info().Msg("processed news HTML")
 }
 
 func (j *Job) doNews() {
@@ -299,7 +315,7 @@ func (j *Job) doNewsFeedArticle(i *Item) {
 	// save article html if it exits and define the path on the result
 	if i.Content != "" {
 		// define the s3 bucket key for article html
-		key := fmt.Sprintf("users/%s/bots/news/%s/%s.html",
+		key := fmt.Sprintf("users/%s/bots/news/%s/content/%s.html",
 			j.bot.UserID,
 			j.bot.Target,
 			result.ID,
@@ -327,13 +343,15 @@ func (j *Job) doNewsFeedArticle(i *Item) {
 			var b []byte
 			if b, err = io.ReadAll(res.Body); err != nil {
 				log.Warn().Err(err).Object("item", i).Msg("Failed to read news article")
-			} else if _, ext, ok := strings.Cut(i.Image, "."); !ok {
-				log.Warn().
-					Str("image", i.Image).
-					Msg("Failed to parse news article image extension?!")
-			} else {
+			} else if idx := strings.LastIndex(i.Image, "."); idx > 0 {
+
+				ext := i.Image[idx+1:]
+				if idx = strings.LastIndex(i.Image, "?"); idx > 0 {
+					ext = ext[:idx]
+				}
+
 				// define the s3 bucket key for article image
-				key := fmt.Sprintf("users/%s/bots/news/%s/%s.%s",
+				key := fmt.Sprintf("users/%s/bots/news/%s/image/%s.%s",
 					j.bot.UserID,
 					j.bot.Target,
 					result.ID,
@@ -399,7 +417,13 @@ func decodeGoogleURL(s string) (string, error) {
 		return s, err
 	}
 
-	return decodeNode(doc, regex.FindStringSubmatch(s)[1])
+	matches := regex.FindStringSubmatch(s)
+	if len(matches) < 2 {
+		log.Warn().Str("url", s).Msg("failed to match regex")
+		return s, nil
+	}
+
+	return decodeNode(doc, matches[1])
 }
 
 func decodeNode(n *html.Node, encodedText string) (string, error) {

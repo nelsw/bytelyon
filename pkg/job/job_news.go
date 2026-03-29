@@ -270,6 +270,9 @@ func (j *Job) doNewsFeedArticle(i *Item) {
 		i.Source = i.NewsSource
 	}
 
+	// remove the source if it exists
+	i.Title = strings.TrimSuffix(i.Title, " - "+i.Source)
+
 	// check if the description is HTML
 	if idx := strings.Index(i.Description, `</a>`); idx > 0 {
 		i.Description = i.Description[:idx]

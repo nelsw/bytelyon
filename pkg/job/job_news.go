@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/html"
@@ -51,15 +52,35 @@ func (v *Time) UTC() time.Time          { return time.Time(*v).UTC() }
 
 type RSS struct {
 	Channel struct {
-		Items []*struct {
-			URL         string `xml:"link"`
-			Title       string `xml:"title"`
-			Description string `xml:"description"`
-			Source      string `xml:"source"`
-			Time        *Time  `xml:"pubDate"`
-			NewsSource  string `xml:"News_Source"`
-		} `xml:"item"`
+		Items []*Item
 	} `xml:"channel"`
+}
+
+type Item struct {
+	URL         string `xml:"link"`
+	Title       string `xml:"title"`
+	Description string `xml:"description"`
+	Source      string `xml:"source"`
+	Time        *Time  `xml:"pubDate"`
+	NewsSource  string `xml:"News_Source"`
+	Image       string `xml:"-"`
+	Content     string `xml:"-"`
+}
+
+func (i *Item) Hydrate() error {
+	res, err := http.Get("https://ts2.tech/en/silver-price-today-silver-rebounds-4-after-sharp-selloff-but-risks-remain/")
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	var doc *goquery.Document
+	if doc, err = goquery.NewDocumentFromReader(res.Body); err != nil {
+		return err
+	}
+
+	// todo = fill elements
+	// todo - save html
 }
 
 func (j *Job) doNews() {
@@ -75,15 +96,15 @@ func (j *Job) doNews() {
 }
 
 func (j *Job) doNewsFeed(u string) {
-	r, err := http.Get(u)
+	res, err := http.Get(u)
 	if err != nil {
 		log.Err(err).Str("url", u).Msg("Failed to fetch RSS feed")
 		return
 	}
-	defer r.Body.Close()
+	defer res.Body.Close()
 
 	var b []byte
-	if b, err = io.ReadAll(r.Body); err != nil {
+	if b, err = io.ReadAll(res.Body); err != nil {
 		log.Err(err).Str("url", u).Msg("Failed to read RSS feed")
 		return
 	}
@@ -102,66 +123,67 @@ func (j *Job) doNewsFeed(u string) {
 
 	var wg sync.WaitGroup
 	for _, i := range rss.Channel.Items {
-
-		wg.Go(func() {
-
-			log.Trace().Any("item", i).Msg("Processing RSS item")
-
-			// if this job is brand new, save all the articles found
-			// else persist articles published after the last update
-			if !j.bot.WorkedAt.IsZero() && i.Time.Before(j.bot.WorkedAt) {
-				log.Info().
-					Stringer("published", i.Time).
-					Stringer("worked", j.bot.WorkedAt).
-					Msgf("Skipping old article %s", i.Title)
-				return
-			}
-
-			// check article data for blacklisted keywords
-			titleParts := strings.Split(i.Title, " ")
-			sourceParts := strings.Split(i.Source, " ")
-			parts := append(titleParts, sourceParts...)
-			for _, p := range parts {
-				if follow, exists := j.rules[p]; exists && !follow {
-					log.Info().Msgf("Skipping blacklisted article %s", p)
-					return
-				}
-			}
-
-			// work some magic to circumvent protected urls
-			i.URL = decodeURL(i.URL)
-
-			// check if the source is blank and use the news source if it is
-			if i.Source == "" && i.NewsSource != "" {
-				i.Source = i.NewsSource
-			}
-
-			// scrub the source off the title and use it if the item source is blank
-			if l, r, ok := strings.Cut(i.Title, " - "); ok {
-				i.Title = l
-				if i.Source == "" {
-					i.Source = r
-				}
-			}
-
-			// check if the description is HTML
-			if idx := strings.Index(i.Description, `</a>`); idx > 0 {
-				i.Description = i.Description[:idx]
-				i.Description = i.Description[strings.LastIndex(i.Description, ">")+1:]
-			}
-
-			err = db.PutItem(j.bot.NewBotResult(
-				"url", i.URL,
-				"title", i.Title,
-				"source", i.Source,
-				"description", i.Description,
-				"publishedAt", i.Time.UTC(),
-			))
-
-			log.Err(err).Msg("put news result")
-		})
+		wg.Go(func() { j.doNewsFeedArticle(i) })
 	}
 	wg.Wait()
+}
+
+func (j *Job) doNewsFeedArticle(i *Item) {
+
+	log.Trace().Any("item", i).Msg("Processing RSS item")
+
+	// if this job is brand new, save all the articles found
+	// else persist articles published after the last update
+	if !j.bot.WorkedAt.IsZero() && i.Time.Before(j.bot.WorkedAt) {
+		log.Info().
+			Stringer("published", i.Time).
+			Stringer("worked", j.bot.WorkedAt).
+			Msgf("Skipping old article %s", i.Title)
+		return
+	}
+
+	// work some magic to circumvent protected urls
+	i.URL = decodeURL(i.URL)
+
+	// check article data for blacklisted keywords
+	titleParts := strings.Split(i.Title, " ")
+	sourceParts := strings.Split(i.Source, " ")
+	parts := append(titleParts, sourceParts...)
+	for _, p := range parts {
+		if follow, exists := j.rules[p]; exists && !follow {
+			log.Info().Msgf("Skipping blacklisted article %s", p)
+			return
+		}
+	}
+
+	// check if the source is blank and use the news source if it is
+	if i.Source == "" && i.NewsSource != "" {
+		i.Source = i.NewsSource
+	}
+
+	// scrub the source off the title and use it if the item source is blank
+	if l, r, ok := strings.Cut(i.Title, " - "); ok {
+		i.Title = l
+		if i.Source == "" {
+			i.Source = r
+		}
+	}
+
+	// check if the description is HTML
+	if idx := strings.Index(i.Description, `</a>`); idx > 0 {
+		i.Description = i.Description[:idx]
+		i.Description = i.Description[strings.LastIndex(i.Description, ">")+1:]
+	}
+
+	err := db.PutItem(j.bot.NewBotResult(
+		"url", i.URL,
+		"title", i.Title,
+		"source", i.Source,
+		"description", i.Description,
+		"publishedAt", i.Time.UTC(),
+	))
+
+	log.Err(err).Msg("put news result")
 }
 
 func decodeURL(s string) string {

@@ -98,21 +98,13 @@ func (b *BotResult) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err
 	var m map[string]types.AttributeValue
 	if m = v.(*types.AttributeValueMemberM).Value; m == nil {
 		return errors.New("bot result unmarshal value was nil")
-	}
-
-	if err = json.Unmarshal(m["data"].(*types.AttributeValueMemberB).Value, &b.Data); err != nil {
+	} else if err = json.Unmarshal(m["data"].(*types.AttributeValueMemberB).Value, &b.Data); err != nil {
 		return fmt.Errorf("failed to unmarshal data: %w", err)
-	}
-
-	if b.UserID, err = ulid.Parse(m["userId"].(*types.AttributeValueMemberS).Value); err != nil {
+	} else if b.UserID, err = ulid.Parse(m["userId"].(*types.AttributeValueMemberS).Value); err != nil {
 		return fmt.Errorf("failed to parse ulid: %w", err)
-	}
-
-	if b.BotID, err = ulid.Parse(m["botId"].(*types.AttributeValueMemberS).Value); err != nil {
+	} else if b.BotID, err = ulid.Parse(m["botId"].(*types.AttributeValueMemberS).Value); err != nil {
 		return fmt.Errorf("failed to parse ulid: %w", err)
-	}
-
-	if b.ID, err = ulid.Parse(m["id"].(*types.AttributeValueMemberS).Value); err != nil {
+	} else if b.ID, err = ulid.Parse(m["id"].(*types.AttributeValueMemberS).Value); err != nil {
 		return fmt.Errorf("failed to parse ulid: %w", err)
 	}
 
@@ -167,8 +159,8 @@ func (b *BotResult) String() string {
 func (b *BotResult) Timestamp() time.Time {
 	if b.Type == NewsBotType {
 		a, _ := b.Data["publishedAt"]
-		if utc, err := time.Parse(time.RFC3339, a.(string)); err == nil {
-			return utc.UTC()
+		if t, err := time.Parse(time.RFC3339, a.(string)); err == nil {
+			return t.UTC()
 		}
 	}
 	return b.ID.Timestamp().UTC()
@@ -179,22 +171,4 @@ func (b *BotResult) Label() string {
 		return b.Timestamp().Format("01/02/2006")
 	}
 	return b.Timestamp().Format("01/02/2006, 3:04:05PM")
-}
-
-func (b *BotResult) Compare(r *BotResult) int {
-	//if c := b.UserID.Compare(r.UserID); c != 0 {
-	//	return c
-	//}
-	//if c := b.BotID.Compare(r.BotID); c != 0 {
-	//	return c
-	//}
-	//if c := strings.Compare(b.Type.String(), r.Type.String()); c != 0 {
-	//	return c
-	//}
-	//if c := strings.Compare(b.Target, r.Target); c != 0 {
-	//	return c
-	//}
-
-	// define t with the time this result was created in the event the published time isn't ok
-	return b.Timestamp().Compare(r.Timestamp())
 }

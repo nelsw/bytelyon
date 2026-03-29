@@ -312,7 +312,7 @@ func (j *Job) doNewsFeedArticle(i *Item) {
 		"title", i.Title,
 		"source", i.Source,
 		"description", i.Description,
-		"publishedAt", i.Time.UTC(),
+		"publishedAt", i.Time.String(),
 	)
 
 	// save article html if it exits and define the path on the result

@@ -69,7 +69,7 @@ func (p *Password) Put() *dynamodb.PutItemInput {
 func (p *Password) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error) {
 	var m map[string]types.AttributeValue
 	if m = v.(*types.AttributeValueMemberM).Value; m == nil {
-		return errors.New("bot unmarshal value was nil")
+		return errors.New("password unmarshal value was nil")
 	} else if p.UserID, err = ulid.ParseStrict(m["userId"].(*types.AttributeValueMemberS).Value); err != nil {
 		return fmt.Errorf("failed to parse userId: %w", err)
 	}

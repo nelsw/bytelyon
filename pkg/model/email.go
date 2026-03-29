@@ -71,7 +71,7 @@ func (e *Email) Put() *dynamodb.PutItemInput {
 func (e *Email) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error) {
 	var m map[string]types.AttributeValue
 	if m = v.(*types.AttributeValueMemberM).Value; m == nil {
-		return errors.New("bot unmarshal value was nil")
+		return errors.New("email unmarshal value was nil")
 	} else if e.UserID, err = ulid.ParseStrict(m["userId"].(*types.AttributeValueMemberS).Value); err != nil {
 		return fmt.Errorf("failed to parse userId: %w", err)
 	} else if e.VerifiedAt, err = time.Parse(time.RFC3339, m["verifiedAt"].(*types.AttributeValueMemberS).Value); err != nil {

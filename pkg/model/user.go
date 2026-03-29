@@ -57,7 +57,7 @@ func (u *User) Create() *dynamodb.CreateTableInput {
 func (u *User) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error) {
 	var m map[string]types.AttributeValue
 	if m = v.(*types.AttributeValueMemberM).Value; m == nil {
-		return errors.New("bot unmarshal value was nil")
+		return errors.New("user unmarshal value was nil")
 	} else if u.ID, err = ulid.ParseStrict(m["id"].(*types.AttributeValueMemberS).Value); err != nil {
 		return fmt.Errorf("failed to parse ulid: %w", err)
 	}

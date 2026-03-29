@@ -7,6 +7,7 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
+// Node is an abstract DAO used to generalize api response data
 type Node struct {
 	ID        ulid.ULID
 	BotID     ulid.ULID
@@ -41,15 +42,4 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		m["children"] = n.Children
 	}
 	return json.Marshal(m)
-}
-
-func NewNodeFromBot(bot *Bot) *Node {
-	return &Node{
-		ID:     bot.ID,
-		BotID:  bot.ID,
-		Label:  bot.Label(),
-		Type:   bot.Type,
-		Target: bot.Target,
-		Lazy:   true,
-	}
 }

@@ -140,7 +140,9 @@ func (j *Job) handleLocator(result *model.BotResult, ctx playwright.BrowserConte
 		log.Warn().Err(err).Msg("Client - Failed to ExpectPage")
 		return nil, err
 	}
-	defer page.Close()
+	defer func(page playwright.Page, options ...playwright.PageCloseOptions) {
+		_ = page.Close()
+	}(page)
 
 	if err = page.BringToFront(); err != nil {
 		log.Warn().Err(err).Msg("Client - Failed to BringToFront")

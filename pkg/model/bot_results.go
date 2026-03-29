@@ -44,24 +44,13 @@ func (b BotResults) ToNewsResultNodes() Nodes {
 
 	var nodes Nodes
 	for _, k := range slices.Sorted(maps.Keys(m)) {
-		r := m[k][0]
-		var children Nodes
-		for _, v := range m[k] {
-			children = append(children, &Node{
-				BotID:  v.BotID,
-				Label:  v.Label(),
-				Type:   v.Type,
-				Target: v.Target,
-				Rows:   v.Data,
-			})
-		}
 		nodes = append(nodes, &Node{
-			ID:     r.ID,
-			BotID:  r.BotID,
-			Label:  r.Label(),
+			ID:     m[k][0].ID,
+			BotID:  m[k][0].BotID,
+			Label:  m[k][0].Label(),
+			Type:   m[k][0].Type,
+			Target: m[k][0].Target,
 			Rows:   m[k],
-			Type:   r.Type,
-			Target: r.Target,
 		})
 	}
 
@@ -109,13 +98,12 @@ func (b BotResults) sitemapResultNodes() Nodes {
 		}
 
 		nodes = append(nodes, &Node{
-			ID:       r.ID,
-			BotID:    r.BotID,
-			Label:    r.Label(),
-			Type:     r.Type,
-			Target:   r.Target,
-			Rows:     rows,
-			Children: Nodes{},
+			ID:     r.ID,
+			BotID:  r.BotID,
+			Label:  r.Label(),
+			Type:   r.Type,
+			Target: r.Target,
+			Rows:   rows,
 		})
 	}
 

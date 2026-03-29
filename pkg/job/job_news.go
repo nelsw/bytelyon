@@ -17,6 +17,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/nelsw/bytelyon/pkg/client"
 	"github.com/nelsw/bytelyon/pkg/db"
+	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/html"
@@ -117,17 +118,19 @@ func (i *Item) ProcessHTML() {
 		_ = Body.Close()
 	}(res.Body)
 
-	var b []byte
-	if b, err = io.ReadAll(res.Body); err != nil {
-		log.Warn().Err(err).Object("item", i).Msg("Failed to read article url bytes")
-		return
-	}
-	i.Content = string(b)
+	log.Info().
+		Int("status", res.StatusCode).
+		Str("url", i.URL).
+		Msg("got news url")
 
 	var doc *goquery.Document
 	if doc, err = goquery.NewDocumentFromReader(res.Body); err != nil {
 		log.Warn().Err(err).Msg("failed to create doc to hydrate news HTML")
 		return
+	}
+
+	if i.Content, err = doc.Html(); err != nil {
+		log.Warn().Err(err).Msg("failed to extract news HTML")
 	}
 
 	var mm []map[string]string
@@ -143,6 +146,8 @@ func (i *Item) ProcessHTML() {
 			mm = append(mm, m)
 		}
 	})
+
+	log.Info().Any("meta", mm).Msg("processing news HTML meta")
 
 	for _, m := range mm {
 
@@ -183,17 +188,15 @@ func (i *Item) ProcessHTML() {
 		// define the image if empty
 		if i.Image == "" {
 			if v, k := m["name"]; k && v == "twitter:image" {
-				if v, k = m["content"]; k {
+				if v, k = m["content"]; k && util.IsImageFile(v) {
 					i.Image = v
-					log.Debug().Msg("found image to process news HTML: " + v)
 				}
 			}
 		}
 		if i.Image == "" {
 			if v, k := m["property"]; k && v == "og:image" {
-				if v, k = m["content"]; k {
+				if v, k = m["content"]; k && util.IsImageFile(v) {
 					i.Image = v
-					log.Debug().Msg("found image to process news HTML: " + v)
 				}
 			}
 		}
@@ -212,9 +215,9 @@ func (j *Job) doNews() {
 
 	q := strings.ReplaceAll(j.bot.Target, ` `, `+`)
 	urls := []string{
-		fmt.Sprintf("https://news.google.com/rss/search?q=%s&hl=en-US&gl=US&ceid=US:en", q),
-		fmt.Sprintf("https://www.bing.com/news/search?format=rss&q=%s", q),
 		fmt.Sprintf("https://www.bing.com/search?format=rss&q=%s", q),
+		fmt.Sprintf("https://www.bing.com/news/search?format=rss&q=%s", q),
+		fmt.Sprintf("https://news.google.com/rss/search?q=%s&hl=en-US&gl=US&ceid=US:en", q),
 	}
 
 	var wg sync.WaitGroup
@@ -323,6 +326,7 @@ func (j *Job) doNewsFeedArticle(i *Item) {
 
 		if err := client.PutObject(j.ctx, j.s3, "bytelyon-public", key, []byte(i.Content)); err != nil {
 			log.Warn().Err(err).Object("item", i).Msg("Failed to save news article html")
+			i.Content = ""
 		} else {
 			result.Data["content"] = key
 			i.Content = key
@@ -343,19 +347,13 @@ func (j *Job) doNewsFeedArticle(i *Item) {
 			var b []byte
 			if b, err = io.ReadAll(res.Body); err != nil {
 				log.Warn().Err(err).Object("item", i).Msg("Failed to read news article")
-			} else if idx := strings.LastIndex(i.Image, "."); idx > 0 {
-
-				ext := i.Image[idx+1:]
-				if idx = strings.LastIndex(i.Image, "?"); idx > 0 {
-					ext = ext[:idx]
-				}
-
+			} else {
 				// define the s3 bucket key for article image
 				key := fmt.Sprintf("users/%s/bots/news/%s/image/%s.%s",
 					j.bot.UserID,
 					j.bot.Target,
 					result.ID,
-					ext,
+					util.Extension(i.Image),
 				)
 
 				if err = client.PutObject(j.ctx, j.s3, "bytelyon-public", key, b); err != nil {

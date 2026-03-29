@@ -44,6 +44,15 @@ func FindBotResults(userID, botID ulid.ULID, botType model.BotType) model.BotRes
 }
 
 func DeleteBotResults(userID, botID ulid.ULID, botType model.BotType) (err error) {
+
+	l := log.With().
+		Stringer("userID", userID).
+		Stringer("botID", botID).
+		Stringer("botType", botType).
+		Logger()
+
+	l.Info().Msg("deleting bot results")
+
 	for _, result := range FindBotResults(userID, botID, botType) {
 		if result.UserID != userID {
 			log.Warn().Msgf("cannot delete bot results for non owner: %s", userID)
@@ -51,5 +60,12 @@ func DeleteBotResults(userID, botID ulid.ULID, botType model.BotType) (err error
 		}
 		err = errors.Join(err, db.Delete(result))
 	}
+
+	if err != nil {
+		l.Err(err).Msg("failed to delete bot results")
+	} else {
+		l.Info().Msg("bot results deleted")
+	}
+
 	return
 }

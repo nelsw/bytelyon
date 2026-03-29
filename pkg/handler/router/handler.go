@@ -34,18 +34,15 @@ func Handler(r Request) (Response, error) {
 // result: /bots?type=...&target=...&id=...
 func handleDelete(r Request) Response {
 
+	var err error
+
 	if r.ID().IsZero() {
-		log.Info().Msg("deleting bot and results")
-		if err := repo.DeleteBot(r.UserID(), r.Target(), r.BotType()); err != nil {
-			log.Error().Err(err).Msg("failed to delete bot")
-			return r.BAD(err)
-		}
-		return r.NC()
+		err = repo.DeleteBot(r.UserID(), r.Target(), r.BotType())
+	} else {
+		err = repo.DeleteBotResult(r.UserID(), r.ID(), r.BotType())
 	}
 
-	log.Info().Msg("deleting bot result")
-	if err := repo.DeleteBotResult(r.UserID(), r.ID(), r.BotType()); err != nil {
-		log.Error().Err(err).Msg("failed to delete bot result")
+	if err != nil {
 		return r.BAD(err)
 	}
 	return r.NC()

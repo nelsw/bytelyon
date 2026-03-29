@@ -30,25 +30,33 @@ func (j *Job) doSearch() {
 	if ply, err = client.NewPlaywright(); err != nil {
 		return
 	}
-	defer ply.Stop()
+	defer func(ply *playwright.Playwright) {
+		_ = ply.Stop()
+	}(ply)
 
 	var bro playwright.Browser
 	if bro, err = client.NewBrowser(ply, j.bot.Headless); err != nil {
 		return
 	}
-	defer bro.Close()
+	defer func(bro playwright.Browser, options ...playwright.BrowserCloseOptions) {
+		_ = bro.Close()
+	}(bro)
 
 	var ctx playwright.BrowserContext
 	if ctx, err = client.NewContext(bro); err != nil {
 		return
 	}
-	defer ctx.Close()
+	defer func(ctx playwright.BrowserContext, options ...playwright.BrowserContextCloseOptions) {
+		_ = ctx.Close()
+	}(ctx)
 
 	var page playwright.Page
 	if page, err = client.NewPage(ctx); err != nil {
 		return
 	}
-	defer page.Close()
+	defer func(page playwright.Page, options ...playwright.PageCloseOptions) {
+		_ = page.Close()
+	}(page)
 
 	var resp playwright.Response
 	if resp, err = client.GoTo(page, "https://www.google.com"); err != nil {
@@ -56,7 +64,7 @@ func (j *Job) doSearch() {
 	}
 
 	if client.IsRequestBlocked(resp) || client.IsPageBlocked(page) {
-		time.Sleep(2 * time.Second)
+		time.Sleep(5 * time.Second)
 		if client.IsRequestBlocked(resp) || client.IsPageBlocked(page) {
 			return
 		}

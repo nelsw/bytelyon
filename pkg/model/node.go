@@ -42,3 +42,14 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(m)
 }
+
+func NewNodeFromBot(bot *Bot) *Node {
+	return &Node{
+		ID:     bot.ID,
+		BotID:  bot.ID,
+		Label:  bot.Label(),
+		Type:   bot.Type,
+		Target: bot.Target,
+		Lazy:   true,
+	}
+}

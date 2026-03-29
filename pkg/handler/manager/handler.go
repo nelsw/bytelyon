@@ -170,7 +170,7 @@ func (m *Manager) work() {
 
 	var bots []*model.Bot
 	for _, user := range users {
-		bots = append(bots, repo.Bots(user.ID, true)...)
+		bots = append(bots, repo.FindBots(user.ID, true)...)
 	}
 
 	log.Info().

@@ -1,14 +1,14 @@
 package router
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
 
 	. "github.com/nelsw/bytelyon/pkg/api"
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/model"
-	"github.com/nelsw/bytelyon/pkg/service"
+	"github.com/nelsw/bytelyon/pkg/repo"
+	"github.com/rs/zerolog/log"
 )
 
 func Handler(r Request) (Response, error) {
@@ -34,92 +34,73 @@ func Handler(r Request) (Response, error) {
 // result: /bots?type=...&target=...&id=...
 func handleDelete(r Request) Response {
 
-	botType := model.BotType(r.Query("type"))
-	target := r.Query("target")
-	if botType == model.SitemapBotType {
-		tar, err := base64.StdEncoding.DecodeString(target)
-		if err != nil {
+	if r.ID().IsZero() {
+		log.Info().Msg("deleting bot and results")
+		if err := repo.DeleteBot(r.UserID(), r.Target(), r.BotType()); err != nil {
+			log.Error().Err(err).Msg("failed to delete bot")
 			return r.BAD(err)
 		}
-		target = string(tar)
+		return r.NC()
 	}
 
-	bot, err := db.Get(&model.Bot{
-		UserID: r.UserID(),
-		Target: target,
-		Type:   botType,
-	})
-	if err != nil {
-		return r.BAD(err)
-	}
-
-	var results []*model.BotResult
-	results, err = db.Query(&model.BotResult{BotID: bot.ID, Type: botType})
-
-	if r.Query("id") != "" {
-		for _, result := range results {
-			if result.ID.String() == r.Query("id") {
-				err = db.Delete(result)
-				if err != nil {
-					return r.BAD(err)
-				}
-				return r.NC()
-			}
-		}
-	}
-
-	for _, result := range results {
-		err = db.Delete(result)
-		if err != nil {
-			return r.BAD(err)
-		}
-	}
-
-	if err = db.Delete(bot); err != nil {
+	log.Info().Msg("deleting bot result")
+	if err := repo.DeleteBotResult(r.UserID(), r.ID(), r.BotType()); err != nil {
+		log.Error().Err(err).Msg("failed to delete bot result")
 		return r.BAD(err)
 	}
 	return r.NC()
 }
 
 // handleGet queries the database for bots and bot results using the following routes:
-//
-//	bots: /bots?type=...
-//
-// results: /bots?type=...&id=...
+// - bots: /bots?type=...
+// - results: /bots?type=...&id=...
 func handleGet(r Request) Response {
 
-	nodes := service.BotNodes(r.UserID(), model.BotType(r.Query("type")))
+	var nodes model.Nodes
 
-	if r.Query("id") == "" {
-		return r.OK(nodes)
+	if r.ID().IsZero() {
+		nodes = repo.
+			FindBotsByType(r.UserID(), r.BotType()).
+			ToNodes()
+	} else {
+		nodes = repo.
+			FindBotResults(r.UserID(), r.ID(), r.BotType()).
+			ToNodes()
 	}
 
-	for _, node := range nodes {
-		if node.ID.String() == r.Query("id") {
-			return r.OK(service.BotResultNodes(r.UserID(), node.ID, node.Type))
-		}
+	if len(nodes) == 0 {
+		return r.NC()
 	}
 
-	return r.NC()
+	return r.OK(nodes)
 }
 
 // handlePut creates or updates a bot in the database for the given body.
 func handlePut(r Request) Response {
 
-	var b model.Bot
-	if err := json.Unmarshal([]byte(r.Body), &b); err != nil {
-		return r.BAD(err)
-	} else if err = b.Validate(); err != nil {
+	var b = new(model.Bot)
+	if err := json.Unmarshal([]byte(r.Body), b); err != nil {
+		log.Err(err).Msg("failed to unmarshal bot")
 		return r.BAD(err)
 	}
+	log.Debug().Object("bot", b).Msg("bot unmarshalled")
+
+	if err := b.Validate(); err != nil {
+		log.Err(err).Msg("failed to validate bot")
+		return r.BAD(err)
+	}
+	log.Debug().Object("bot", b).Msg("bot validated")
+
 	b.UserID = r.UserID()
 	if b.ID.IsZero() {
 		b.ID = model.NewULID()
 	}
 
-	if err := db.PutItem(&b); err != nil {
+	if err := db.PutItem(b); err != nil {
+		log.Err(err).Msg("failed to put bot")
 		return r.BAD(err)
 	}
+	log.Debug().Object("bot", b).Msg("bot put")
 
-	return r.OK(&b)
+	return r.OK(b)
 }

@@ -3,6 +3,7 @@ package model
 import (
 	"maps"
 	"slices"
+	"sort"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -10,17 +11,27 @@ import (
 
 type BotResults []*BotResult
 
-func (b BotResults) ToNodes(t BotType) Nodes {
-	switch t {
-	case NewsBotType:
-		return b.ToNewsResultNodes()
-	case SearchBotType:
-		return b.searchResultNodes()
-	case SitemapBotType:
-		return b.sitemapResultNodes()
+func (b BotResults) ToNodes() (nodes Nodes) {
+
+	if len(b) == 0 {
+		return
 	}
-	log.Warn().Msgf("bot type [%s] not supported", t)
-	return Nodes{}
+
+	switch t := b[0].Type; t {
+	case NewsBotType:
+		nodes = b.ToNewsResultNodes()
+	case SearchBotType:
+		nodes = b.searchResultNodes()
+	case SitemapBotType:
+		nodes = b.sitemapResultNodes()
+	default:
+		log.Warn().Msgf("bot type [%s] not supported", t)
+	}
+
+	sort.Sort(nodes)
+	slices.Reverse(nodes)
+
+	return
 }
 
 func (b BotResults) ToNewsResultNodes() Nodes {

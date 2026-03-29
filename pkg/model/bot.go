@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	. "github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -317,4 +318,16 @@ func (b *Bot) Compare(z *Bot) int {
 		return c
 	}
 	return 0
+}
+
+func (b *Bot) MarshalZerologObject(evt *zerolog.Event) {
+	evt.Stringer("userId", b.UserID).
+		Stringer("id", b.ID).
+		Str("target", b.Target).
+		Stringer("type", b.Type).
+		Stringer("frequency", b.Frequency).
+		Time("workedAt", b.WorkedAt).
+		Strs("blackList", b.BlackList).
+		Bool("headless", b.Headless).
+		Any("fingerprint", b.Fingerprint)
 }

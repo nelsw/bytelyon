@@ -1,10 +1,12 @@
 package api
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -19,6 +21,40 @@ func (r Request) UserID() ulid.ULID {
 		return ulid.Zero
 	}
 	id, _ := ulid.Parse(r.RequestContext.Authorizer.Lambda["userId"].(string))
+	return id
+}
+
+func (r Request) BotType() model.BotType {
+	bt := model.BotType(r.Query("type"))
+	if err := bt.Validate(); err != nil {
+		log.Warn().Err(err).Msg("invalid bot")
+		return ""
+	}
+	return bt
+}
+
+func (r Request) Target() string {
+
+	if r.BotType() != model.SitemapBotType {
+		return r.Query("target")
+	}
+
+	b, err := base64.StdEncoding.DecodeString(r.Query("target"))
+	if err != nil {
+		log.Warn().Err(err).Msg("invalid target")
+	}
+	return string(b)
+}
+
+func (r Request) ID() ulid.ULID {
+	if r.Query("id") == "" {
+		return ulid.Zero
+	}
+	id, err := ulid.Parse(r.Query("id"))
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to parse id")
+		return ulid.Zero
+	}
 	return id
 }
 

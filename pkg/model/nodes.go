@@ -1,6 +1,7 @@
 package model
 
 import (
+	"sort"
 	"strings"
 )
 
@@ -16,4 +17,19 @@ func (n Nodes) String() string {
 		ss[i] = v.String()
 	}
 	return "\n" + strings.Join(ss, ",\n")
+}
+
+func NewNodesFromBots(bots []*Bot) (nodes Nodes) {
+	for _, bot := range bots {
+		nodes = append(nodes, &Node{
+			ID:     bot.ID,
+			BotID:  bot.ID,
+			Label:  bot.Label(),
+			Type:   bot.Type,
+			Target: bot.Target,
+			Lazy:   true,
+		})
+	}
+	sort.Sort(nodes)
+	return
 }

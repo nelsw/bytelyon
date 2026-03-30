@@ -8,6 +8,7 @@ import (
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/repo"
+	"github.com/nelsw/bytelyon/pkg/service"
 	"github.com/rs/zerolog/log"
 )
 
@@ -22,6 +23,8 @@ func Handler(r Request) (Response, error) {
 		return handleGet(r), nil
 	case http.MethodPut:
 		return handlePut(r), nil
+	case http.MethodPost:
+		return handlePost(r), nil
 	}
 
 	return r.NI(), nil
@@ -100,4 +103,16 @@ func handlePut(r Request) Response {
 	log.Debug().Object("bot", b).Msg("bot put")
 
 	return r.OK(b)
+}
+
+func handlePost(r Request) Response {
+	err := service.SpinArticle(
+		r.UserID(),
+		r.BotID(),
+		r.ID(),
+	)
+	if err != nil {
+		return r.BAD(err)
+	}
+	return r.NC()
 }

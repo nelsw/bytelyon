@@ -8,9 +8,8 @@ import (
 )
 
 func TestAccessToken(t *testing.T) {
-	godotenv.Load()
-	tkn, err := AccessToken()
+	assert.NoError(t, godotenv.Load("../../.env"))
+	tkn, err := accessToken()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, tkn)
-	t.Log(tkn)
 }

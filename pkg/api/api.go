@@ -50,7 +50,7 @@ func (r Request) AuthResponse(ok bool, s ...string) AuthResponse {
 
 	log.Log().
 		Object("request", r).
-		Dict("response", zerolog.Dict().
+		Dict("response", new(zerolog.Event).CreateDict().
 			Bool("isAuthorized", ok).
 			Any("context", ctx)).
 		Send()
@@ -61,7 +61,7 @@ func (r Request) AuthResponse(ok bool, s ...string) AuthResponse {
 func (r Request) Response(code int, a ...any) Response {
 
 	log.Log().
-		Dict("response", zerolog.Dict().
+		Dict("response", new(zerolog.Event).CreateDict().
 			Int("code", code).
 			Bool("body", len(a) > 0)).
 		Msg("response")
@@ -101,14 +101,6 @@ func (r Request) MarshalZerologObject(evt *zerolog.Event) {
 		Str("body", r.Body)
 }
 
-func (r Request) UserID() ulid.ULID {
-	if _, ok := r.RequestContext.Authorizer.Lambda["userId"]; !ok {
-		return ulid.Zero
-	}
-	id, _ := ulid.Parse(r.RequestContext.Authorizer.Lambda["userId"].(string))
-	return id
-}
-
 func (r Request) BotType() model.BotType {
 	bt := model.BotType(r.Query("type"))
 	if err := bt.Validate(); err != nil {
@@ -131,14 +123,32 @@ func (r Request) Target() string {
 	return string(b)
 }
 
+func (r Request) UserID() ulid.ULID {
+	return r.id(r.RequestContext.Authorizer.Lambda["userId"])
+}
+
+func (r Request) BotID() ulid.ULID {
+	return r.id(r.Query("botId"))
+}
+
 func (r Request) ID() ulid.ULID {
-	if r.Query("id") == "" {
+	return r.id(r.Query("id"))
+}
+
+func (r Request) id(a any) ulid.ULID {
+
+	s, ok := a.(string)
+	if !ok {
+		return ulid.Zero
+	} else if s == "" {
 		return ulid.Zero
 	}
-	id, err := ulid.Parse(r.Query("id"))
+
+	id, err := ulid.Parse(s)
 	if err != nil {
-		log.Warn().Err(err).Msg("failed to parse id")
+		log.Warn().Err(err).Msg("failed to parse id for " + s)
 		return ulid.Zero
 	}
+
 	return id
 }

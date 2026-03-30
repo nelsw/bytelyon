@@ -7,8 +7,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/nelsw/bytelyon/pkg/db"
-	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 
@@ -104,29 +102,4 @@ func (c *Credentials) ValidatePassword() error {
 	}
 	log.Trace().Msg("password valid")
 	return nil
-}
-
-func (c *Credentials) Authenticate() (userID ulid.ULID, err error) {
-
-	var email *Email
-	if email, err = db.Get(&Email{Address: c.Username}); err != nil {
-		log.Warn().Err(err).Msg("email not found")
-		return
-	}
-	log.Debug().Str("email", email.Address).Msg("found email")
-
-	var pass *Password
-	if pass, err = db.Get(&Password{UserID: email.UserID}); err != nil {
-		log.Warn().Err(err).Msg("password not found")
-		return
-	}
-	log.Debug().Msg("found password")
-
-	if err = pass.Compare(c.Password); err != nil {
-		log.Warn().Err(err).Msg("password incorrect")
-		return
-	}
-	log.Debug().Msg("password correct")
-
-	return email.UserID, nil
 }

@@ -172,3 +172,10 @@ func (b *BotResult) Label() string {
 	}
 	return b.Timestamp().Format("01/02/2006, 3:04:05PM")
 }
+
+func (b *BotResult) GetString(key string) string {
+	if s, ok := b.Data[key].(string); ok {
+		return s
+	}
+	return ""
+}

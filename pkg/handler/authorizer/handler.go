@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	. "github.com/nelsw/bytelyon/pkg/api"
+	"github.com/nelsw/bytelyon/pkg/db"
 	. "github.com/nelsw/bytelyon/pkg/model"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
@@ -42,7 +43,7 @@ func Handler(r Request) (any, error) {
 	} else if err = creds.ValidatePassword(); err != nil {
 		log.Debug().Err(err).Msg("password invalid")
 		return r.AuthErr(err), nil
-	} else if userID, err = creds.Authenticate(); err != nil {
+	} else if userID, err = authenticate(creds.Username, creds.Password); err != nil {
 		log.Warn().Err(err).Msg("authentication failed!")
 		return r.AuthErr(err), nil
 	} else if token, err = NewJWT(userID); err != nil {
@@ -60,4 +61,29 @@ func Handler(r Request) (any, error) {
 	}
 
 	return r.AuthOK(userID, token), nil
+}
+
+func authenticate(username, password string) (userID ulid.ULID, err error) {
+
+	var email *Email
+	if email, err = db.Get(&Email{Address: username}); err != nil {
+		log.Warn().Err(err).Msg("email not found")
+		return
+	}
+	log.Debug().Str("email", email.Address).Msg("found email")
+
+	var pass *Password
+	if pass, err = db.Get(&Password{UserID: email.UserID}); err != nil {
+		log.Warn().Err(err).Msg("password not found")
+		return
+	}
+	log.Debug().Msg("found password")
+
+	if err = pass.Compare(password); err != nil {
+		log.Warn().Err(err).Msg("password incorrect")
+		return
+	}
+	log.Debug().Msg("password correct")
+
+	return email.UserID, nil
 }

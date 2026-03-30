@@ -33,7 +33,7 @@ func SpinArticle(userID, botID, ID ulid.ULID) (err error) {
 		res.GetString("content"),
 	)
 	if err != nil {
-		log.Err(err).Msg("failed to get article")
+		log.Err(err).Msg("failed to get article content")
 		return err
 	}
 
@@ -45,6 +45,8 @@ func SpinArticle(userID, botID, ID ulid.ULID) (err error) {
 
 	var content string
 	doc.Find("p").Each(func(i int, s *goquery.Selection) { content += s.Text() + "\n" })
+
+	log.Info().Str("content", content).Msg("article html paragraphs")
 
 	var txt string
 	txt, err = client.Prompt(

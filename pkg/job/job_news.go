@@ -4,10 +4,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"regexp"
-	"slices"
 	"strings"
 	"sync"
 
@@ -103,7 +101,7 @@ func (j *Job) doNewsFeedArticle(article *model.Article) {
 
 	// now that the item is populated with data,
 	// check article for blacklisted keywords
-	if article.IsBlacklisted(slices.Collect(maps.Keys(j.rules))) {
+	if article.IsBlacklisted(j.bot.BlackList) {
 		return
 	}
 

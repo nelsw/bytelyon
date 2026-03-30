@@ -32,6 +32,8 @@ type Article struct {
 	NewsSource  string `xml:"News_Source"`
 	Image       string `xml:"-"`
 	Content     string `xml:"-"`
+	Body        string `xml:"-"`
+	Screenshot  string `xml:"-"`
 	Link        string `xml:"-"`
 }
 
@@ -96,31 +98,15 @@ func (a *Article) DecodeURL() {
 
 func (a *Article) ProcessHTML() {
 
-	log.Info().Object("item", a).Msg("processing item html")
+	log.Info().Str("url", a.URL).Msg("processing item html")
 
-	res, err := http.Get(a.URL)
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(a.Content))
 	if err != nil {
-		log.Warn().Err(err).Object("item", a).Msg("failed to fetch URL to hydrate news HTML")
-		return
-	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(res.Body)
-
-	log.Info().
-		Int("status", res.StatusCode).
-		Str("url", a.URL).
-		Msg("got news url")
-
-	var doc *goquery.Document
-	if doc, err = goquery.NewDocumentFromReader(res.Body); err != nil {
 		log.Warn().Err(err).Msg("failed to create doc to hydrate news HTML")
 		return
 	}
 
-	if a.Content, err = doc.Html(); err != nil {
-		log.Warn().Err(err).Msg("failed to extract news HTML")
-	}
+	doc.Find("p").Each(func(i int, s *goquery.Selection) { a.Body += s.Text() + "\n" })
 
 	var mm []map[string]string
 

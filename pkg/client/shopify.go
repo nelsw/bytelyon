@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/oklog/ulid/v2"
@@ -82,6 +83,14 @@ func CreateArticle(id ulid.ULID, title, body, ts, img string) (s string, err err
 
 	handle := strings.ToLower(strings.ReplaceAll(title, " ", "-")) + "-" + id.String()
 
+	var image map[string]any
+	if filepath.Ext(img) == ".png" {
+		image = map[string]any{
+			"altText": title + " Image",
+			"url":     img,
+		}
+	}
+
 	b, _ := json.Marshal(map[string]any{
 		"query": articleQuery,
 		"variables": map[string]any{
@@ -95,10 +104,7 @@ func CreateArticle(id ulid.ULID, title, body, ts, img string) (s string, err err
 				"isPublished": true,
 				"publishDate": ts,
 				"tags":        []string{},
-				"image": map[string]any{
-					"altText": title + " Image",
-					"url":     img,
-				},
+				"image":       image,
 			},
 		},
 	})

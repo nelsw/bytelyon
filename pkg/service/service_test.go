@@ -16,7 +16,7 @@ func TestSpinArticle(t *testing.T) {
 	assert.NoError(t, godotenv.Load("../../.env"))
 	assert.NoError(t, SpinArticle(
 		ulid.MustParse("01KM010XK0HY8HWWFPJTZGRF0F"),
-		ulid.MustParse("01KMXJS68EKK50P412N58HSPSA"),
-		ulid.MustParse("01KMXJSE39V46NNMA7WWK42HPB"),
+		ulid.MustParse("01KMYVPNZCCKC56FHGWG0WCE62"),
+		ulid.MustParse("01KMYVQ2ACQQBR06TP4MASTXGV"),
 	))
 }

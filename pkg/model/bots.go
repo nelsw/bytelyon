@@ -11,7 +11,7 @@ func (bots Bots) ToNodes() (nodes Nodes) {
 		nodes = append(nodes, &Node{
 			ID:     bot.ID,
 			BotID:  bot.ID,
-			Label:  bot.Label(),
+			Label:  bot.Target,
 			Type:   bot.Type,
 			Target: bot.Target,
 			Lazy:   true,

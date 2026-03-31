@@ -8,32 +8,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/oklog/ulid/v2"
+	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/rs/zerolog/log"
 )
 
 const shopifyAdmin = "https://msnbic-0w.myshopify.com/admin"
-const shopifyAdminOAuth = shopifyAdmin + "/oauth/access_token"
-const shopifyAdminGraphQL = shopifyAdmin + "/api/2026-01/graphql.json"
-const articleQuery = `mutation CreateArticle($article: ArticleCreateInput!) 
-{ 
-	articleCreate(article: $article) { 
-		article { 
-			id 
-			title 
-			author { name } 
-			handle 
-			body 
-			summary 
-			tags 
-			image { altText originalSrc } 
-		} 
-		userErrors { code field message } 
-	} 
-}`
+const shopifyAuth = shopifyAdmin + "/oauth/access_token"
+const shopifyAPI = shopifyAdmin + "/api/2026-01/graphql.json"
 
 type AccessTokenRequest struct {
 	GrantType    string `json:"grant_type"`
@@ -46,7 +28,7 @@ type AccessTokenResponse struct {
 }
 
 func accessToken() (string, error) {
-	res, err := http.PostForm(shopifyAdminOAuth, url.Values{
+	res, err := http.PostForm(shopifyAuth, url.Values{
 		"grant_type":    []string{"client_credentials"},
 		"client_id":     []string{os.Getenv("SHOPIFY_CLIENT_ID")},
 		"client_secret": []string{os.Getenv("SHOPIFY_CLIENT_SECRET")},
@@ -74,43 +56,15 @@ func accessToken() (string, error) {
 
 // CreateArticle creates a Shopify Article ... dingus.
 // https://shopify.dev/docs/api/admin-graphql/latest/mutations/articleCreate
-func CreateArticle(id ulid.ULID, title, body, ts, img string) (s string, err error) {
+func CreateArticle(a *model.Article) (s string, err error) {
 
 	var tkn string
 	if tkn, err = accessToken(); err != nil {
 		return
 	}
 
-	handle := strings.ToLower(strings.ReplaceAll(title, " ", "-")) + "-" + id.String()
-
-	var image map[string]any
-	if filepath.Ext(img) == ".png" {
-		image = map[string]any{
-			"altText": title + " Image",
-			"url":     img,
-		}
-	}
-
-	b, _ := json.Marshal(map[string]any{
-		"query": articleQuery,
-		"variables": map[string]any{
-			"article": map[string]any{
-				"blogId":      "gid://shopify/Blog/82899828795",
-				"title":       title,
-				"author":      map[string]any{"name": "Stu Andrew"},
-				"handle":      handle,
-				"body":        body,
-				"summary":     "",
-				"isPublished": true,
-				"publishDate": ts,
-				"tags":        []string{},
-				"image":       image,
-			},
-		},
-	})
-
 	var req *http.Request
-	if req, err = http.NewRequest(http.MethodPost, shopifyAdminGraphQL, bytes.NewBuffer(b)); err != nil {
+	if req, err = http.NewRequest(http.MethodPost, shopifyAPI, bytes.NewBuffer(a.ToShopifyPayload())); err != nil {
 		log.Err(err).Msg("failed to create article request")
 		return
 	}
@@ -143,5 +97,5 @@ func CreateArticle(id ulid.ULID, title, body, ts, img string) (s string, err err
 		Int("status", res.StatusCode).
 		Msg("Shopify article created")
 
-	return "https://firefibers.com/blogs/news/" + handle, nil
+	return "https://firefibers.com/blogs/news/" + a.Handle, nil
 }

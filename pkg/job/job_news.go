@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/nelsw/bytelyon/pkg/client"
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/model"
@@ -23,7 +24,7 @@ var (
 
 type RSS struct {
 	Channel struct {
-		Items []*model.Article `xml:"item"`
+		Items []*model.Item `xml:"item"`
 	} `xml:"channel"`
 }
 
@@ -101,178 +102,297 @@ func (j *Job) doNewsFeed(ctx playwright.BrowserContext, u string) {
 
 	var wg sync.WaitGroup
 	for _, i := range rss.Channel.Items {
-		wg.Go(func() { j.doNewsFeedArticle(ctx, i) })
+		wg.Go(func() { j.doNewsFeedItem(ctx, i) })
 	}
 	wg.Wait()
 }
 
-func (j *Job) doNewsFeedArticle(ctx playwright.BrowserContext, article *model.Article) {
+func (j *Job) doNewsFeedItem(ctx playwright.BrowserContext, i *model.Item) {
 
-	log.Info().Object("article", article).Msg("Processing RSS item (news article)")
+	log.Info().Msgf("Processing RSS item %s", i)
 
 	// fail fast if we've seen this article
-	if article.IsOldNews(j.bot.WorkedAt) {
+	if i.IsOldNews(j.bot.WorkedAt) {
 		return
 	}
 
-	// work some magic to circumvent protected urls
-	article.DecodeURL()
-
-	if err := j.FetchDynamicHTML(ctx, article); err != nil {
-		j.FetchStaticHTML(article)
-	}
-
-	// include HTML data
-	article.ProcessHTML()
-
-	// scrub all the data
-	article.ScrubDetails()
-
-	// now that the item is populated with data,
-	// check article for blacklisted keywords
-	if article.IsBlacklisted(j.bot.BlackList) {
+	// process xml item and check if it's blacklisted
+	if i.ProcessXML(); i.IsBlacklisted(j.bot.BlackList) {
 		return
 	}
 
-	// instantiate a new bot result
-	result := j.bot.NewBotResult(
-		"url", article.URL,
-		"title", article.Title,
-		"source", article.Source,
-		"description", article.Description,
-		"publishedAt", article.Time.String(),
-		"body", article.Body,
-	)
+	// create a result from initial data
+	r := j.createNewsResult(i)
 
-	// save article HTML if it exits and define the path on the result
-	if article.Content != "" {
-		// define the s3 bucket key for article html
-		key := fmt.Sprintf("users/%s/bots/news/%s/content/%s.html",
-			j.bot.UserID,
-			j.bot.Target,
-			result.ID,
-		)
+	// try to fetch the article content
+	content, screenshot := j.fetchNewsArticle(ctx, i.URL)
 
-		if err := client.PutObject(j.ctx, j.s3, "bytelyon-public", key, []byte(article.Content)); err != nil {
-			log.Warn().Err(err).Object("article", article).Msg("Failed to save news article html")
-			article.Content = ""
-		} else {
-			result.Data["content"] = key
-			article.Content = key
-		}
-	}
-
-	// save article image if it exists and define the path on the result
-	if article.Image != "" {
-
-		res, err := http.Get(article.Image)
-		if err != nil {
-			log.Warn().Err(err).Object("article", article).Msg("Failed to download news article")
-		} else {
-			defer func(Body io.ReadCloser) {
-				_ = Body.Close()
-			}(res.Body)
-
-			var b []byte
-			if b, err = io.ReadAll(res.Body); err != nil {
-				log.Warn().Err(err).Object("article", article).Msg("Failed to read news article")
-			} else {
-				// define the s3 bucket key for article image
-				key := fmt.Sprintf("users/%s/bots/news/%s/image/%s%s",
-					j.bot.UserID,
-					j.bot.Target,
-					result.ID,
-					util.Extension(article.Image),
-				)
-
-				if err = client.PutObject(j.ctx, j.s3, "bytelyon-public", key, b); err != nil {
-					log.Warn().Err(err).Object("article", article).Msg("Failed to save news article image")
-				} else {
-					result.Data["image"] = key
-					article.Image = key
-				}
-			}
-		}
-	}
-
-	if article.Screenshot != "" {
-		// define the s3 bucket key for article html
-		key := fmt.Sprintf("users/%s/bots/news/%s/screenshot/%s.png",
-			j.bot.UserID,
-			j.bot.Target,
-			result.ID,
-		)
-
-		if err := client.PutObject(j.ctx, j.s3, "bytelyon-public", key, []byte(article.Screenshot)); err != nil {
-			log.Warn().Err(err).Object("article", article).Msg("Failed to save news article screenshot")
-			article.Screenshot = ""
-		} else {
-			result.Data["screenshot"] = key
-			article.Screenshot = key
-		}
-	}
-
-	// save the result
-	if err := db.PutItem(result); err != nil {
-		log.Warn().Err(err).Object("article", article).Msg("Failed to save news article")
-	} else {
-		log.Info().Object("article", article).Msg("News article saved")
+	// update the result if article content is ok
+	if j.handleNewsContent(i, r, content) ||
+		j.handleNewsScreenshot(r, screenshot) ||
+		j.handleNewsImage(i, r) {
+		j.updateNewsResult(r)
 	}
 }
 
-func (j *Job) FetchStaticHTML(a *model.Article) {
-	res, err := http.Get(a.URL)
-	if err != nil {
-		log.Warn().Err(err).Object("item", a).Msg("failed to fetch URL to hydrate news HTML")
-		return
+func (j *Job) fetchNewsArticle(ctx playwright.BrowserContext, s string) (string, []byte) {
+	content, screenshot := j.fetchNewsPage(ctx, s)
+	if content == "" {
+		content = j.fetchNewsHTML(s)
 	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(res.Body)
-
-	log.Info().
-		Int("status", res.StatusCode).
-		Str("url", a.URL).
-		Msg("got static html for news")
+	return content, screenshot
 }
 
-func (j *Job) FetchDynamicHTML(ctx playwright.BrowserContext, a *model.Article) error {
+func (j *Job) fetchNewsPage(ctx playwright.BrowserContext, s string) (content string, img []byte) {
 	page, err := client.NewPage(ctx)
 	if err != nil {
 		log.Err(err).Msg("failed to create new page for news article with pw")
-		return err
+		return
 	}
 	defer func(page playwright.Page) {
 		_ = page.Close()
 	}(page)
 
 	var resp playwright.Response
-	if resp, err = client.GoTo(page, a.URL); err != nil {
-		log.Err(err).Str("url", a.URL).Msg("failed to go to news article url with pw")
-		return err
-	}
-
-	if client.IsRequestBlocked(resp) || client.IsPageBlocked(page) {
-		log.Warn().Str("url", a.URL).Msg("page/request is blocked for news article with pw")
-		return err
+	if resp, err = client.GoTo(page, s); err != nil {
+		log.Err(err).Str("url", s).Msg("failed to go to news article url with pw")
+		return
+	} else if client.IsRequestBlocked(resp) || client.IsPageBlocked(page) {
+		log.Warn().Str("url", s).Msg("page/request is blocked for news article with pw")
+		return
 	}
 
 	log.Info().
-		Str("url", a.URL).
+		Str("url", s).
 		Msg("got dynamic html for news")
 
-	if a.Content, err = page.Content(); err != nil {
+	if content, err = page.Content(); err != nil {
 		log.Warn().Err(err).Msg("Failed to get news article Page Content")
-		return err
 	}
 
-	var screenshot []byte
-	if screenshot, err = page.Screenshot(playwright.PageScreenshotOptions{FullPage: util.Ptr(true)}); err != nil {
+	if img, err = page.Screenshot(playwright.PageScreenshotOptions{FullPage: util.Ptr(true)}); err != nil {
 		log.Warn().Err(err).Msg("Failed to get news article Screenshot")
-	} else {
-		a.Screenshot = string(screenshot)
 	}
-	_ = page.Close()
 
-	return nil
+	return
+}
+
+func (j *Job) fetchNewsHTML(s string) string {
+	res, err := http.Get(s)
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to fetch URL to hydrate news HTML")
+		return ""
+	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
+
+	var b []byte
+	if b, err = io.ReadAll(res.Body); err != nil {
+		log.Warn().Err(err).Msg("failed to read news HTML")
+		return ""
+	}
+
+	log.Info().
+		Int("status", res.StatusCode).
+		Str("url", s).
+		Msg("got static html for news")
+
+	return string(b)
+}
+
+func (j *Job) createNewsResult(i *model.Item) *model.BotResult {
+	r := j.bot.NewBotResult(
+		"url", i.URL,
+		"title", i.Title,
+		"source", i.Source,
+		"description", i.Description,
+		"publishedAt", i.Time.String(),
+		"body", i.Body,
+	)
+	if err := db.PutItem(r); err != nil {
+		log.Warn().Err(err).Msgf("failed to save news item bot result %s", i)
+	}
+	return r
+}
+
+func (j *Job) handleNewsContent(i *model.Item, r *model.BotResult, s string) (ok bool) {
+
+	if s == "" {
+		log.Warn().Msg("no news content to process")
+		return
+	}
+
+	log.Info().Str("url", i.URL).Msg("processing item html")
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(s))
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to create doc to hydrate news HTML")
+		return
+	}
+
+	doc.Find("p").Each(func(idx int, s *goquery.Selection) { i.Body += s.Text() + "\n" })
+
+	var mm []map[string]string
+
+	doc.Find("meta").Each(func(i int, s *goquery.Selection) {
+		var m = make(map[string]string)
+		for _, str := range []string{"name", "property", "itemprop", "content"} {
+			if at, ok := s.Attr(str); ok {
+				m[str] = at
+			}
+		}
+		if len(m) > 0 {
+			mm = append(mm, m)
+		}
+	})
+
+	log.Info().Any("meta", mm).Msg("processing news HTML meta")
+
+	for _, m := range mm {
+
+		// define the title if empty
+		if i.Title == "" {
+			if v, k := m["property"]; k && v == "og:title" {
+				if v, k = m["content"]; k {
+					i.Title = v
+				}
+			}
+		}
+
+		// define the description if empty
+		if i.Description == "" {
+			if v, k := m["name"]; k && v == "description" || v == "twitter:description" {
+				if v, k = m["content"]; k {
+					i.Description = v
+				}
+			}
+		}
+		if i.Description == "" {
+			if v, k := m["property"]; k && v == "description" || v == "og:description" {
+				if v, k = m["content"]; k {
+					i.Description = v
+				}
+			}
+		}
+
+		// define the source if empty
+		if i.Source == "" {
+			if v, k := m["property"]; k && v == "og:site_name" {
+				if v, k = m["content"]; k {
+					i.Source = v
+				}
+			}
+		}
+
+		// define the image if empty
+		if i.Image == "" {
+			if v, k := m["name"]; k && v == "twitter:image" {
+				if v, k = m["content"]; k && util.IsImageFile(v) {
+					i.Image = v
+				}
+			}
+		}
+		if i.Image == "" {
+			if v, k := m["property"]; k && v == "og:image" {
+				if v, k = m["content"]; k && util.IsImageFile(v) {
+					i.Image = v
+				}
+			}
+		}
+	}
+
+	if i.Title == "" {
+		doc.Find("title").Each(func(idx int, s *goquery.Selection) { i.Title = s.Text() })
+	}
+
+	log.Info().Msg("processed news HTML")
+
+	// define the s3 bucket key for article HTML
+	key := fmt.Sprintf("users/%s/bots/news/%s/content/%s.html",
+		j.bot.UserID,
+		j.bot.Target,
+		r.ID,
+	)
+
+	if err = client.PutObject(j.ctx, j.s3, "bytelyon-public", key, []byte(s)); err != nil {
+		log.Warn().Err(err).Msg("Failed to save news article html")
+		return
+	}
+
+	r.Data["content"] = key
+	return true
+}
+
+func (j *Job) handleNewsScreenshot(r *model.BotResult, b []byte) (ok bool) {
+
+	if len(b) == 0 {
+		log.Warn().Msg("no news screenshot to process")
+		return
+	}
+
+	// define the s3 bucket key for article screenshot
+	key := fmt.Sprintf("users/%s/bots/news/%s/screenshot/%s.png",
+		j.bot.UserID,
+		j.bot.Target,
+		r.ID,
+	)
+
+	if err := client.PutObject(j.ctx, j.s3, "bytelyon-public", key, b); err != nil {
+		log.Warn().Err(err).Msg("Failed to save news article screenshot")
+		return
+	}
+
+	r.Data["screenshot"] = key
+	return true
+}
+
+func (j *Job) handleNewsImage(i *model.Item, r *model.BotResult) (ok bool) {
+
+	if i.Image == "" {
+		log.Warn().Msg("no news image to process")
+		return
+	}
+
+	res, err := http.Get(i.Image)
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to download news article")
+		return
+	}
+
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
+
+	var b []byte
+	if b, err = io.ReadAll(res.Body); err != nil {
+		log.Warn().Err(err).Msg("Failed to read news article")
+		return
+	}
+
+	// define the s3 bucket key for article image
+	key := fmt.Sprintf("users/%s/bots/news/%s/image/%s%s",
+		j.bot.UserID,
+		j.bot.Target,
+		r.ID,
+		util.Extension(i.Image),
+	)
+
+	if err = client.PutObject(j.ctx, j.s3, "bytelyon-public", key, b); err != nil {
+		log.Warn().Err(err).Msg("Failed to save news article image")
+		return
+	}
+
+	r.Data["image"] = key
+	i.Image = key
+
+	return true
+}
+
+func (j *Job) updateNewsResult(r *model.BotResult) {
+	if err := db.PutItem(r); err != nil {
+		log.Warn().Err(err).Msg("Failed to update news item bot result")
+	} else {
+		log.Info().Msg("updated news item bot result")
+	}
 }

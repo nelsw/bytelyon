@@ -1,9 +1,10 @@
 package api
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"regexp"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/nelsw/bytelyon/pkg/model"
@@ -11,6 +12,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
+
+var isStu = regexp.MustCompile(`^(01KMXGBJJE2GMCA1A9EXDGF4AJ|01KM010XK0HY8HWWFPJTZGRF0F|01KM01JC9PS1R4X4FDJNFAR4AZ)$`)
 
 type AuthResponse events.APIGatewayV2CustomAuthorizerSimpleResponse
 type Response events.APIGatewayV2HTTPResponse
@@ -22,6 +25,7 @@ func (r Request) Log()                   { log.Log().EmbedObject(r).Msg("request
 func (r Request) Method() string         { return r.RequestContext.HTTP.Method }
 func (r Request) Query(k string) string  { return r.QueryStringParameters[k] }
 func (r Request) BAD(a any) Response     { return r.Response(http.StatusBadRequest, a) }
+func (r Request) NOPE() Response         { return r.Response(http.StatusForbidden, AuthResponse{}) }
 func (r Request) ERR(err error) Response { return r.Response(http.StatusInternalServerError, err) }
 func (r Request) EX() Response           { return r.Response(http.StatusInternalServerError) }
 func (r Request) NC() Response           { return r.Response(http.StatusNoContent) }
@@ -102,25 +106,18 @@ func (r Request) MarshalZerologObject(evt *zerolog.Event) {
 }
 
 func (r Request) BotType() model.BotType {
-	bt := model.BotType(r.Query("type"))
-	if err := bt.Validate(); err != nil {
+	if err := model.BotType(r.Query("type")).Validate(); err != nil {
 		log.Warn().Err(err).Msg("invalid bot")
 		return ""
 	}
-	return bt
+	return model.BotType(r.Query("type"))
 }
 
 func (r Request) Target() string {
-
 	if r.BotType() != model.SitemapBotType {
 		return r.Query("target")
 	}
-
-	b, err := base64.StdEncoding.DecodeString(r.Query("target"))
-	if err != nil {
-		log.Warn().Err(err).Msg("invalid target")
-	}
-	return string(b)
+	return strings.ReplaceAll(r.Query("target"), " ", ".")
 }
 
 func (r Request) UserID() ulid.ULID {
@@ -133,6 +130,10 @@ func (r Request) BotID() ulid.ULID {
 
 func (r Request) ID() ulid.ULID {
 	return r.id(r.Query("id"))
+}
+
+func (r Request) IsStu() bool {
+	return isStu.MatchString(r.UserID().String())
 }
 
 func (r Request) id(a any) ulid.ULID {

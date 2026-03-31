@@ -106,13 +106,19 @@ func handlePut(r Request) Response {
 }
 
 func handlePost(r Request) Response {
-	err := service.SpinArticle(
-		r.UserID(),
-		r.BotID(),
-		r.ID(),
-	)
+
+	if !r.IsStu() {
+		return r.NOPE()
+	}
+
+	var a = new(model.Article)
+	if err := json.Unmarshal([]byte(r.Body), a); err != nil {
+		return r.BAD(err)
+	}
+
+	link, err := service.SpinArticle(a)
 	if err != nil {
 		return r.BAD(err)
 	}
-	return r.NC()
+	return r.OK(map[string]any{"link": link})
 }

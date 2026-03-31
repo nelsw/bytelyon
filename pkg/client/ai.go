@@ -1,13 +1,15 @@
 package client
 
 import (
+	"bytes"
 	"context"
 
 	"github.com/anthropics/anthropic-sdk-go" // imported as anthropic
 	"github.com/rs/zerolog/log"
+	"github.com/yuin/goldmark"
 )
 
-func Prompt(system string, message string) (string, error) {
+func Prompt(system string, message string, html ...bool) (string, error) {
 
 	l := log.With().
 		Str("system", system).
@@ -30,5 +32,16 @@ func Prompt(system string, message string) (string, error) {
 
 	l.Info().Any("response", out).Msg("anthropic prompt succeeded")
 
-	return out.Content[0].Text, nil
+	txt := out.Content[0].Text
+	if len(html) > 0 && html[0] {
+
+	}
+
+	var buf bytes.Buffer
+	if err = goldmark.Convert([]byte(txt), &buf); err != nil {
+		log.Err(err).Msg("failed to convert article from md to html")
+		return "", err
+	}
+
+	return buf.String(), nil
 }

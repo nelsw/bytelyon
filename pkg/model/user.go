@@ -16,7 +16,7 @@ type User struct {
 	ID ulid.ULID `json:"id"`
 }
 
-func (u User) Get() *dynamodb.GetItemInput {
+func (u *User) Get() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
 		TableName: u.Create().TableName,
 		Key: map[string]types.AttributeValue{
@@ -24,7 +24,7 @@ func (u User) Get() *dynamodb.GetItemInput {
 		},
 	}
 }
-func (u User) Put() *dynamodb.PutItemInput {
+func (u *User) Put() *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
 		TableName: u.Create().TableName,
 		Item: map[string]types.AttributeValue{
@@ -32,12 +32,12 @@ func (u User) Put() *dynamodb.PutItemInput {
 		},
 	}
 }
-func (u User) Scan() *dynamodb.ScanInput {
+func (u *User) Scan() *dynamodb.ScanInput {
 	return &dynamodb.ScanInput{
 		TableName: u.Create().TableName,
 	}
 }
-func (u User) Create() *dynamodb.CreateTableInput {
+func (u *User) Create() *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
 		TableName: Ptr("User"),
 		KeySchema: []types.KeySchemaElement{
@@ -57,7 +57,7 @@ func (u User) Create() *dynamodb.CreateTableInput {
 func (u *User) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error) {
 	var m map[string]types.AttributeValue
 	if m = v.(*types.AttributeValueMemberM).Value; m == nil {
-		return errors.New("bot unmarshal value was nil")
+		return errors.New("user unmarshal value was nil")
 	} else if u.ID, err = ulid.ParseStrict(m["id"].(*types.AttributeValueMemberS).Value); err != nil {
 		return fmt.Errorf("failed to parse ulid: %w", err)
 	}
@@ -71,5 +71,3 @@ func (u *User) String() string {
 		u.ID,
 	)
 }
-
-func NewUser() *User { return &User{ID: NewULID()} }

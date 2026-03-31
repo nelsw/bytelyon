@@ -18,7 +18,7 @@ type Password struct {
 
 // Compare compares a bcrypt hashed password with its possible
 // plaintext equivalent. Returns nil on success, or an error on failure.
-func (p Password) Compare(text string) error {
+func (p *Password) Compare(text string) error {
 	return bcrypt.CompareHashAndPassword(p.Hash, []byte(text))
 }
 
@@ -69,7 +69,7 @@ func (p *Password) Put() *dynamodb.PutItemInput {
 func (p *Password) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error) {
 	var m map[string]types.AttributeValue
 	if m = v.(*types.AttributeValueMemberM).Value; m == nil {
-		return errors.New("bot unmarshal value was nil")
+		return errors.New("password unmarshal value was nil")
 	} else if p.UserID, err = ulid.ParseStrict(m["userId"].(*types.AttributeValueMemberS).Value); err != nil {
 		return fmt.Errorf("failed to parse userId: %w", err)
 	}

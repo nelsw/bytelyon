@@ -38,6 +38,7 @@ func MakeZerolog() zerolog.Logger {
 			"size",
 			"userID",
 			"table",
+			"ip", "method", "authorization", "path", "query", "body",
 		},
 	})
 

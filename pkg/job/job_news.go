@@ -1,89 +1,89 @@
 package job
 
 import (
-	"bytes"
-	"encoding/json"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
+	"github.com/PuerkitoBio/goquery"
+	"github.com/nelsw/bytelyon/pkg/client"
 	"github.com/nelsw/bytelyon/pkg/db"
+	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/net/html"
 )
 
 var (
 	bingRegexp = regexp.MustCompile("</?News(:\\w+)>")
-	regex      = regexp.MustCompile(`/articles/(?P<encoded_url>[^?]+)`)
 )
-
-type Time time.Time
-
-func (v *Time) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-	var s string
-	if err := d.DecodeElement(&s, &start); err != nil {
-		return err
-	}
-
-	s = strings.Trim(s, `"`) // Remove quotes from the JSON string
-	if s == "" || s == "null" {
-		return nil // Handle empty or null strings
-	}
-
-	t, err := time.Parse(time.RFC1123, s) // Parse using your custom format
-	if err != nil {
-		return err
-	}
-
-	*v = Time(t.UTC())
-	return nil
-}
-func (v *Time) String() string          { return v.UTC().Format(time.RFC3339) }
-func (v *Time) Before(t time.Time) bool { return time.Time(*v).UTC().Before(t) }
-func (v *Time) UTC() time.Time          { return time.Time(*v).UTC() }
 
 type RSS struct {
 	Channel struct {
-		Items []*struct {
-			URL         string `xml:"link"`
-			Title       string `xml:"title"`
-			Description string `xml:"description"`
-			Source      string `xml:"source"`
-			Time        *Time  `xml:"pubDate"`
-			NewsSource  string `xml:"News_Source"`
-		} `xml:"item"`
+		Items []*model.Item `xml:"item"`
 	} `xml:"channel"`
 }
 
 func (j *Job) doNews() {
+
+	log.Info().Msgf("processing news job %s", j.bot.Target)
+
 	q := strings.ReplaceAll(j.bot.Target, ` `, `+`)
 	urls := []string{
-		fmt.Sprintf("https://news.google.com/rss/search?q=%s&hl=en-US&gl=US&ceid=US:en", q),
-		fmt.Sprintf("https://www.bing.com/news/search?format=rss&q=%s", q),
 		fmt.Sprintf("https://www.bing.com/search?format=rss&q=%s", q),
+		fmt.Sprintf("https://www.bing.com/news/search?format=rss&q=%s", q),
+		fmt.Sprintf("https://news.google.com/rss/search?q=%s&hl=en-US&gl=US&ceid=US:en", q),
 	}
+
+	var err error
+
+	var ply *playwright.Playwright
+	if ply, err = client.NewPlaywright(); err != nil {
+		return
+	}
+	defer func(ply *playwright.Playwright) {
+		_ = ply.Stop()
+	}(ply)
+
+	var bro playwright.Browser
+	if bro, err = client.NewBrowser(ply, true); err != nil {
+		return
+	}
+	defer func(bro playwright.Browser) {
+		_ = bro.Close()
+	}(bro)
+
+	var ctx playwright.BrowserContext
+	if ctx, err = client.NewContext(bro); err != nil {
+		return
+	}
+	defer func(ctx playwright.BrowserContext) {
+		_ = ctx.Close()
+	}(ctx)
+
 	for _, u := range urls {
-		j.doNewsFeed(u)
+		j.doNewsFeed(ctx, u)
 	}
+
+	log.Info().Msgf("processed news job %s", j.bot.Target)
 }
 
-func (j *Job) doNewsFeed(u string) {
-	r, err := http.Get(u)
+func (j *Job) doNewsFeed(ctx playwright.BrowserContext, u string) {
+	res, err := http.Get(u)
 	if err != nil {
 		log.Err(err).Str("url", u).Msg("Failed to fetch RSS feed")
 		return
 	}
-	defer r.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	var b []byte
-	if b, err = io.ReadAll(r.Body); err != nil {
+	if b, err = io.ReadAll(res.Body); err != nil {
 		log.Err(err).Str("url", u).Msg("Failed to read RSS feed")
 		return
 	}
@@ -102,196 +102,297 @@ func (j *Job) doNewsFeed(u string) {
 
 	var wg sync.WaitGroup
 	for _, i := range rss.Channel.Items {
-
-		wg.Go(func() {
-
-			log.Trace().Any("item", i).Msg("Processing RSS item")
-
-			// if this job is brand new, save all the articles found
-			// else persist articles published after the last update
-			if !j.bot.WorkedAt.IsZero() && i.Time.Before(j.bot.WorkedAt) {
-				log.Info().
-					Stringer("published", i.Time).
-					Stringer("worked", j.bot.WorkedAt).
-					Msgf("Skipping old article %s", i.Title)
-				return
-			}
-
-			// check article data for blacklisted keywords
-			titleParts := strings.Split(i.Title, " ")
-			sourceParts := strings.Split(i.Source, " ")
-			parts := append(titleParts, sourceParts...)
-			for _, p := range parts {
-				if follow, exists := j.rules[p]; exists && !follow {
-					log.Info().Msgf("Skipping blacklisted article %s", p)
-					return
-				}
-			}
-
-			// work some magic to circumvent protected urls
-			i.URL = decodeURL(i.URL)
-
-			// check if the source is blank and use the news source if it is
-			if i.Source == "" && i.NewsSource != "" {
-				i.Source = i.NewsSource
-			}
-
-			// scrub the source off the title and use it if the item source is blank
-			if l, r, ok := strings.Cut(i.Title, " - "); ok {
-				i.Title = l
-				if i.Source == "" {
-					i.Source = r
-				}
-			}
-
-			// check if the description is HTML
-			if idx := strings.Index(i.Description, `</a>`); idx > 0 {
-				i.Description = i.Description[:idx]
-				i.Description = i.Description[strings.LastIndex(i.Description, ">")+1:]
-			}
-
-			err = db.PutItem(j.bot.NewBotResult(
-				"url", i.URL,
-				"title", i.Title,
-				"source", i.Source,
-				"description", i.Description,
-				"publishedAt", i.Time.UTC(),
-			))
-
-			log.Err(err).Msg("put news result")
-		})
+		wg.Go(func() { j.doNewsFeedItem(ctx, i) })
 	}
 	wg.Wait()
 }
 
-func decodeURL(s string) string {
+func (j *Job) doNewsFeedItem(ctx playwright.BrowserContext, i *model.Item) {
 
-	if strings.Contains(s, "bing.com") {
-		s = decodeBingURL(s)
-	} else if strings.Contains(s, "google.com") {
-		var err error
-		if s, err = decodeGoogleURL(s); err != nil {
-			log.Warn().Err(err).Msg("failed to decode Google URL")
-		}
+	log.Info().Msgf("Processing RSS item %s", i)
+
+	// fail fast if we've seen this article
+	if i.IsOldNews(j.bot.WorkedAt) {
+		return
 	}
 
-	return s
+	// process xml item and check if it's blacklisted
+	if i.ProcessXML(); i.IsBlacklisted(j.bot.BlackList) {
+		return
+	}
+
+	// create a result from initial data
+	r := j.createNewsResult(i)
+
+	// try to fetch the article content
+	content, screenshot := j.fetchNewsArticle(ctx, i.URL)
+
+	// update the result if article content is ok
+	if j.handleNewsContent(i, r, content) ||
+		j.handleNewsScreenshot(r, screenshot) ||
+		j.handleNewsImage(i, r) {
+		j.updateNewsResult(r)
+	}
 }
 
-func decodeBingURL(s string) string {
-	s, _ = url.QueryUnescape(s)
-	_, r, rOk := strings.Cut(s, "url=")
-	if !rOk {
-		return s
+func (j *Job) fetchNewsArticle(ctx playwright.BrowserContext, s string) (string, []byte) {
+	content, screenshot := j.fetchNewsPage(ctx, s)
+	if content == "" {
+		content = j.fetchNewsHTML(s)
 	}
-	l, _, lOk := strings.Cut(r, "&c=")
-	if !lOk {
-		return r
-	}
-	return l
+	return content, screenshot
 }
 
-func decodeGoogleURL(s string) (string, error) {
+func (j *Job) fetchNewsPage(ctx playwright.BrowserContext, s string) (content string, img []byte) {
+	page, err := client.NewPage(ctx)
+	if err != nil {
+		log.Err(err).Msg("failed to create new page for news article with pw")
+		return
+	}
+	defer func(page playwright.Page) {
+		_ = page.Close()
+	}(page)
+
+	var resp playwright.Response
+	if resp, err = client.GoTo(page, s); err != nil {
+		log.Err(err).Str("url", s).Msg("failed to go to news article url with pw")
+		return
+	} else if client.IsRequestBlocked(resp) || client.IsPageBlocked(page) {
+		log.Warn().Str("url", s).Msg("page/request is blocked for news article with pw")
+		return
+	}
+
+	log.Info().
+		Str("url", s).
+		Msg("got dynamic html for news")
+
+	if content, err = page.Content(); err != nil {
+		log.Warn().Err(err).Msg("Failed to get news article Page Content")
+	}
+
+	if img, err = page.Screenshot(playwright.PageScreenshotOptions{FullPage: util.Ptr(true)}); err != nil {
+		log.Warn().Err(err).Msg("Failed to get news article Screenshot")
+	}
+
+	return
+}
+
+func (j *Job) fetchNewsHTML(s string) string {
 	res, err := http.Get(s)
 	if err != nil {
-		return s, err
+		log.Warn().Err(err).Msg("failed to fetch URL to hydrate news HTML")
+		return ""
 	}
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
-	var doc *html.Node
-	if doc, err = html.Parse(res.Body); err != nil {
-		return s, err
+	var b []byte
+	if b, err = io.ReadAll(res.Body); err != nil {
+		log.Warn().Err(err).Msg("failed to read news HTML")
+		return ""
 	}
 
-	return decodeNode(doc, regex.FindStringSubmatch(s)[1])
+	log.Info().
+		Int("status", res.StatusCode).
+		Str("url", s).
+		Msg("got static html for news")
+
+	return string(b)
 }
 
-func decodeNode(n *html.Node, encodedText string) (string, error) {
-	if n.Type == html.ElementNode && n.Data == "c-wiz" {
+func (j *Job) createNewsResult(i *model.Item) *model.BotResult {
+	r := j.bot.NewBotResult(
+		"url", i.URL,
+		"title", i.Title,
+		"source", i.Source,
+		"description", i.Description,
+		"publishedAt", i.Time.String(),
+		"body", i.Body,
+	)
+	if err := db.PutItem(r); err != nil {
+		log.Warn().Err(err).Msgf("failed to save news item bot result %s", i)
+	}
+	return r
+}
 
-		var sg, ts string
-		if e := n.FirstChild; e != nil {
-			for _, att := range e.Attr {
-				if att.Key == "data-n-a-sg" {
-					sg = att.Val
-				} else if att.Key == "data-n-a-ts" {
-					ts = att.Val
+func (j *Job) handleNewsContent(i *model.Item, r *model.BotResult, s string) (ok bool) {
+
+	if s == "" {
+		log.Warn().Msg("no news content to process")
+		return
+	}
+
+	log.Info().Str("url", i.URL).Msg("processing item html")
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(s))
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to create doc to hydrate news HTML")
+		return
+	}
+
+	doc.Find("p").Each(func(idx int, s *goquery.Selection) { i.Body += s.Text() + "\n" })
+
+	var mm []map[string]string
+
+	doc.Find("meta").Each(func(i int, s *goquery.Selection) {
+		var m = make(map[string]string)
+		for _, str := range []string{"name", "property", "itemprop", "content"} {
+			if at, ok := s.Attr(str); ok {
+				m[str] = at
+			}
+		}
+		if len(m) > 0 {
+			mm = append(mm, m)
+		}
+	})
+
+	log.Info().Any("meta", mm).Msg("processing news HTML meta")
+
+	for _, m := range mm {
+
+		// define the title if empty
+		if i.Title == "" {
+			if v, k := m["property"]; k && v == "og:title" {
+				if v, k = m["content"]; k {
+					i.Title = v
 				}
 			}
 		}
-		return decodeParts(sg, ts, encodedText)
-	}
 
-	// continue traversing every sibling per child. give em noogies.
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if u, e := decodeNode(c, encodedText); u != "" && e == nil {
-			return u, nil
+		// define the description if empty
+		if i.Description == "" {
+			if v, k := m["name"]; k && v == "description" || v == "twitter:description" {
+				if v, k = m["content"]; k {
+					i.Description = v
+				}
+			}
+		}
+		if i.Description == "" {
+			if v, k := m["property"]; k && v == "description" || v == "og:description" {
+				if v, k = m["content"]; k {
+					i.Description = v
+				}
+			}
+		}
+
+		// define the source if empty
+		if i.Source == "" {
+			if v, k := m["property"]; k && v == "og:site_name" {
+				if v, k = m["content"]; k {
+					i.Source = v
+				}
+			}
+		}
+
+		// define the image if empty
+		if i.Image == "" {
+			if v, k := m["name"]; k && v == "twitter:image" {
+				if v, k = m["content"]; k && util.IsImageFile(v) {
+					i.Image = v
+				}
+			}
+		}
+		if i.Image == "" {
+			if v, k := m["property"]; k && v == "og:image" {
+				if v, k = m["content"]; k && util.IsImageFile(v) {
+					i.Image = v
+				}
+			}
 		}
 	}
-	return "", nil
+
+	if i.Title == "" {
+		doc.Find("title").Each(func(idx int, s *goquery.Selection) { i.Title = s.Text() })
+	}
+
+	log.Info().Msg("processed news HTML")
+
+	// define the s3 bucket key for article HTML
+	key := fmt.Sprintf("users/%s/bots/news/%s/content/%s.html",
+		j.bot.UserID,
+		j.bot.Target,
+		r.ID,
+	)
+
+	if err = client.PutObject(j.ctx, j.s3, "bytelyon-public", key, []byte(s)); err != nil {
+		log.Warn().Err(err).Msg("Failed to save news article html")
+		return
+	}
+
+	r.Data["content"] = key
+	return true
 }
 
-func decodeParts(signature, timestamp, base64Str string) (string, error) {
-	endpoint := "https://news.google.com/_/DotsSplashUi/data/batchexecute"
-	payload := []interface{}{
-		"Fbv4je",
-		fmt.Sprintf("[\"garturlreq\",[[\"X\",\"X\",[\"X\",\"X\"],null,null,1,1,\"US:en\",null,1,null,null,null,null,null,0,1],\"X\",\"X\",1,[1,1,1],1,1,null,0,0,null,0],\"%s\",%s,\"%s\"]", base64Str, timestamp, signature),
-	}
-	outer := [][]interface{}{payload}
-	bodyBytes, _ := json.Marshal([][][]interface{}{outer})
-	form := url.Values{}
-	form.Set("f.req", url.QueryEscape(string(bodyBytes)))
+func (j *Job) handleNewsScreenshot(r *model.BotResult, b []byte) (ok bool) {
 
-	req, err := http.NewRequest("POST", endpoint, bytes.NewBufferString("f.req="+string(url.QueryEscape(string(bodyBytes)))))
+	if len(b) == 0 {
+		log.Warn().Msg("no news screenshot to process")
+		return
+	}
+
+	// define the s3 bucket key for article screenshot
+	key := fmt.Sprintf("users/%s/bots/news/%s/screenshot/%s.png",
+		j.bot.UserID,
+		j.bot.Target,
+		r.ID,
+	)
+
+	if err := client.PutObject(j.ctx, j.s3, "bytelyon-public", key, b); err != nil {
+		log.Warn().Err(err).Msg("Failed to save news article screenshot")
+		return
+	}
+
+	r.Data["screenshot"] = key
+	return true
+}
+
+func (j *Job) handleNewsImage(i *model.Item, r *model.BotResult) (ok bool) {
+
+	if i.Image == "" {
+		log.Warn().Msg("no news image to process")
+		return
+	}
+
+	res, err := http.Get(i.Image)
 	if err != nil {
-		return "", err
+		log.Warn().Err(err).Msg("Failed to download news article")
+		return
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36")
 
-	client := &http.Client{}
-	var resp *http.Response
-	if resp, err = client.Do(req); err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	var b []byte
-	if b, err = io.ReadAll(resp.Body); err != nil {
-		return "", err
+	if b, err = io.ReadAll(res.Body); err != nil {
+		log.Warn().Err(err).Msg("Failed to read news article")
+		return
 	}
 
-	s := string(b)
-	parts := strings.Split(s, "\n\n")
-	if len(parts) < 2 {
-		return "", errors.New("unexpected batchexecute response format")
+	// define the s3 bucket key for article image
+	key := fmt.Sprintf("users/%s/bots/news/%s/image/%s%s",
+		j.bot.UserID,
+		j.bot.Target,
+		r.ID,
+		util.Extension(i.Image),
+	)
+
+	if err = client.PutObject(j.ctx, j.s3, "bytelyon-public", key, b); err != nil {
+		log.Warn().Err(err).Msg("Failed to save news article image")
+		return
 	}
 
-	payload = []interface{}{}
-	if err = json.Unmarshal([]byte(parts[1]), &payload); err != nil {
-		return "", err
-	} else if len(payload) == 0 {
-		return "", errors.New("empty payload")
-	}
+	r.Data["image"] = key
+	i.Image = key
 
-	entry, ok := payload[0].([]interface{})
-	if !ok || len(entry) < 3 {
-		return "", errors.New("unexpected entry structure")
-	}
+	return true
+}
 
-	var inner []interface{}
-	if s, ok = entry[2].(string); !ok {
-		return "", errors.New("missing inner json string")
-	} else if err = json.Unmarshal([]byte(s), &inner); err != nil {
-		return "", err
-	} else if len(inner) < 2 {
-		return "", errors.New("unexpected inner array")
-	} else if s, ok = inner[1].(string); !ok {
-		return "", errors.New("decoded url not string")
+func (j *Job) updateNewsResult(r *model.BotResult) {
+	if err := db.PutItem(r); err != nil {
+		log.Warn().Err(err).Msg("Failed to update news item bot result")
+	} else {
+		log.Info().Msg("updated news item bot result")
 	}
-
-	return s, nil
 }

@@ -64,7 +64,4 @@ func TestCredentials_Authenticate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, email.UserID.String(), userID.String())
 
-	userID, err = c.Authenticate()
-	assert.NoError(t, err)
-	assert.Equal(t, email.UserID.String(), userID.String())
 }

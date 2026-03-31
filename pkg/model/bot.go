@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	. "github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -269,7 +270,9 @@ func (b *Bot) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	if val, ok := m["fingerprint"]; ok {
-		b.Fingerprint = val.(Fingerprint)
+		//fng := val.(map[string]any)
+		//b.Fingerprint = val.(Fingerprint)
+		fmt.Println(val)
 	}
 
 	return
@@ -295,4 +298,21 @@ func (b *Bot) NewBotResult(args ...any) *BotResult {
 		Target: b.Target,
 		Data:   m,
 	}
+}
+
+func (b *Bot) Label() string {
+
+	return b.Target
+}
+
+func (b *Bot) MarshalZerologObject(evt *zerolog.Event) {
+	evt.Stringer("userId", b.UserID).
+		Stringer("id", b.ID).
+		Str("target", b.Target).
+		Stringer("type", b.Type).
+		Stringer("frequency", b.Frequency).
+		Time("workedAt", b.WorkedAt).
+		Strs("blackList", b.BlackList).
+		Bool("headless", b.Headless).
+		Any("fingerprint", b.Fingerprint)
 }

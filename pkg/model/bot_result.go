@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -97,21 +98,13 @@ func (b *BotResult) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err
 	var m map[string]types.AttributeValue
 	if m = v.(*types.AttributeValueMemberM).Value; m == nil {
 		return errors.New("bot result unmarshal value was nil")
-	}
-
-	if err = json.Unmarshal(m["data"].(*types.AttributeValueMemberB).Value, &b.Data); err != nil {
+	} else if err = json.Unmarshal(m["data"].(*types.AttributeValueMemberB).Value, &b.Data); err != nil {
 		return fmt.Errorf("failed to unmarshal data: %w", err)
-	}
-
-	if b.UserID, err = ulid.Parse(m["userId"].(*types.AttributeValueMemberS).Value); err != nil {
+	} else if b.UserID, err = ulid.Parse(m["userId"].(*types.AttributeValueMemberS).Value); err != nil {
 		return fmt.Errorf("failed to parse ulid: %w", err)
-	}
-
-	if b.BotID, err = ulid.Parse(m["botId"].(*types.AttributeValueMemberS).Value); err != nil {
+	} else if b.BotID, err = ulid.Parse(m["botId"].(*types.AttributeValueMemberS).Value); err != nil {
 		return fmt.Errorf("failed to parse ulid: %w", err)
-	}
-
-	if b.ID, err = ulid.Parse(m["id"].(*types.AttributeValueMemberS).Value); err != nil {
+	} else if b.ID, err = ulid.Parse(m["id"].(*types.AttributeValueMemberS).Value); err != nil {
 		return fmt.Errorf("failed to parse ulid: %w", err)
 	}
 
@@ -128,6 +121,7 @@ func (b *BotResult) MarshalJSON() ([]byte, error) {
 		"id":     b.ID.String(),
 		"type":   b.Type.String(),
 		"target": b.Target,
+		"label":  b.Label(),
 	}
 
 	for k, v := range b.Data {
@@ -160,4 +154,28 @@ func (b *BotResult) UnmarshalJSON(data []byte) (err error) {
 func (b *BotResult) String() string {
 	byt, _ := json.MarshalIndent(b, "", "\t")
 	return string(byt)
+}
+
+func (b *BotResult) Timestamp() time.Time {
+	if b.Type == NewsBotType {
+		a, _ := b.Data["publishedAt"]
+		if t, err := time.Parse(time.RFC3339, a.(string)); err == nil {
+			return t.UTC()
+		}
+	}
+	return b.ID.Timestamp().UTC()
+}
+
+func (b *BotResult) Label() string {
+	if b.Type == NewsBotType {
+		return b.Timestamp().Format("01/02/2006")
+	}
+	return b.Timestamp().Format("01/02/2006, 3:04:05PM")
+}
+
+func (b *BotResult) GetString(key string) string {
+	if s, ok := b.Data[key].(string); ok {
+		return s
+	}
+	return ""
 }

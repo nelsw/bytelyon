@@ -2,7 +2,13 @@ package util
 
 import (
 	"math/rand"
+	"path/filepath"
+	"regexp"
 	"strings"
+)
+
+var (
+	fileExtRegex = regexp.MustCompile(`.(webp|jpg|jpeg|png)`)
 )
 
 func Ptr[T any](a T) *T { return &a }
@@ -24,4 +30,12 @@ func Domain(s string) string {
 
 func Capitalize(s string) string {
 	return strings.ToUpper(s[0:1]) + s[1:]
+}
+
+func IsImageFile(s string) bool {
+	return fileExtRegex.MatchString(s)
+}
+
+func Extension(s string) string {
+	return strings.Split(filepath.Ext(s), "?")[0]
 }

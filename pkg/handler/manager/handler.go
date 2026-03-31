@@ -15,8 +15,9 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/job"
-	logger2 "github.com/nelsw/bytelyon/pkg/logger"
+	"github.com/nelsw/bytelyon/pkg/logger"
 	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/repo"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
 )
@@ -38,13 +39,13 @@ var (
 func init() {
 
 	// print banner on startup as sign of life
-	fmt.Println(logger2.BlueIntense + banner + logger2.Default)
+	fmt.Println(logger.BlueIntense + banner + logger.Default)
 
 	// load the .env file to get app config
 	godotenv.Load()
 
 	// init the global logger now that we have an app mode
-	log.Logger = logger2.MakeZerolog()
+	log.Logger = logger.MakeZerolog()
 
 	// log the app mode and process id for future reference
 	log.Info().
@@ -53,7 +54,7 @@ func init() {
 		Send()
 
 	// install playwright
-	if err := playwright.Install(&playwright.RunOptions{Logger: logger2.NewSlog()}); err != nil {
+	if err := playwright.Install(&playwright.RunOptions{Logger: logger.NewSlog()}); err != nil {
 		log.Fatal().Err(err).Msg("failed to install playwright")
 	}
 	// define a root context
@@ -104,17 +105,17 @@ type Manager struct {
 
 func (m *Manager) Start() {
 
-	log.Info().Msg("bot manager looking for work")
+	log.Info().Msg("bots manager looking for work")
 
 	for !m.stop {
 
-		log.Info().Msg("bot manager working")
+		log.Info().Msg("bots manager working")
 
 		m.done = false
 		m.work()
 		m.done = true
 
-		log.Info().Msg("bot manager work complete")
+		log.Info().Msg("bots manager work complete")
 
 		if m.stop {
 			return
@@ -124,7 +125,7 @@ func (m *Manager) Start() {
 
 		log.Debug().
 			Dur("duration", d).
-			Msg("bot manager sleeping")
+			Msg("bots manager sleeping")
 
 		time.Sleep(d)
 	}
@@ -138,10 +139,10 @@ func (m *Manager) Stop(ctx context.Context) error {
 
 	defer func() {
 		timer.Stop()
-		log.Debug().Msg("bot manager stopped")
+		log.Debug().Msg("bots manager stopped")
 	}()
 
-	log.Info().Msg("bot manager stopping")
+	log.Info().Msg("bots manager stopping")
 	for {
 		if m.done {
 			return nil
@@ -157,7 +158,7 @@ func (m *Manager) Stop(ctx context.Context) error {
 
 func (m *Manager) work() {
 
-	log.Info().Msg("bot manager looking for users")
+	log.Info().Msg("bots manager looking for users")
 
 	users, err := db.Scan(&model.User{})
 	if err != nil {
@@ -167,49 +168,23 @@ func (m *Manager) work() {
 
 	log.Info().Int("size", len(users)).Msg("users found")
 
-	var ready []*model.Bot
+	var bots []*model.Bot
 	for _, user := range users {
-
-		var found []*model.Bot
-
-		for _, botType := range model.BotTypes() {
-			found, err = db.Query(&model.Bot{UserID: user.ID, Type: botType})
-			if err != nil {
-				log.Error().Err(err).Msg("bot query failed")
-				continue
-			}
-			found = append(found, found...)
-		}
-
-		log.Info().
-			Int("size", len(found)).
-			Stringer("userID", user.ID).
-			Msg("bots found")
-
-		for _, bot := range found {
-			if bot.IsReady() {
-				ready = append(ready, bot)
-			}
-		}
-
-		log.Info().
-			Int("size", len(ready)).
-			Stringer("userID", user.ID).
-			Msg("bots ready")
+		bots = append(bots, repo.FindBots(user.ID, true)...)
 	}
 
 	log.Info().
-		Int("size", len(ready)).
+		Int("size", len(bots)).
 		Msg("users bots ready for work")
 
-	if len(ready) == 0 {
+	if len(bots) == 0 {
 		log.Info().Msg("no bots ready for work, sleeping ...")
 		return
 	}
 
-	log.Info().Int("size", len(ready)).Msg("bots ready for work")
+	log.Info().Int("size", len(bots)).Msg("bots ready for work")
 	var wg sync.WaitGroup
-	for _, bot := range ready {
+	for _, bot := range bots {
 		wg.Go(func() { job.New(ctx, DB, S3, bot).Work() })
 	}
 	log.Info().Msg("bots working")

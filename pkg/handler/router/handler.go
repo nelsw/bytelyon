@@ -113,6 +113,7 @@ func handlePost(r Request) Response {
 
 	var a = new(model.Article)
 	if err := json.Unmarshal([]byte(r.Body), a); err != nil {
+		log.Err(err).Msg("failed to unmarshal article")
 		return r.BAD(err)
 	}
 

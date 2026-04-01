@@ -64,17 +64,10 @@ func (r Request) AuthResponse(ok bool, s ...string) AuthResponse {
 
 func (r Request) Response(code int, a ...any) Response {
 
-	var rb any
-	if code == http.StatusOK {
-		rb = true
-	} else {
-		rb = a
-	}
-
 	log.Log().
 		Dict("response", new(zerolog.Event).CreateDict().
 			Int("code", code).
-			Any("body", rb)).
+			Any("body", a)).
 		Msg("response")
 
 	var body string

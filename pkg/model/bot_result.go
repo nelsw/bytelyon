@@ -174,6 +174,9 @@ func (b *BotResult) Label() string {
 }
 
 func (b *BotResult) GetString(key string) string {
+	if _, ok := b.Data[key]; !ok {
+		return ""
+	}
 	if s, ok := b.Data[key].(string); ok {
 		return s
 	}

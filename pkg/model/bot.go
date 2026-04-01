@@ -231,13 +231,13 @@ func (b *Bot) UnmarshalJSON(data []byte) (err error) {
 
 	if _, ok := m["userId"]; ok {
 		if b.UserID, err = ulid.ParseStrict(m["userId"].(string)); err != nil {
-			return fmt.Errorf("failed to parse UserID: %w", err)
+			return fmt.Errorf("failed to parse bot UserID: %w", err)
 		}
 	}
 
-	if _, ok := m["id"]; ok {
-		if b.ID, err = ulid.ParseStrict(m["id"].(string)); err != nil {
-			return fmt.Errorf("failed to parse BotID: %w", err)
+	if s, ok := m["id"]; ok && s != nil && s != "" {
+		if b.ID, err = ulid.ParseStrict(s.(string)); err != nil {
+			return fmt.Errorf("failed to parse bot ID [%v]; err: %w", s, err)
 		}
 	}
 
@@ -298,11 +298,6 @@ func (b *Bot) NewBotResult(args ...any) *BotResult {
 		Target: b.Target,
 		Data:   m,
 	}
-}
-
-func (b *Bot) Label() string {
-
-	return b.Target
 }
 
 func (b *Bot) MarshalZerologObject(evt *zerolog.Event) {

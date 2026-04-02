@@ -173,7 +173,7 @@ func (b *BotResult) Label() string {
 	return b.Timestamp().Format("01/02/2006, 3:04:05PM")
 }
 
-func (b *BotResult) GetString(key string) string {
+func (b *BotResult) GetStr(key string) string {
 	if _, ok := b.Data[key]; !ok {
 		return ""
 	}
@@ -181,4 +181,25 @@ func (b *BotResult) GetString(key string) string {
 		return s
 	}
 	return ""
+}
+
+func (b *BotResult) GetStrSlice(key string) []string {
+	if _, ok := b.Data[key]; !ok {
+		return []string{}
+	}
+	if s, ok := b.Data[key].([]any); ok {
+		var arr []string
+		for _, v := range s {
+			if v == nil {
+				continue
+			}
+			arr = append(arr, v.(string))
+		}
+		return arr
+	}
+	return []string{}
+}
+
+func (b *BotResult) Set(key string, val any) {
+	b.Data[key] = val
 }

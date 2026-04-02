@@ -13,19 +13,6 @@ var (
 	blockedRegex = regexp.MustCompile("(google.com/sorry|captcha|unusual traffic)")
 )
 
-// NewPlaywright creates a new Playwright instance
-func NewPlaywright() (c *Playwright, err error) {
-	log.Debug().Msg("creating new playwright client")
-
-	if c, err = Run(); err != nil {
-		log.Err(err).Msg("failed to create playwright client")
-		return nil, err
-	}
-
-	log.Info().Msg("playwright client created")
-	return c, nil
-}
-
 // NewBrowser creates a new Browser instance
 func NewBrowser(c *Playwright, headless bool) (Browser, error) {
 
@@ -343,4 +330,35 @@ func WaitForLoadState(page Page, ls ...LoadState) error {
 
 	log.Trace().Msg("load state reached")
 	return nil
+}
+
+// Content returns the page content or an empty string if the page has failed to load.
+func Content(page Page) string {
+	s, err := page.Content()
+	if err != nil {
+		log.Err(err).Msg("failed to get page content")
+		return ""
+	}
+	return s
+}
+
+// Screenshot returns the screenshot of the page as a byte array or an empty byte array if the page has failed to load.
+func Screenshot(page Page, opts ...PageScreenshotOptions) []byte {
+	opts = append(opts, PageScreenshotOptions{FullPage: Ptr(true)})
+	b, err := page.Screenshot()
+	if err != nil {
+		log.Err(err).Msg("failed to get page screenshot")
+		return nil
+	}
+	return b
+}
+
+// Title returns the page title or an empty string if the page has failed to load.
+func Title(page Page) string {
+	s, err := page.Title()
+	if err != nil {
+		log.Err(err).Msg("failed to get page title")
+		return ""
+	}
+	return s
 }

@@ -22,6 +22,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/yuin/goldmark v1.8.2
 	golang.org/x/crypto v0.49.0
+	golang.org/x/image v0.38.0
 	golang.org/x/net v0.52.0
 )
 

@@ -1,10 +1,18 @@
 package util
 
 import (
+	"bytes"
+	"errors"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"math/rand"
+	"net/http"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"golang.org/x/image/webp"
 )
 
 var (
@@ -36,6 +44,38 @@ func IsImageFile(s string) bool {
 	return fileExtRegex.MatchString(s)
 }
 
+func IsPng(s string) bool {
+	return Extension(s) == ".png"
+}
+
 func Extension(s string) string {
 	return strings.Split(filepath.Ext(s), "?")[0]
+}
+
+func ToPng(b []byte) ([]byte, error) {
+
+	var err error
+	var i image.Image
+
+	switch t := http.DetectContentType(b); t {
+	case "image/png":
+		return b, nil
+	case "image/jpeg", "image/jpg":
+		i, err = jpeg.Decode(bytes.NewReader(b))
+	case "image/webp":
+		i, err = webp.Decode(bytes.NewReader(b))
+	default:
+		return nil, errors.New("unsupported image type: " + t)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	buf := new(bytes.Buffer)
+	if err = png.Encode(buf, i); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }

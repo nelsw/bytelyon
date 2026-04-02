@@ -7,27 +7,34 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func FindBots(userID ulid.ULID, isReady ...bool) []*model.Bot {
+func FindBots(userID ulid.ULID) model.Bots {
+
+	l := log.With().
+		Str("ƒ", "FindBots").
+		Stringer("userId", userID).
+		Logger()
+
+	l.Info().Send()
 
 	var arr []*model.Bot
 	for _, botType := range model.BotTypes() {
-		arr = append(arr, FindBotsByType(userID, botType, isReady...)...)
+		arr = append(arr, FindBotsByType(userID, botType)...)
 	}
 
-	log.Info().
-		Stringer("userID", userID).
-		Int("size", len(arr)).
-		Msg("bots found")
+	l.Info().Int("size", len(arr)).Send()
 
 	return arr
 }
 
-func FindBotsByType(userID ulid.ULID, botType model.BotType, isReady ...bool) model.Bots {
+func FindBotsByType(userID ulid.ULID, botType model.BotType) model.Bots {
 
 	l := log.With().
-		Stringer("user_id", userID).
+		Str("ƒ", "FindBotsByType").
+		Stringer("userId", userID).
 		Stringer("botType", botType).
 		Logger()
+
+	l.Info().Send()
 
 	all, err := db.Query(&model.Bot{UserID: userID, Type: botType})
 	if err != nil {
@@ -35,25 +42,7 @@ func FindBotsByType(userID ulid.ULID, botType model.BotType, isReady ...bool) mo
 		return nil
 	}
 
-	l.Info().
-		Int("size", len(all)).
-		Msg("find bots")
+	l.Info().Int("size", len(all)).Send()
 
-	// if we are looking for all bots, return do not filter by ready
-	if len(isReady) == 0 || !isReady[0] {
-		return all
-	}
-
-	var ready model.Bots
-	for _, b := range all {
-		if b.IsReady() {
-			ready = append(ready, b)
-		}
-	}
-
-	l.Info().
-		Int("size", len(ready)).
-		Msg("bots ready")
-
-	return ready
+	return all
 }

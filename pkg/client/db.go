@@ -32,7 +32,6 @@ func GetItem(ctx context.Context, c *dynamodb.Client, input *dynamodb.GetItemInp
 
 func PutItem(ctx context.Context, c *dynamodb.Client, input *dynamodb.PutItemInput) error {
 	input.TableName = tableName(input.TableName)
-	log.Info().Any("item", input.Item).Msg("putting item " + *input.TableName)
 	_, err := c.PutItem(ctx, input)
 	return err
 }
@@ -81,6 +80,5 @@ func tableName(ptr *string) *string {
 	if os.Getenv("MODE") != "release" {
 		val = os.Getenv("MODE") + "_" + val
 	}
-	log.Trace().Str("table", val).Send()
 	return &val
 }

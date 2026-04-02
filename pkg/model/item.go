@@ -28,8 +28,6 @@ type Item struct {
 	Source      string `xml:"source"`
 	Time        *Time  `xml:"pubDate"`
 	NewsSource  string `xml:"News_Source"`
-	Body        string `xml:"-"`
-	Image       string `xml:"-"`
 }
 
 func (i *Item) String() string {
@@ -39,16 +37,12 @@ func (i *Item) String() string {
 		"\tdescription: %s,\n"+
 		"\tsource: %s,\n"+
 		"\ttime: %s,\n"+
-		"\tbody: %s,\n"+
-		"\timage: %s,\n"+
 		"}",
 		i.URL,
 		i.Title,
 		i.Description,
 		i.Source,
 		i.Time,
-		i.Body,
-		i.Image,
 	)
 }
 

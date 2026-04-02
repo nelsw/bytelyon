@@ -1,30 +1,17 @@
-package job
+package manager
 
 import (
-	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
 )
 
 type Job struct {
-	ctx   context.Context
-	db    *dynamodb.Client
-	s3    *s3.Client
-	bot   *model.Bot
-	rules map[string]bool
-}
-
-func New(ctx context.Context, db *dynamodb.Client, s3 *s3.Client, bot *model.Bot) *Job {
-	rules := make(map[string]bool)
-	for _, s := range bot.BlackList {
-		rules[s] = false
-	}
-	return &Job{ctx, db, s3, bot, rules}
+	ctx playwright.BrowserContext
+	bot *model.Bot
 }
 
 func (j *Job) Work() {

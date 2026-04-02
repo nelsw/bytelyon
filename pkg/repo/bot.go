@@ -10,7 +10,7 @@ import (
 func FindBot(userID ulid.ULID, target string, botType model.BotType) (*model.Bot, error) {
 
 	l := log.With().
-		Stringer("userID", userID).
+		Stringer("userId", userID).
 		Str("target", target).
 		Stringer("botType", botType).
 		Logger()
@@ -36,7 +36,7 @@ func FindBot(userID ulid.ULID, target string, botType model.BotType) (*model.Bot
 func DeleteBot(userID ulid.ULID, target string, botType model.BotType) error {
 
 	l := log.With().
-		Stringer("userID", userID).
+		Stringer("userId", userID).
 		Str("target", target).
 		Stringer("botType", botType).
 		Logger()

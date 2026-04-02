@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -29,6 +30,8 @@ const articleQuery = `mutation CreateArticle($article: ArticleCreateInput!)
 	} 
 }`
 
+var handleRegex = regexp.MustCompile("[^a-zA-Z0-9\\-]+")
+
 type Article struct {
 	ID          ulid.ULID
 	Title       string
@@ -37,6 +40,7 @@ type Article struct {
 	Summary     string
 	Tags        []any
 	Image       map[string]string
+	ImageAlt    string
 	Prompt      string
 	PublishedAt time.Time
 }
@@ -62,12 +66,6 @@ func (a *Article) UnmarshalJSON(b []byte) error {
 		a.Prompt = s.(string)
 	}
 
-	if s, ok := m["id"]; ok {
-		a.ID = ParseULID(s.(string))
-	} else {
-		a.ID = NewULID()
-	}
-
 	a.PublishedAt = time.Now()
 	if s, ok := m["publishedAt"]; ok {
 		if t, err := time.Parse("2006-01-02 15:04", s.(string)); err != nil {
@@ -76,8 +74,9 @@ func (a *Article) UnmarshalJSON(b []byte) error {
 			a.PublishedAt = t
 		}
 	}
+	a.ID = NewULID(a.PublishedAt)
 
-	a.Handle = strings.ToLower(strings.ReplaceAll(a.Title, " ", "-")) + "-" + a.ID.String()
+	a.setHandle()
 
 	if s, ok := m["summary"]; ok {
 		a.Summary = s.(string)
@@ -95,13 +94,17 @@ func (a *Article) UnmarshalJSON(b []byte) error {
 		log.Warn().Str("image", s.(string)).Msg("image extension not supported")
 		return nil
 	}
-	if strings.HasPrefix(s.(string), "https://") {
+	if !strings.HasPrefix(s.(string), "https://") {
 		log.Warn().Str("image", s.(string)).Msg("url looks bad")
 		return nil
 	}
 
+	if a.ImageAlt == "" {
+		a.ImageAlt = a.Title + " Image"
+	}
+
 	a.Image = map[string]string{
-		"altText": a.Title + " Image",
+		"altText": a.ImageAlt,
 		"url":     s.(string),
 	}
 
@@ -110,6 +113,8 @@ func (a *Article) UnmarshalJSON(b []byte) error {
 
 func (a *Article) ToShopifyPayload() []byte {
 
+	a.setHandle()
+
 	b, _ := json.Marshal(map[string]any{
 		"query": articleQuery,
 		"variables": map[string]any{
@@ -117,11 +122,11 @@ func (a *Article) ToShopifyPayload() []byte {
 				"blogId":      articleBlogID,
 				"title":       a.Title,
 				"author":      map[string]any{"name": "Stu Andrew"},
-				"handle":      strings.ToLower(strings.ReplaceAll(a.Title, " ", "-")) + "-" + a.ID.String(),
+				"handle":      a.Handle,
 				"body":        a.Body,
 				"summary":     a.Summary,
 				"isPublished": true,
-				"publishDate": a.ID.Timestamp(),
+				"publishDate": a.PublishedAt,
 				"tags":        a.Tags,
 				"image":       a.Image,
 			},
@@ -129,4 +134,30 @@ func (a *Article) ToShopifyPayload() []byte {
 	})
 
 	return b
+}
+
+func (a *Article) GetLink() string {
+	return "https://firefibers.com/blogs/news/" + a.Handle
+}
+
+func (a *Article) setHandle() {
+
+	// check if the article title is in the body
+	if z := strings.Index(a.Body, `</h1>`); strings.Index(a.Body, `<h1>`) == 0 && z != -1 {
+		a.Title = a.Body[4:z]
+	}
+
+	// replace all spaces with dashes
+	a.Handle = strings.ToLower(strings.ReplaceAll(a.Title, " ", "-"))
+
+	// remove all non-alphanumeric and non-dash characters
+	a.Handle = handleRegex.ReplaceAllString(a.Handle, "")
+
+	// remove duplicate dashes
+	for strings.Contains(a.Handle, "--") {
+		a.Handle = strings.ReplaceAll(a.Handle, "--", "-")
+	}
+
+	// append with the article id
+	a.Handle += "-" + a.ID.String()
 }

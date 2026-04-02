@@ -1,12 +1,12 @@
-package job
+package manager
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/nelsw/bytelyon/pkg/client"
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/s3"
 	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
@@ -26,32 +26,8 @@ var googleSearchInputSelectors = []string{
 func (j *Job) doSearch() {
 	var err error
 
-	var ply *playwright.Playwright
-	if ply, err = client.NewPlaywright(); err != nil {
-		return
-	}
-	defer func(ply *playwright.Playwright) {
-		_ = ply.Stop()
-	}(ply)
-
-	var bro playwright.Browser
-	if bro, err = client.NewBrowser(ply, j.bot.Headless); err != nil {
-		return
-	}
-	defer func(bro playwright.Browser, options ...playwright.BrowserCloseOptions) {
-		_ = bro.Close()
-	}(bro)
-
-	var ctx playwright.BrowserContext
-	if ctx, err = client.NewContext(bro); err != nil {
-		return
-	}
-	defer func(ctx playwright.BrowserContext, options ...playwright.BrowserContextCloseOptions) {
-		_ = ctx.Close()
-	}(ctx)
-
 	var page playwright.Page
-	if page, err = client.NewPage(ctx); err != nil {
+	if page, err = client.NewPage(j.ctx); err != nil {
 		return
 	}
 	defer func(page playwright.Page, options ...playwright.PageCloseOptions) {
@@ -64,7 +40,7 @@ func (j *Job) doSearch() {
 	}
 
 	if client.IsRequestBlocked(resp) || client.IsPageBlocked(page) {
-		time.Sleep(5 * time.Second)
+		client.WaitForLoadState(page)
 		if client.IsRequestBlocked(resp) || client.IsPageBlocked(page) {
 			return
 		}
@@ -100,7 +76,7 @@ func (j *Job) doSearch() {
 	var pge *model.Page
 	for idx, loc := range locators {
 
-		pge, err = j.handleLocator(result, ctx, loc, idx)
+		pge, err = j.handleLocator(result, j.ctx, loc, idx)
 		if err != nil {
 			log.Warn().Err(err).Msg("Failed to handle locator")
 			continue
@@ -172,8 +148,8 @@ func (j *Job) makePage(result *model.BotResult, page playwright.Page, idx int) *
 	if img, err = page.Screenshot(playwright.PageScreenshotOptions{FullPage: util.Ptr(true)}); err != nil {
 		log.Warn().Err(err).Msg("Failed to Screenshot Page")
 	} else {
-		s := storagePath(result.UserID, result.ID, "screenshot", "png", idx)
-		if err = client.PutObject(j.ctx, j.s3, "bytelyon-public", s, img); err == nil {
+		var s string
+		if s, err = s3.PutPublicBotData(j.bot, storagePath(result.ID, "png", idx), img); err == nil {
 			p.IMG = s
 		}
 	}
@@ -182,8 +158,8 @@ func (j *Job) makePage(result *model.BotResult, page playwright.Page, idx int) *
 	if content, err = page.Content(); err != nil {
 		log.Warn().Err(err).Msg("Failed to get Page Content")
 	} else {
-		s := storagePath(result.UserID, result.ID, "content", "html", idx)
-		if err = client.PutObject(j.ctx, j.s3, "bytelyon-public", s, []byte(content)); err == nil {
+		s := storagePath(result.ID, "html", idx)
+		if s, err = s3.PutPrivateBotData(j.bot, s, []byte(content)); err == nil {
 			p.HTML = s
 		}
 		if idx == 0 {
@@ -194,14 +170,12 @@ func (j *Job) makePage(result *model.BotResult, page playwright.Page, idx int) *
 	return &p
 }
 
-func storagePath(userID, resultID ulid.ULID, target, ext string, idx int) string {
+func storagePath(resultID ulid.ULID, ext string, idx int) string {
 	t := "content"
 	if ext == "png" {
 		t = "screenshot"
 	}
-	return fmt.Sprintf("users/%s/bots/search/%s/%s/%s/%d.%s",
-		userID,
-		target,
+	return fmt.Sprintf("%s/%s/%d.%s",
 		resultID,
 		t,
 		idx,

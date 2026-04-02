@@ -1,30 +1,26 @@
-package job
+package manager
 
 import (
-	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
 )
 
 type Job struct {
-	ctx   context.Context
-	db    *dynamodb.Client
-	s3    *s3.Client
-	bot   *model.Bot
-	rules map[string]bool
+	ctx playwright.BrowserContext
+	bot *model.Bot
 }
 
-func New(ctx context.Context, db *dynamodb.Client, s3 *s3.Client, bot *model.Bot) *Job {
-	rules := make(map[string]bool)
-	for _, s := range bot.BlackList {
-		rules[s] = false
+func NewJob(bot *model.Bot, ctx ...playwright.BrowserContext) *Job {
+	var j = new(Job)
+	j.bot = bot
+	if len(ctx) > 0 {
+		j.ctx = ctx[0]
 	}
-	return &Job{ctx, db, s3, bot, rules}
+	return j
 }
 
 func (j *Job) Work() {
@@ -46,6 +42,12 @@ func (j *Job) Work() {
 	// reset frequency if set to 1ns (once & stop)
 	if j.bot.Frequency == 1 {
 		j.bot.Frequency = 0
+	}
+
+	if state, err := j.ctx.StorageState(); err != nil {
+		log.Warn().Err(err).Msg("Failed to get storage state")
+	} else {
+		j.bot.Fingerprint.SetState(state)
 	}
 
 	// save bot

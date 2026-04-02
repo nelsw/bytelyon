@@ -17,7 +17,6 @@ var db = aws.DB()
 
 // Delete removes an item from a DynamoDB table.
 func Delete(t Gettable) error {
-	log.Debug().Any("table", t.Get().TableName).Msg("delete")
 	err := client.DeleteItem(ctx, db, &dynamodb.DeleteItemInput{TableName: t.Get().TableName, Key: t.Get().Key})
 	log.Err(err).Any("table", t.Get().TableName).Msg("delete")
 	return nil
@@ -25,14 +24,12 @@ func Delete(t Gettable) error {
 
 // Put creates a new item or replaces an old item with a new item.
 func Put(t Puttable) error {
-	log.Debug().Any("table", t.Put().TableName).Msg("put")
 	err := client.PutItem(context.Background(), db, t.Put())
 	log.Err(err).Any("table", t.Put().TableName).Msg("put")
 	return err
 }
 
 func PutItem(t Gettable) error {
-	log.Debug().Any("table", t.Get().TableName).Msg("put")
 	item, err := attributevalue.MarshalMap(&t)
 	if err == nil {
 		err = client.PutItem(context.Background(), db, &dynamodb.PutItemInput{
@@ -46,7 +43,6 @@ func PutItem(t Gettable) error {
 
 // Get retrieves an item from the DynamoDB table.
 func Get[T Gettable](t T) (T, error) {
-	log.Debug().Any("table", t.Get().TableName).Msg("get")
 	item, err := client.GetItem(ctx, db, t.Get())
 	if err == nil {
 		err = attributevalue.UnmarshalMap(item, &t)
@@ -58,7 +54,6 @@ func Get[T Gettable](t T) (T, error) {
 // Query items by the hash key.
 // See Bot for a composite key of a hash and range key.
 func Query[T Queryable](t T) (out []T, err error) {
-	log.Debug().Any("table", t.Query().TableName).Msg("query")
 	var items []map[string]types.AttributeValue
 	if items, err = client.QueryItems(ctx, db, t.Query()); err == nil {
 		err = attributevalue.UnmarshalListOfMaps(items, &out)
@@ -69,7 +64,6 @@ func Query[T Queryable](t T) (out []T, err error) {
 
 // Scan is literally a full table scan; don't use this function.
 func Scan[T Scannable](t T) (out []T, err error) {
-	log.Debug().Any("table", t.Scan().TableName).Msg("scan")
 	var items []map[string]types.AttributeValue
 	if items, err = client.ScanItems(ctx, db, t.Scan()); err == nil {
 		err = attributevalue.UnmarshalListOfMaps(items, &out)

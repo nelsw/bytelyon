@@ -45,7 +45,7 @@ type Bot struct {
 	Headless bool
 
 	// Fingerprint is the browser state of the bot, containing cookies and origins.
-	Fingerprint Fingerprint
+	Fingerprint *Fingerprint
 }
 
 func (b *Bot) Scan() *dynamodb.ScanInput {
@@ -55,7 +55,7 @@ func (b *Bot) Scan() *dynamodb.ScanInput {
 }
 
 func (b *Bot) Validate() error {
-	if b.Frequency <= 0 {
+	if b.Frequency < 0 {
 		return errors.New("frequency must be greater than 0")
 	} else if err := b.Type.Validate(); err != nil {
 		return fmt.Errorf("invalid bot type: %w", err)
@@ -144,8 +144,12 @@ func (b *Bot) MarshalDynamoDBAttributeValue() (types.AttributeValue, error) {
 
 	if b.Type == SearchBotType {
 		value["headless"] = &types.AttributeValueMemberBOOL{Value: b.Headless}
-		m, err := attributevalue.MarshalMap(&b.Fingerprint)
+		if b.Fingerprint != nil {
+			NewFingerprint()
+		}
+		m, err := attributevalue.MarshalMap(b.Fingerprint)
 		if err != nil {
+			log.Err(err).Msg("failed to marshal bot fingerprint")
 			return nil, err
 		}
 		value["fingerprint"] = &types.AttributeValueMemberM{Value: m}
@@ -187,9 +191,9 @@ func (b *Bot) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error
 	if val, ok := m["headless"]; ok {
 		b.Headless = val.(*types.AttributeValueMemberBOOL).Value
 	}
-	if val, ok := m["fingerprint"]; ok {
+	if val, ok := m["fingerprint"]; ok && val != nil && val.(*types.AttributeValueMemberM).Value != nil {
 		if err = attributevalue.UnmarshalMap(val.(*types.AttributeValueMemberM).Value, &b.Fingerprint); err != nil {
-			return fmt.Errorf("failed to unmarshal state: %w", err)
+			log.Err(fmt.Errorf("failed to unmarshal state of bot fingerprint: %w", err))
 		}
 	}
 
@@ -231,13 +235,13 @@ func (b *Bot) UnmarshalJSON(data []byte) (err error) {
 
 	if _, ok := m["userId"]; ok {
 		if b.UserID, err = ulid.ParseStrict(m["userId"].(string)); err != nil {
-			return fmt.Errorf("failed to parse UserID: %w", err)
+			return fmt.Errorf("failed to parse bot UserID: %w", err)
 		}
 	}
 
-	if _, ok := m["id"]; ok {
-		if b.ID, err = ulid.ParseStrict(m["id"].(string)); err != nil {
-			return fmt.Errorf("failed to parse BotID: %w", err)
+	if s, ok := m["id"]; ok && s != nil && s != "" {
+		if b.ID, err = ulid.ParseStrict(s.(string)); err != nil {
+			return fmt.Errorf("failed to parse bot ID [%v]; err: %w", s, err)
 		}
 	}
 
@@ -270,9 +274,11 @@ func (b *Bot) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	if val, ok := m["fingerprint"]; ok {
-		//fng := val.(map[string]any)
-		//b.Fingerprint = val.(Fingerprint)
-		fmt.Println(val)
+		if data, err = json.Marshal(val); err != nil {
+			log.Warn().Err(fmt.Errorf("failed to marshal fingerprint: %w", err)).Send()
+		} else if err = json.Unmarshal(data, &b.Fingerprint); err != nil {
+			log.Warn().Err(fmt.Errorf("failed to unmarshal fingerprint: %w", err)).Send()
+		}
 	}
 
 	return
@@ -298,11 +304,6 @@ func (b *Bot) NewBotResult(args ...any) *BotResult {
 		Target: b.Target,
 		Data:   m,
 	}
-}
-
-func (b *Bot) Label() string {
-
-	return b.Target
 }
 
 func (b *Bot) MarshalZerologObject(evt *zerolog.Event) {

@@ -12,9 +12,9 @@ import (
 func FindBotResult(userID, botID, ID ulid.ULID, botType model.BotType) (*model.BotResult, error) {
 
 	l := log.With().
-		Stringer("userID", userID).
-		Stringer("botID", botID).
-		Stringer("ID", ID).
+		Stringer("userId", userID).
+		Stringer("botId", botID).
+		Stringer("id", ID).
 		Logger()
 
 	l.Info().Msg("Finding bot result")
@@ -34,17 +34,18 @@ func FindBotResult(userID, botID, ID ulid.ULID, botType model.BotType) (*model.B
 	return res, nil
 }
 
-func DeleteBotResult(userID, botID ulid.ULID, botType model.BotType) error {
+func DeleteBotResult(userID, botID, ID ulid.ULID, botType model.BotType) error {
 
 	l := log.With().
-		Stringer("userID", userID).
-		Stringer("botID", botID).
+		Stringer("userId", userID).
+		Stringer("botId", botID).
+		Stringer("id", ID).
 		Stringer("botType", botType).
 		Logger()
 
 	l.Info().Msg("deleting bot result")
 
-	if res, err := FindBotResult(userID, botID, botID, botType); err != nil {
+	if res, err := FindBotResult(userID, botID, ID, botType); err != nil {
 		l.Error().Err(err).Msg("failed to find bot result")
 		return err
 	} else if err = db.Delete(res); err != nil {

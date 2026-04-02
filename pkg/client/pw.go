@@ -13,19 +13,6 @@ var (
 	blockedRegex = regexp.MustCompile("(google.com/sorry|captcha|unusual traffic)")
 )
 
-// NewPlaywright creates a new Playwright instance
-func NewPlaywright() (c *Playwright, err error) {
-	log.Debug().Msg("creating new playwright client")
-
-	if c, err = Run(); err != nil {
-		log.Err(err).Msg("failed to create playwright client")
-		return nil, err
-	}
-
-	log.Info().Msg("playwright client created")
-	return c, nil
-}
-
 // NewBrowser creates a new Browser instance
 func NewBrowser(c *Playwright, headless bool) (Browser, error) {
 
@@ -77,7 +64,7 @@ func NewBrowser(c *Playwright, headless bool) (Browser, error) {
 }
 
 // NewContext creates a new BrowserContext instance
-func NewContext(bro Browser) (BrowserContext, error) {
+func NewContext(bro Browser, state *OptionalStorageState) (BrowserContext, error) {
 
 	userAgent := func() *string {
 
@@ -98,15 +85,6 @@ func NewContext(bro Browser) (BrowserContext, error) {
 		return Ptr(agents[rand.Intn(len(agents))])
 	}
 
-	getState := func() *OptionalStorageState {
-
-		var state OptionalStorageState
-
-		// omit for now - getting better results with manual captcha clearing
-
-		return &state
-	}
-
 	log.Debug().Msg("creating new playwright context")
 
 	ctx, err := bro.NewContext(BrowserNewContextOptions{
@@ -121,7 +99,7 @@ func NewContext(bro Browser) (BrowserContext, error) {
 		ReducedMotion:     ReducedMotionNoPreference,
 		TimezoneId:        Ptr("America/New_York"),
 		UserAgent:         userAgent(),
-		StorageState:      getState(),
+		StorageState:      state,
 	})
 
 	if err != nil {
@@ -333,8 +311,7 @@ func WaitForLoadState(page Page, ls ...LoadState) error {
 	log.Debug().Any("state", s).Msg("waiting for load state")
 
 	err := page.WaitForLoadState(PageWaitForLoadStateOptions{
-		State:   s,
-		Timeout: Ptr(60_000.0),
+		State: s,
 	})
 	if err != nil {
 		log.Err(err).Any("state", s).Msg("failed to reach load state")
@@ -343,4 +320,45 @@ func WaitForLoadState(page Page, ls ...LoadState) error {
 
 	log.Trace().Msg("load state reached")
 	return nil
+}
+
+// Content returns the page content or an empty string if the page has failed to load.
+func Content(page Page) string {
+	s, err := page.Content()
+	if err != nil {
+		log.Err(err).Msg("failed to get page content")
+		return ""
+	}
+	return s
+}
+
+// Screenshot returns the screenshot of the page as a byte array or an empty byte array if the page has failed to load.
+func Screenshot(page Page, opts ...PageScreenshotOptions) []byte {
+	opts = append(opts, PageScreenshotOptions{FullPage: Ptr(true)})
+	b, err := page.Screenshot()
+	if err != nil {
+		log.Err(err).Msg("failed to get page screenshot")
+		return nil
+	}
+	return b
+}
+
+// Title returns the page title or an empty string if the page has failed to load.
+func Title(page Page) string {
+	s, err := page.Title()
+	if err != nil {
+		log.Err(err).Msg("failed to get page title")
+		return ""
+	}
+	return s
+}
+
+func GetState(ctx BrowserContext) (state *StorageState, err error) {
+	state, err = ctx.StorageState()
+	log.Err(err).
+		Str("ƒ", "GetState").
+		Int("cookies", len(state.Cookies)).
+		Int("origins", len(state.Origins)).
+		Send()
+	return
 }

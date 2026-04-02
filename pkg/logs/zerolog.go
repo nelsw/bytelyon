@@ -1,4 +1,4 @@
-package logger
+package logs
 
 import (
 	"os"
@@ -35,18 +35,21 @@ func MakeZerolog() zerolog.Logger {
 			}
 		},
 		FieldsOrder: []string{
+			"ƒ",
+			"userId", "botId", "id",
+			"type", "botType",
+			"ready",
 			"size",
-			"userID",
 			"table",
 			"ip", "method", "authorization", "path", "query", "body",
 		},
 	})
 
-	if os.Getenv("MODE") == "release" {
+	if os.Getenv("LOG_LEVEL") == "release" {
 		return l.Level(zerolog.InfoLevel)
 	}
 
-	if os.Getenv("MODE") == "debug" {
+	if os.Getenv("LOG_LEVEL") == "debug" {
 		return l.Level(zerolog.DebugLevel)
 	}
 

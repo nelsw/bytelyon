@@ -13,7 +13,7 @@ func FindBotResults(userID, botID ulid.ULID, botType model.BotType) model.BotRes
 
 	l := log.With().
 		Stringer("user_id", userID).
-		Stringer("botID", botID).
+		Stringer("botId", botID).
 		Stringer("botType", botType).
 		Logger()
 
@@ -46,8 +46,8 @@ func FindBotResults(userID, botID ulid.ULID, botType model.BotType) model.BotRes
 func DeleteBotResults(userID, botID ulid.ULID, botType model.BotType) (err error) {
 
 	l := log.With().
-		Stringer("userID", userID).
-		Stringer("botID", botID).
+		Stringer("userId", userID).
+		Stringer("botId", botID).
 		Stringer("botType", botType).
 		Logger()
 

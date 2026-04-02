@@ -42,7 +42,7 @@ func handleDelete(r Request) Response {
 	if r.ID().IsZero() {
 		err = repo.DeleteBot(r.UserID(), r.Target(), r.BotType())
 	} else {
-		err = repo.DeleteBotResult(r.UserID(), r.ID(), r.BotType())
+		err = repo.DeleteBotResult(r.UserID(), r.BotID(), r.ID(), r.BotType())
 	}
 
 	if err != nil {

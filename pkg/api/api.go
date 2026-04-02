@@ -74,7 +74,7 @@ func (r Request) Response(code int, a ...any) Response {
 	log.Log().
 		Dict("response", new(zerolog.Event).CreateDict().
 			Int("code", code).
-			Any("body", rb)).
+			Any("body", a)).
 		Msg("response")
 
 	var body string

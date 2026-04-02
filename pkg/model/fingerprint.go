@@ -167,6 +167,9 @@ func (f *Fingerprint) SetState(s *playwright.StorageState) {
 
 func (f *Fingerprint) GetState() *playwright.OptionalStorageState {
 	var cookies []playwright.OptionalCookie
+	if f.Cookies == nil {
+		f.Cookies = []playwright.Cookie{}
+	}
 	for _, c := range f.Cookies {
 		cookies = append(cookies, playwright.OptionalCookie{
 			Name:         c.Name,

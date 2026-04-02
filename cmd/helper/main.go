@@ -30,7 +30,7 @@ func init() {
 }
 
 func main() {
-	doSearchBotResult()
+	doSitemapBotResults()
 }
 
 func doStuff() {
@@ -60,6 +60,13 @@ func doStuff() {
 
 		log.Info().Msgf("after: %+v", r)
 	}
+}
+
+func doSitemapBotResults() {
+	userID := ulid.MustParse("01KM010XK0HY8HWWFPJTZGRF0F")
+	botID := ulid.MustParse("01KN7Y4FFKX51990JS9YCK1TSW")
+	results := repo.FindBotResults(userID, botID, model.SitemapBotType)
+	log.Info().Msgf("results: %+v", results)
 }
 
 func doSearchBotResult() {

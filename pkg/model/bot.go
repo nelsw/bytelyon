@@ -55,7 +55,7 @@ func (b *Bot) Scan() *dynamodb.ScanInput {
 }
 
 func (b *Bot) Validate() error {
-	if b.Frequency <= 0 {
+	if b.Frequency < 0 {
 		return errors.New("frequency must be greater than 0")
 	} else if err := b.Type.Validate(); err != nil {
 		return fmt.Errorf("invalid bot type: %w", err)

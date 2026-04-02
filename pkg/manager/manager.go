@@ -109,10 +109,13 @@ func (m *Manager) work() {
 				continue
 			}
 			var ctx playwright.BrowserContext
-			if bot.Headless {
-				ctx, err = client.NewContext(m.headless, bot.Fingerprint.GetState())
+			if bot.Fingerprint == nil {
+				bot.Fingerprint = model.NewFingerprint()
+			}
+			if state := bot.Fingerprint.GetState(); bot.Headless {
+				ctx, err = client.NewContext(m.headless, state)
 			} else {
-				ctx, err = client.NewContext(m.headed, bot.Fingerprint.GetState())
+				ctx, err = client.NewContext(m.headed, state)
 			}
 
 			if err != nil {

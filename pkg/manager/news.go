@@ -99,20 +99,19 @@ func (j *Job) doNewsFeedItem(i *model.Item) {
 	r := j.createNewsResult(i)
 
 	// try to fetch the article content
-	content, screenshot := j.fetchNewsArticle(i.URL)
+	content, _ := j.fetchNewsArticle(i.URL)
 
 	// update the result if article content is ok
-	if j.handleNewsContent(r, content) ||
-		j.handleNewsScreenshot(r, screenshot) ||
-		j.handleNewsImage(r) {
-		j.updateNewsResult(r)
+	if j.HandleNewsContent(r, content) ||
+		j.HandleNewsImage(r) {
+		j.UpdateNewsResult(r)
 	}
 }
 
 func (j *Job) fetchNewsArticle(s string) (string, []byte) {
 	content, screenshot := j.fetchNewsPage(s)
 	if content == "" {
-		content = j.fetchNewsHTML(s)
+		content = j.FetchNewsHTML(s)
 	}
 	return content, screenshot
 }
@@ -151,27 +150,12 @@ func (j *Job) fetchNewsPage(s string) (content string, img []byte) {
 	return
 }
 
-func (j *Job) fetchNewsHTML(s string) string {
-	res, err := http.Get(s)
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to fetch URL to hydrate news HTML")
-		return ""
-	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(res.Body)
-
-	var b []byte
-	if b, err = io.ReadAll(res.Body); err != nil {
-		log.Warn().Err(err).Msg("failed to read news HTML")
-		return ""
-	}
-
-	log.Info().
-		Int("status", res.StatusCode).
+func (j *Job) FetchNewsHTML(s string) string {
+	b, err := client.Get(s)
+	log.Err(err).
+		Str("ƒ", "FetchNewsHTML").
 		Str("url", s).
-		Msg("got static html for news")
-
+		Send()
 	return string(b)
 }
 
@@ -189,7 +173,7 @@ func (j *Job) createNewsResult(i *model.Item) *model.BotResult {
 	return r
 }
 
-func (j *Job) handleNewsContent(r *model.BotResult, s string) (ok bool) {
+func (j *Job) HandleNewsContent(r *model.BotResult, s string) (ok bool) {
 
 	if s == "" {
 		log.Warn().Msg("no news content to process")
@@ -212,18 +196,18 @@ func (j *Job) handleNewsContent(r *model.BotResult, s string) (ok bool) {
 		return
 	}
 
-	var body string
+	var body []string
 	for _, p := range doc.Paragraphs {
 		if strings.Count(p, r.GetStr("source")) > 1 ||
 			strings.Contains(p, "RELATED:") ||
 			strings.Contains(p, "Related:") {
 			continue
 		}
-		body += p + "\n"
+		body = append(body, p)
 	}
 	r.Set("body", body)
 
-	if v, k := doc.MetaTitle(); k {
+	if v, k := doc.MetaTitle(); k && len(v) > len(r.GetStr("title")) {
 		r.Set("title", v)
 	}
 	if v, k := doc.MetaDescription(); k {
@@ -243,25 +227,7 @@ func (j *Job) handleNewsContent(r *model.BotResult, s string) (ok bool) {
 	return true
 }
 
-func (j *Job) handleNewsScreenshot(r *model.BotResult, b []byte) (ok bool) {
-
-	if len(b) == 0 {
-		log.Warn().Msg("no news screenshot to process")
-		return
-	}
-
-	// define the s3 bucket key for article screenshot
-	key, err := s3.PutPublicBotData(j.bot, fmt.Sprintf("screenshot/%s.png", r.ID), b)
-	if err != nil {
-		log.Warn().Err(err).Msg("Failed to save news article screenshot")
-		return
-	}
-
-	r.Set("screenshot", key)
-	return true
-}
-
-func (j *Job) handleNewsImage(r *model.BotResult) (ok bool) {
+func (j *Job) HandleNewsImage(r *model.BotResult) (ok bool) {
 
 	src := r.GetStr("image")
 	if src == "" {
@@ -295,7 +261,7 @@ func (j *Job) handleNewsImage(r *model.BotResult) (ok bool) {
 	return true
 }
 
-func (j *Job) updateNewsResult(r *model.BotResult) {
+func (j *Job) UpdateNewsResult(r *model.BotResult) {
 	if err := db.PutItem(r); err != nil {
 		log.Warn().Err(err).Msg("Failed to update news item bot result")
 	} else {

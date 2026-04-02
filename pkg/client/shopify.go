@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -25,6 +24,41 @@ type AccessTokenRequest struct {
 
 type AccessTokenResponse struct {
 	AccessToken string `json:"access_token"`
+}
+
+type CreateArticleResponse struct {
+	Data struct {
+		ArticleCreate struct {
+			Article    any `json:"article"`
+			UserErrors []struct {
+				Code    string   `json:"code"`
+				Field   []string `json:"field"`
+				Message string   `json:"message"`
+			} `json:"userErrors"`
+		} `json:"articleCreate"`
+	} `json:"data"`
+	Extensions struct {
+		Cost struct {
+			RequestedQueryCost int `json:"requestedQueryCost"`
+			ActualQueryCost    int `json:"actualQueryCost"`
+			ThrottleStatus     struct {
+				MaximumAvailable   float64 `json:"maximumAvailable"`
+				CurrentlyAvailable int     `json:"currentlyAvailable"`
+				RestoreRate        float64 `json:"restoreRate"`
+			} `json:"throttleStatus"`
+		} `json:"cost"`
+	} `json:"extensions"`
+}
+
+func (r *CreateArticleResponse) error() (err error) {
+	for _, e := range r.Data.ArticleCreate.UserErrors {
+		log.Warn().
+			Str("code", e.Code).
+			Strs("field", e.Field).
+			Msg(e.Message)
+		err = errors.Join(err, errors.New(e.Message))
+	}
+	return
 }
 
 func accessToken() (string, error) {
@@ -54,7 +88,7 @@ func accessToken() (string, error) {
 	return atr.AccessToken, nil
 }
 
-// CreateArticle creates a Shopify Article ... dingus.
+// CreateArticle creates a Shopify Article.
 // https://shopify.dev/docs/api/admin-graphql/latest/mutations/articleCreate
 func CreateArticle(a *model.Article) (s string, err error) {
 
@@ -63,39 +97,24 @@ func CreateArticle(a *model.Article) (s string, err error) {
 		return
 	}
 
-	var req *http.Request
-	if req, err = http.NewRequest(http.MethodPost, shopifyAPI, bytes.NewBuffer(a.ToShopifyPayload())); err != nil {
-		log.Err(err).Msg("failed to create article request")
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Shopify-Access-Token", tkn)
+	var b []byte
+	b, err = PostJSON(shopifyAPI, a.ToShopifyPayload(), map[string]string{
+		"Content-Type":           "application/json",
+		"X-Shopify-Access-Token": tkn,
+	})
 
-	var res *http.Response
-	if res, err = http.DefaultClient.Do(req); err != nil {
-		log.Err(err).Msg("Error creating Shopify article")
-		return
-	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(res.Body)
-
-	var out []byte
-	if out, err = io.ReadAll(res.Body); err != nil {
+	if err != nil {
 		return
 	}
 
-	log.Info().Bytes("body", out).Msg("create article response")
+	log.Debug().Str("body", string(b)).Msg("shopify response")
 
-	if res.StatusCode != http.StatusOK {
-		err = errors.New(string(out))
-		log.Err(err).Msg("Error creating article")
+	var r CreateArticleResponse
+	if err = json.Unmarshal(b, &r); err != nil {
+		return
+	} else if err = r.error(); err != nil {
 		return
 	}
 
-	log.Info().
-		Int("status", res.StatusCode).
-		Msg("Shopify article created")
-
-	return "https://firefibers.com/blogs/news/" + a.Handle, nil
+	return a.GetLink(), nil
 }

@@ -14,6 +14,15 @@ type Job struct {
 	bot *model.Bot
 }
 
+func NewJob(bot *model.Bot, ctx ...playwright.BrowserContext) *Job {
+	var j = new(Job)
+	j.bot = bot
+	if len(ctx) > 0 {
+		j.ctx = ctx[0]
+	}
+	return j
+}
+
 func (j *Job) Work() {
 	switch j.bot.Type {
 	case "search":

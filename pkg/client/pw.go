@@ -64,7 +64,7 @@ func NewBrowser(c *Playwright, headless bool) (Browser, error) {
 }
 
 // NewContext creates a new BrowserContext instance
-func NewContext(bro Browser) (BrowserContext, error) {
+func NewContext(bro Browser, state *OptionalStorageState) (BrowserContext, error) {
 
 	userAgent := func() *string {
 
@@ -85,15 +85,6 @@ func NewContext(bro Browser) (BrowserContext, error) {
 		return Ptr(agents[rand.Intn(len(agents))])
 	}
 
-	getState := func() *OptionalStorageState {
-
-		var state OptionalStorageState
-
-		// omit for now - getting better results with manual captcha clearing
-
-		return &state
-	}
-
 	log.Debug().Msg("creating new playwright context")
 
 	ctx, err := bro.NewContext(BrowserNewContextOptions{
@@ -108,7 +99,7 @@ func NewContext(bro Browser) (BrowserContext, error) {
 		ReducedMotion:     ReducedMotionNoPreference,
 		TimezoneId:        Ptr("America/New_York"),
 		UserAgent:         userAgent(),
-		StorageState:      getState(),
+		StorageState:      state,
 	})
 
 	if err != nil {
@@ -320,8 +311,7 @@ func WaitForLoadState(page Page, ls ...LoadState) error {
 	log.Debug().Any("state", s).Msg("waiting for load state")
 
 	err := page.WaitForLoadState(PageWaitForLoadStateOptions{
-		State:   s,
-		Timeout: Ptr(60_000.0),
+		State: s,
 	})
 	if err != nil {
 		log.Err(err).Any("state", s).Msg("failed to reach load state")
@@ -361,4 +351,14 @@ func Title(page Page) string {
 		return ""
 	}
 	return s
+}
+
+func GetState(ctx BrowserContext) (state *StorageState, err error) {
+	state, err = ctx.StorageState()
+	log.Err(err).
+		Str("ƒ", "GetState").
+		Int("cookies", len(state.Cookies)).
+		Int("origins", len(state.Origins)).
+		Send()
+	return
 }

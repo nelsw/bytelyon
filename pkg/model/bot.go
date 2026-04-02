@@ -45,7 +45,7 @@ type Bot struct {
 	Headless bool
 
 	// Fingerprint is the browser state of the bot, containing cookies and origins.
-	Fingerprint Fingerprint
+	Fingerprint *Fingerprint
 }
 
 func (b *Bot) Scan() *dynamodb.ScanInput {
@@ -144,8 +144,12 @@ func (b *Bot) MarshalDynamoDBAttributeValue() (types.AttributeValue, error) {
 
 	if b.Type == SearchBotType {
 		value["headless"] = &types.AttributeValueMemberBOOL{Value: b.Headless}
-		m, err := attributevalue.MarshalMap(&b.Fingerprint)
+		if b.Fingerprint != nil {
+			NewFingerprint()
+		}
+		m, err := attributevalue.MarshalMap(b.Fingerprint)
 		if err != nil {
+			log.Err(err).Msg("failed to marshal bot fingerprint")
 			return nil, err
 		}
 		value["fingerprint"] = &types.AttributeValueMemberM{Value: m}
@@ -187,9 +191,9 @@ func (b *Bot) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error
 	if val, ok := m["headless"]; ok {
 		b.Headless = val.(*types.AttributeValueMemberBOOL).Value
 	}
-	if val, ok := m["fingerprint"]; ok {
+	if val, ok := m["fingerprint"]; ok && val != nil && val.(*types.AttributeValueMemberM).Value != nil {
 		if err = attributevalue.UnmarshalMap(val.(*types.AttributeValueMemberM).Value, &b.Fingerprint); err != nil {
-			return fmt.Errorf("failed to unmarshal state: %w", err)
+			log.Err(fmt.Errorf("failed to unmarshal state of bot fingerprint: %w", err))
 		}
 	}
 
@@ -270,9 +274,11 @@ func (b *Bot) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	if val, ok := m["fingerprint"]; ok {
-		//fng := val.(map[string]any)
-		//b.Fingerprint = val.(Fingerprint)
-		fmt.Println(val)
+		if data, err = json.Marshal(val); err != nil {
+			log.Warn().Err(fmt.Errorf("failed to marshal fingerprint: %w", err)).Send()
+		} else if err = json.Unmarshal(data, &b.Fingerprint); err != nil {
+			log.Warn().Err(fmt.Errorf("failed to unmarshal fingerprint: %w", err)).Send()
+		}
 	}
 
 	return

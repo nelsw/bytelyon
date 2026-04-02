@@ -44,6 +44,12 @@ func (j *Job) Work() {
 		j.bot.Frequency = 0
 	}
 
+	if state, err := j.ctx.StorageState(); err != nil {
+		log.Warn().Err(err).Msg("Failed to get storage state")
+	} else {
+		j.bot.Fingerprint.SetState(state)
+	}
+
 	// save bot
 	if err := db.PutItem(j.bot); err != nil {
 		log.Warn().Err(err).Msg("Failed to Save Search Bot (DB)")

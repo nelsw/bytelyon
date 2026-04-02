@@ -100,7 +100,7 @@ func (m *Mapper) putRelative(s string) (ok bool) {
 
 	// ignore self
 	if s == m.url || s == m.domain {
-		return true
+		return false
 	}
 
 	m.mu.Lock()
@@ -112,7 +112,6 @@ func (m *Mapper) putRelative(s string) (ok bool) {
 }
 
 func (m *Mapper) putAllRemote(urls []string) {
-	// todo - blacklist
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, url := range urls {

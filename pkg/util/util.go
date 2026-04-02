@@ -8,7 +8,7 @@ import (
 	"image/png"
 	"math/rand"
 	"net/http"
-	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -18,6 +18,17 @@ import (
 var (
 	fileExtRegex = regexp.MustCompile(`.(webp|jpg|jpeg|png)`)
 )
+
+func Check(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func Must[T any](v T, err error) T {
+	Check(err)
+	return v
+}
 
 func Ptr[T any](a T) *T { return &a }
 
@@ -42,14 +53,6 @@ func Capitalize(s string) string {
 
 func IsImageFile(s string) bool {
 	return fileExtRegex.MatchString(s)
-}
-
-func IsPng(s string) bool {
-	return Extension(s) == ".png"
-}
-
-func Extension(s string) string {
-	return strings.Split(filepath.Ext(s), "?")[0]
 }
 
 func ToPng(b []byte) ([]byte, error) {
@@ -78,4 +81,11 @@ func ToPng(b []byte) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func PtrOrNil[T any](a T) *T {
+	if v := reflect.ValueOf(a); v.IsZero() || v.IsNil() {
+		return nil
+	}
+	return &a
 }

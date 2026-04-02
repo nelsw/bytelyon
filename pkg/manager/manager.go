@@ -49,7 +49,7 @@ func (m *Manager) Start() {
 		d := time.Duration(15) * time.Second
 
 		log.Debug().
-			Dur("duration", d).
+			Stringer("duration", d).
 			Msg("bot manager sleeping ...")
 
 		time.Sleep(d)
@@ -110,10 +110,11 @@ func (m *Manager) work() {
 			}
 			var ctx playwright.BrowserContext
 			if bot.Headless {
-				ctx, err = client.NewContext(m.headless)
+				ctx, err = client.NewContext(m.headless, bot.Fingerprint.GetState())
 			} else {
-				ctx, err = client.NewContext(m.headed)
+				ctx, err = client.NewContext(m.headed, bot.Fingerprint.GetState())
 			}
+
 			if err != nil {
 				log.Err(err).Msgf("failed to create browser context for %s", bot.Target)
 				continue

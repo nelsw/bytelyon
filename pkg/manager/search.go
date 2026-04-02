@@ -2,12 +2,10 @@ package manager
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/nelsw/bytelyon/pkg/client"
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/model"
-	"github.com/nelsw/bytelyon/pkg/pw"
 	"github.com/nelsw/bytelyon/pkg/s3"
 	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
@@ -28,24 +26,8 @@ var googleSearchInputSelectors = []string{
 func (j *Job) doSearch() {
 	var err error
 
-	var bro playwright.Browser
-	if bro, err = client.NewBrowser(pw.Client, j.bot.Headless); err != nil {
-		return
-	}
-	defer func(bro playwright.Browser, options ...playwright.BrowserCloseOptions) {
-		_ = bro.Close()
-	}(bro)
-
-	var ctx playwright.BrowserContext
-	if ctx, err = client.NewContext(bro); err != nil {
-		return
-	}
-	defer func(ctx playwright.BrowserContext, options ...playwright.BrowserContextCloseOptions) {
-		_ = ctx.Close()
-	}(ctx)
-
 	var page playwright.Page
-	if page, err = client.NewPage(ctx); err != nil {
+	if page, err = client.NewPage(j.ctx); err != nil {
 		return
 	}
 	defer func(page playwright.Page, options ...playwright.PageCloseOptions) {
@@ -58,7 +40,7 @@ func (j *Job) doSearch() {
 	}
 
 	if client.IsRequestBlocked(resp) || client.IsPageBlocked(page) {
-		time.Sleep(5 * time.Second)
+		client.WaitForLoadState(page)
 		if client.IsRequestBlocked(resp) || client.IsPageBlocked(page) {
 			return
 		}
@@ -94,7 +76,7 @@ func (j *Job) doSearch() {
 	var pge *model.Page
 	for idx, loc := range locators {
 
-		pge, err = j.handleLocator(result, ctx, loc, idx)
+		pge, err = j.handleLocator(result, j.ctx, loc, idx)
 		if err != nil {
 			log.Warn().Err(err).Msg("Failed to handle locator")
 			continue

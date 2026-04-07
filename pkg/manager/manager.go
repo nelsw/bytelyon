@@ -16,7 +16,7 @@ import (
 var (
 	users = []*model.User{
 		//{ID: ulid.MustParse("01KM01JC9PS1R4X4FDJNFAR4AZ"), Name: "Guest"},
-		//{ID: ulid.MustParse("01KMXGBJJE2GMCA1A9EXDGF4AJ"), Name: "Stu"},
+		{ID: ulid.MustParse("01KMXGBJJE2GMCA1A9EXDGF4AJ"), Name: "Stu"},
 		{ID: ulid.MustParse("01KM010XK0HY8HWWFPJTZGRF0F"), Name: "Carl"},
 	}
 )
@@ -110,6 +110,7 @@ func (m *Manager) work() {
 			}
 			var ctx playwright.BrowserContext
 			if bot.Fingerprint == nil {
+				log.Debug().Msg("fingerprint is nil")
 				bot.Fingerprint = model.NewFingerprint()
 			}
 			if state := bot.Fingerprint.GetState(); bot.Headless {

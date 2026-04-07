@@ -2,6 +2,7 @@ package manager
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/nelsw/bytelyon/pkg/client"
 	"github.com/nelsw/bytelyon/pkg/db"
@@ -41,6 +42,7 @@ func (j *Job) doSearch() {
 
 	if client.IsRequestBlocked(resp) || client.IsPageBlocked(page) {
 		client.WaitForLoadState(page)
+		time.Sleep(time.Minute)
 		if client.IsRequestBlocked(resp) || client.IsPageBlocked(page) {
 			return
 		}

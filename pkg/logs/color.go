@@ -10,4 +10,5 @@ const (
 	White         = "\033[0;37m"
 	RedBackground = "\033[41m"
 	BlueIntense   = "\033[0;94m"
+	CyanIntense   = "\033[0;96m"
 )

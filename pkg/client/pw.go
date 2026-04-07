@@ -87,7 +87,7 @@ func NewContext(bro Browser, state *OptionalStorageState) (BrowserContext, error
 
 	log.Debug().Msg("creating new playwright context")
 
-	ctx, err := bro.NewContext(BrowserNewContextOptions{
+	opt := BrowserNewContextOptions{
 		AcceptDownloads:   Ptr(true),
 		ColorScheme:       ColorSchemeDark,
 		ForcedColors:      ForcedColorsNone,
@@ -99,9 +99,13 @@ func NewContext(bro Browser, state *OptionalStorageState) (BrowserContext, error
 		ReducedMotion:     ReducedMotionNoPreference,
 		TimezoneId:        Ptr("America/New_York"),
 		UserAgent:         userAgent(),
-		StorageState:      state,
-	})
+	}
 
+	if state != nil {
+		opt.StorageState = state
+	}
+
+	ctx, err := bro.NewContext(opt)
 	if err != nil {
 		log.Err(err).Msg("failed to create new playwright context")
 		return nil, err
@@ -244,7 +248,6 @@ func GoTo(page Page, url string) (Response, error) {
 	log.Debug().Str("url", url).Msg("go to url")
 
 	res, err := page.Goto(url, PageGotoOptions{
-		Timeout:   Ptr(10_000.0),
 		WaitUntil: WaitUntilStateDomcontentloaded,
 	})
 

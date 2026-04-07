@@ -64,21 +64,18 @@ func (r Request) AuthResponse(ok bool, s ...string) AuthResponse {
 
 func (r Request) Response(code int, a ...any) Response {
 
-	var rb any
-	if code == http.StatusOK {
-		rb = true
-	} else {
-		rb = a
+	if len(a) == 0 {
+		a = append(a, nil)
 	}
 
 	log.Log().
 		Dict("response", new(zerolog.Event).CreateDict().
 			Int("code", code).
-			Any("body", a)).
+			Any("body", a[0])).
 		Msg("response")
 
 	var body string
-	if len(a) == 0 {
+	if len(a) == 0 || a[0] == nil {
 		body = `{}`
 	} else if err, ok := a[0].(error); ok {
 		body = `{"message":"` + err.Error() + `"}`

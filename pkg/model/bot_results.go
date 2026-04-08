@@ -9,7 +9,7 @@ import (
 
 type BotResults []*BotResult
 
-func (b BotResults) ToNodes() (nodes Nodes) {
+func (b BotResults) ToNodes() (nodes ResultNodes) {
 
 	if len(b) == 0 {
 		return
@@ -32,16 +32,16 @@ func (b BotResults) ToNodes() (nodes Nodes) {
 	return
 }
 
-func (b BotResults) ToNewsResultNodes() Nodes {
+func (b BotResults) ToNewsResultNodes() ResultNodes {
 
 	var m = make(map[string]BotResults)
 	for _, r := range b {
 		m[r.Label()] = append(m[r.Label()], r)
 	}
 
-	var nodes Nodes
+	var nodes ResultNodes
 	for k, v := range m {
-		nodes = append(nodes, &Node{
+		nodes = append(nodes, &ResultNode{
 			ID:     v[0].ID,
 			BotID:  v[0].BotID,
 			Label:  k,
@@ -53,10 +53,10 @@ func (b BotResults) ToNewsResultNodes() Nodes {
 	return nodes
 }
 
-func (b BotResults) searchResultNodes() Nodes {
-	var nodes Nodes
+func (b BotResults) searchResultNodes() ResultNodes {
+	var nodes ResultNodes
 	for _, r := range b {
-		nodes = append(nodes, &Node{
+		nodes = append(nodes, &ResultNode{
 			ID:     r.ID,
 			BotID:  r.BotID,
 			Label:  r.Label(),
@@ -68,9 +68,9 @@ func (b BotResults) searchResultNodes() Nodes {
 	return nodes
 }
 
-func (b BotResults) sitemapResultNodes() Nodes {
+func (b BotResults) sitemapResultNodes() ResultNodes {
 
-	var nodes Nodes
+	var nodes ResultNodes
 	for _, r := range b {
 
 		var rows []any
@@ -93,7 +93,7 @@ func (b BotResults) sitemapResultNodes() Nodes {
 			})
 		}
 
-		nodes = append(nodes, &Node{
+		nodes = append(nodes, &ResultNode{
 			ID:     r.ID,
 			BotID:  r.BotID,
 			Label:  r.Label(),

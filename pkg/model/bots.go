@@ -8,13 +8,13 @@ import (
 
 type Bots []*Bot
 
-func (bots Bots) ToNodes() (nodes Nodes) {
+func (bots Bots) ToNodes() (nodes ResultNodes) {
 	for _, bot := range bots {
 		label := bot.Target
 		if bot.Type == SitemapBotType {
 			label = util.Domain(bot.Target)
 		}
-		nodes = append(nodes, &Node{
+		nodes = append(nodes, &ResultNode{
 			ID:        bot.ID,
 			BotID:     bot.ID,
 			Label:     label,

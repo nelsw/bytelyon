@@ -16,5 +16,3 @@ func SpinArticle(a *model.Article) (link string, err error) {
 	}
 	return
 }
-
-func SitemapResults()

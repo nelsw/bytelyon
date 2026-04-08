@@ -5,11 +5,11 @@ import (
 	"time"
 )
 
-type Nodes []*Node
+type ResultNodes []*ResultNode
 
-func (n Nodes) Len() int      { return len(n) }
-func (n Nodes) Swap(i, j int) { n[i], n[j] = n[j], n[i] }
-func (n Nodes) Less(i, j int) bool {
+func (n ResultNodes) Len() int      { return len(n) }
+func (n ResultNodes) Swap(i, j int) { n[i], n[j] = n[j], n[i] }
+func (n ResultNodes) Less(i, j int) bool {
 
 	// if this is a Bot Node
 	if n[i].BotID == n[i].ID {
@@ -25,7 +25,7 @@ func (n Nodes) Less(i, j int) bool {
 	return n[i].ID.Compare(n[j].ID) == -1
 }
 
-func (n Nodes) String() string {
+func (n ResultNodes) String() string {
 	var ss = make([]string, len(n))
 	for i, v := range n {
 		ss[i] = v.String()

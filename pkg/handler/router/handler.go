@@ -56,23 +56,18 @@ func handleDelete(r Request) Response {
 // - results: /bots?type=...&id=...
 func handleGet(r Request) Response {
 
-	var nodes model.Nodes
-
 	if r.ID().IsZero() {
-		nodes = repo.
+		return r.OK(repo.
 			FindBotsByType(r.UserID(), r.BotType()).
-			ToNodes()
-	} else {
-		nodes = repo.
-			FindBotResults(r.UserID(), r.ID(), r.BotType()).
-			ToNodes()
+			ToNodes())
 	}
 
-	if len(nodes) == 0 {
-		return r.NC()
+	results := repo.FindBotResults(r.UserID(), r.ID(), r.BotType())
+	if r.BotType() == model.SitemapBotType {
+		return r.OK(model.NewSitemapResults(results))
 	}
 
-	return r.OK(nodes)
+	return r.OK(results.ToNodes())
 }
 
 // handlePut creates or updates a bot in the database for the given body.

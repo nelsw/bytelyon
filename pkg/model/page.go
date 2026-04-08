@@ -1,8 +1,6 @@
 package model
 
 import (
-	"time"
-
 	. "github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
 )
@@ -20,9 +18,9 @@ type Page struct {
 	SERP   Serp      `json:"serp,omitempty"`
 }
 
-func NewPage(url string, ts time.Time) *Page {
+func NewPage(id ulid.ULID, url string) *Page {
 	return &Page{
-		ID:     NewULID(ts),
+		ID:     id,
 		URL:    url,
 		Domain: Domain(url),
 		Path:   Path(url),

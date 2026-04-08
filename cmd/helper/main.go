@@ -30,7 +30,7 @@ func init() {
 }
 
 func main() {
-	doSitemapBotResults()
+	logs.PrintWorkerBanner()
 }
 
 func doStuff() {

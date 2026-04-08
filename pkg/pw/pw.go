@@ -15,11 +15,18 @@ var (
 )
 
 func Init() {
+	log.Debug().Msg("installing playwright drivers")
 	if err := playwright.Install(&playwright.RunOptions{Logger: logs.NewSlog()}); err != nil {
-		panic(err)
-	} else if Client, err = playwright.Run(); err != nil {
-		panic(err)
+		log.Panic().Err(err).Msg("failed to install playwright")
 	}
+
+	log.Debug().Msg("starting a playwright instance")
+	var err error
+	if Client, err = playwright.Run(); err != nil {
+		log.Panic().Err(err).Msg("failed to start playwright")
+	}
+
+	log.Info().Msg("playwright initialized successfully")
 }
 
 func NewBrowser(headless bool) (playwright.Browser, error) {

@@ -6,4 +6,5 @@ import (
 
 func Init() {
 	log.Logger = MakeZerolog()
+	Meow()
 }

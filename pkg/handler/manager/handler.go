@@ -15,18 +15,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const banner = `
-██████╗ ██╗   ██╗████████╗███████╗██╗  ██╗   ██╗ ██████╗ ███╗   ██╗
-██╔══██╗╚██╗ ██╔╝╚══██╔══╝██╔════╝██║  ╚██╗ ██╔╝██╔═══██╗████╗  ██║
-██████╔╝ ╚████╔╝    ██║   █████╗  ██║   ╚████╔╝ ██║   ██║██╔██╗ ██║
-██╔══██╗  ╚██╔╝     ██║   ██╔══╝  ██║    ╚██╔╝  ██║   ██║██║╚██╗██║
-██████╔╝   ██║      ██║   ███████╗███████╗██║   ╚██████╔╝██║ ╚████║
-╚═════╝    ╚═╝      ╚═╝   ╚══════╝╚══════╝╚═╝    ╚═════╝ ╚═╝  ╚═══╝`
-
 func init() {
 
 	// print banner on startup as sign of life
-	fmt.Println(logs.BlueIntense + banner + logs.Default)
+	logs.PrintManagerBanner()
 
 	// load the .env file to get app config
 	godotenv.Load()

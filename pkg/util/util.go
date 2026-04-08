@@ -47,6 +47,13 @@ func Domain(s string) string {
 	return s
 }
 
+func Path(s string) string {
+	if _, r, k := strings.Cut(s, Domain(s)); k {
+		return r
+	}
+	return s
+}
+
 func Capitalize(s string) string {
 	return strings.ToUpper(s[0:1]) + s[1:]
 }

@@ -3,6 +3,8 @@ package router
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
+	"strings"
 
 	. "github.com/nelsw/bytelyon/pkg/api"
 	"github.com/nelsw/bytelyon/pkg/db"
@@ -56,18 +58,27 @@ func handleDelete(r Request) Response {
 // - results: /bots?type=...&id=...
 func handleGet(r Request) Response {
 
+	// if the request is for bots
 	if r.ID().IsZero() {
-		return r.OK(repo.
-			FindBotsByType(r.UserID(), r.BotType()).
-			ToNodes())
+		bots := repo.FindBotsByType(r.UserID(), r.BotType())
+		sort.Slice(bots, func(i, j int) bool {
+			return strings.Compare(bots[i].Target, bots[j].Target) == -1
+		})
+		return r.OK(bots)
 	}
 
+	// else the request is for bot results
 	results := repo.FindBotResults(r.UserID(), r.ID(), r.BotType())
 	if r.BotType() == model.SitemapBotType {
 		return r.OK(model.NewSitemapResults(results))
 	}
-
-	return r.OK(results.ToNodes())
+	if r.BotType() == model.SearchBotType {
+		return r.OK(results.ToNodes())
+	}
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Timestamp().Compare(results[j].Timestamp()) == -1
+	})
+	return r.OK(results)
 }
 
 // handlePut creates or updates a bot in the database for the given body.

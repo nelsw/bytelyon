@@ -69,6 +69,10 @@ func NewSitemapResults(results BotResults) *SitemapResults {
 		}
 	}
 
+	if _, ok := m[result.Target]; !ok {
+		m[result.Target] = Pages{}
+	}
+
 	// define result urls as page urls in alphabetical order
 	result.URLs = slices.Collect(maps.Keys(m))
 	sort.Strings(result.URLs)

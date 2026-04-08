@@ -40,25 +40,24 @@ func init() {
 
 func Run() {
 
-	log.Info().Msg("instantiating browsers ...")
-	headless, headed, err := pw.NewBrowsers()
-	if err != nil {
-		log.Panic().Err(err).Msg("failed to instantiate browsers")
-	}
-
-	defer func() {
-		headless.Close()
-		headed.Close()
-		pw.Client.Stop()
-	}()
-
 	var u, t string
-	var f, x bool
+	var h, f, x bool
 	flag.StringVar(&u, "user", "01KMXGBJJE2GMCA1A9EXDGF4AJ", "user id")
 	flag.StringVar(&t, "type", model.NewsBotType.String(), "bot type [news, search, sitemap]")
+	flag.BoolVar(&h, "headless", true, "use headless browser (will not commandeer your browsers)")
 	flag.BoolVar(&f, "force", false, "work a bot even if it's not ready")
 	flag.BoolVar(&x, "async", false, "work is executed concurrently on multiple threads")
 	flag.Parse()
+
+	log.Info().Bool("headless", h).Msg("instantiating browser ...")
+	bro, err := pw.NewBrowser(h)
+	if err != nil {
+		log.Panic().Err(err).Msg("failed to instantiate browser")
+	}
+	defer func() {
+		bro.Close()
+		pw.Client.Stop()
+	}()
 
 	var userID ulid.ULID
 	if userID, err = ulid.ParseStrict(u); err != nil {
@@ -82,22 +81,24 @@ func Run() {
 
 	var jobs []*manager.Job
 	for _, bot := range bots {
+
 		if !bot.IsReady() {
 			log.Info().Str("target", bot.Target).Msg("bot is not ready to work")
-			if f {
-				log.Info().Msg("force work flag is set, working anyway")
+			if !f {
+				log.Debug().Msg("skipping bot")
+				continue
 			}
-			continue
+			log.Info().Msg("forcing work")
 		}
+
 		var ctx playwright.BrowserContext
 		if bot.Fingerprint == nil {
 			bot.Fingerprint = model.NewFingerprint()
 		}
-		if state := bot.Fingerprint.GetState(); bot.Headless {
-			ctx, err = client.NewContext(headless, state)
-		} else {
-			ctx, err = client.NewContext(headed, state)
-		}
+		state := bot.Fingerprint.GetState()
+
+		ctx, err = client.NewContext(bro, state)
+
 		jobs = append(jobs, manager.NewJob(bot, ctx))
 	}
 	log.Info().Msgf("jobs found: %d", len(jobs))

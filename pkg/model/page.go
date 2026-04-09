@@ -1,6 +1,6 @@
 package model
 
-type Page struct {
+type PageDTO struct {
 	URL   string `json:"url"`
 	Title string `json:"title"`
 	IMG   string `json:"img"`

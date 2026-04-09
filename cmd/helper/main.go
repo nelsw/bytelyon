@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -30,7 +32,20 @@ func init() {
 }
 
 func main() {
-	logs.PrintWorkerBanner()
+	s := "https://api.ByteLyon.com:8080/bots?type=news#latest"
+	u, err := url.Parse(s)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(u.String())
+	fmt.Println(u.Path)
+	fmt.Println(u.Host)
+	fmt.Println(u.Hostname())
+	fmt.Println(u.EscapedPath())
+	fmt.Println(u.Fragment)
+	fmt.Println(u.Port())
+	fmt.Println(u.Scheme)
+	fmt.Println(u.RequestURI())
 }
 
 func doStuff() {

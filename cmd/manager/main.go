@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/nelsw/bytelyon/internal/handler/manager"
+	"github.com/nelsw/bytelyon/pkg/handler/manager"
 )
 
 func main() { manager.Start() }

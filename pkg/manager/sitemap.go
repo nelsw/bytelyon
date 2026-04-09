@@ -72,7 +72,8 @@ func (m *Mapper) Map(url string, depth int) {
 
 	defer m.wg.Done()
 
-	if depth <= 0 || m.putRelative(url) {
+	m.putRelative(url)
+	if depth <= 0 {
 		return
 	}
 

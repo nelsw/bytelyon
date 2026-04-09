@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+
+	"github.com/rs/zerolog/log"
 )
 
 func Get(url string) ([]byte, error) {
 	res, err := http.Get(url)
 	if err != nil {
+		log.Err(err).Str("url", url).Msg("failed to get")
 		return nil, err
 	}
 	defer res.Body.Close()

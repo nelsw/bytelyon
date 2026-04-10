@@ -2,20 +2,57 @@ package client
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/rs/zerolog/log"
 )
 
 func Get(url string) ([]byte, error) {
+
+	var errs error
+
+	for i := 0; i < 3; i++ {
+
+		data, code, err := get(url)
+		if code < 300 {
+			return data, nil
+		}
+
+		errs = errors.Join(errs, err)
+
+		if code != 429 {
+			break
+		}
+
+		time.Sleep(time.Second * time.Duration(5*(i+1)))
+	}
+
+	return nil, errs
+}
+
+func get(url string) ([]byte, int, error) {
+
+	log.Trace().Str("url", url).Msg("get")
+
 	res, err := http.Get(url)
 	if err != nil {
 		log.Err(err).Str("url", url).Msg("failed to get")
-		return nil, err
+		return nil, -1, err
 	}
 	defer res.Body.Close()
-	return io.ReadAll(res.Body)
+
+	log.Debug().
+		Str("url", url).
+		Str("status", res.Status).
+		Msg("got")
+
+	var b []byte
+	b, err = io.ReadAll(res.Body)
+
+	return b, res.StatusCode, err
 }
 
 func PostJSON(url string, b []byte, h map[string]string) ([]byte, error) {

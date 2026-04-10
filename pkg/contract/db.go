@@ -4,12 +4,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 )
 
-// Creatable interface provides methods for creating DynamoDB tables.
-type Creatable interface {
-	// Create returns a CreateTableInput for creating a DynamoDB table.
-	Create() *dynamodb.CreateTableInput
-}
-
 // Gettable interface provides methods for retrieving DynamoDB items.
 type Gettable interface {
 	// Get returns a GetItemInput for retrieving a DynamoDB item.

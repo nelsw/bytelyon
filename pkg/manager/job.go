@@ -25,11 +25,11 @@ func NewJob(bot *model.Bot, ctx ...playwright.BrowserContext) *Job {
 
 func (j *Job) Work() {
 	switch j.bot.Type {
-	case "search":
+	case model.SearchBotType:
 		j.doSearch()
-	case "sitemap":
+	case model.SitemapBotType:
 		j.doSitemap()
-	case "news":
+	case model.NewsBotType:
 		j.doNews()
 	default:
 		log.Warn().Msgf("bot type [%s] not supported", j.bot.Type)
@@ -51,7 +51,7 @@ func (j *Job) Work() {
 	}
 
 	// save bot
-	if err := db.PutItem(j.bot); err != nil {
+	if err := db.Put(j.bot); err != nil {
 		log.Warn().Err(err).Msg("Failed to Save Search Bot (DB)")
 	}
 }

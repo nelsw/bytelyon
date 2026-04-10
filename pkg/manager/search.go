@@ -87,7 +87,7 @@ func (j *Job) doSearch() {
 
 	result.Data["pages"] = pages
 
-	if err = db.PutItem(result); err != nil {
+	if err = db.Put(result); err != nil {
 		log.Warn().Err(err).Msg("Failed to Save Search Result (DB)")
 	}
 

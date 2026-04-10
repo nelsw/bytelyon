@@ -8,7 +8,10 @@ import (
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/repo"
 	"github.com/nelsw/bytelyon/pkg/service/documents"
+	"github.com/nelsw/bytelyon/pkg/service/pages"
 	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/playwright-community/playwright-go"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -16,9 +19,20 @@ var (
 	badExtRegex    = regexp.MustCompile(`^.*\.(jpeg|png|gif|jpg|pdf)$`)
 )
 
-func Create(domain string, depth int) (*model.Sitemap, error) {
+func Create(domain string, depth int, ctx playwright.BrowserContext) (err error) {
+
 	m := New(domain, depth)
-	return m, repo.SaveSitemap(m)
+
+	if err = repo.SaveSitemap(m); err != nil {
+		return
+	}
+
+	for _, url := range m.URLs.Slice() {
+		if err = pages.Create(url, ctx); err != nil {
+			log.Err(err).Msg("failed to create sitemap page")
+		}
+	}
+	return
 }
 
 func New(domain string, depth int) *model.Sitemap {

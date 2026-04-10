@@ -5,7 +5,9 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
+	"github.com/nelsw/bytelyon/pkg/client"
 	"github.com/nelsw/bytelyon/pkg/db"
+	"github.com/nelsw/bytelyon/pkg/pw"
 	"github.com/nelsw/bytelyon/pkg/service/pages"
 	"github.com/nelsw/bytelyon/pkg/service/sitemaps"
 	"github.com/nelsw/bytelyon/pkg/util"
@@ -29,15 +31,18 @@ var (
 func init() {
 	godotenv.Load()
 	logs.Init()
+	pw.Init()
 }
 
 func main() {
-	workPage()
+	workSitemap()
 }
 
 func workSitemap() {
-	s := sitemaps.New("li-fire.com", 5)
-	fmt.Println(repo.SaveSitemap(s))
+	bro := util.Must(client.NewBrowser(pw.Client, true))
+	ctx := util.Must(client.NewContext(bro, model.NewFingerprint().GetState()))
+	err := sitemaps.Create("li-fire.com", 5, ctx)
+	fmt.Println(err)
 }
 
 func workPage() {

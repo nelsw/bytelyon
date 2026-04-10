@@ -5,6 +5,7 @@ import (
 
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/service/sitemaps"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
 )
@@ -28,7 +29,9 @@ func (j *Job) Work() {
 	case model.SearchBotType:
 		j.doSearch()
 	case model.SitemapBotType:
-		j.doSitemap()
+		if err := sitemaps.Create(j.bot.Target, 5, j.ctx); err != nil {
+			log.Err(err).Msg("failed to create sitemap")
+		}
 	case model.NewsBotType:
 		j.doNews()
 	default:

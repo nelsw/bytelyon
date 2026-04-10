@@ -47,7 +47,7 @@ func NewPwPage(url string, ctx playwright.BrowserContext, t ...*model.Time) (pag
 		return
 	}
 	defer func(page playwright.Page) {
-		_ = page.Close()
+		_ = p.Close()
 	}(p)
 
 	var resp playwright.Response

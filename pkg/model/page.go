@@ -15,7 +15,7 @@ type Page struct {
 	Title          string
 	Meta           Data[string]
 	Paragraphs     *Set
-	ScreenshotURL  string
+	ScreenshotKey  string
 	ContentKey     string
 	CreatedAt      *Time
 	ScreenshotData []byte
@@ -33,7 +33,7 @@ func (p *Page) MarshalJSON() ([]byte, error) {
 		"title":         p.Title,
 		"meta":          p.Meta,
 		"paragraphs":    p.Paragraphs,
-		"screenshotUrl": p.ScreenshotURL,
+		"screenshotKey": p.ScreenshotKey,
 		"contentKey":    p.ContentKey,
 		"createdAt":     p.CreatedAt,
 	})
@@ -41,7 +41,7 @@ func (p *Page) MarshalJSON() ([]byte, error) {
 
 func (p *Page) Get() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: Ptr("Page"),
+		TableName: p.Query().TableName,
 		Key: map[string]types.AttributeValue{
 			"createdAt": p.CreatedAt.ToAttributeValue(),
 			"url":       &types.AttributeValueMemberS{Value: p.URL},
@@ -51,7 +51,7 @@ func (p *Page) Get() *dynamodb.GetItemInput {
 
 func (p *Page) Query() *dynamodb.QueryInput {
 	return &dynamodb.QueryInput{
-		TableName:                p.Get().TableName,
+		TableName:                Ptr("Page"),
 		KeyConditionExpression:   Ptr("#0 = :0"),
 		ExpressionAttributeNames: map[string]string{"#0": "url"},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
@@ -67,7 +67,7 @@ func (p *Page) MarshalDynamoDBAttributeValue() (types.AttributeValue, error) {
 		"title":         &types.AttributeValueMemberS{Value: p.Title},
 		"meta":          p.Meta.ToAttributeValue(),
 		"paragraphs":    p.Paragraphs.ToAttributeValue(),
-		"screenshotUrl": &types.AttributeValueMemberS{Value: p.ScreenshotURL},
+		"screenshotKey": &types.AttributeValueMemberS{Value: p.ScreenshotKey},
 		"contentKey":    &types.AttributeValueMemberS{Value: p.ContentKey},
 		"createdAt":     p.CreatedAt.ToAttributeValue(),
 	}}, nil
@@ -86,8 +86,12 @@ func (p *Page) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err erro
 	p.Title = m["title"].(*types.AttributeValueMemberS).Value
 	p.Meta = ParseData[string](m["meta"])
 	p.Paragraphs = ParseSet(m["paragraphs"])
-	p.ScreenshotURL = m["screenshotUrl"].(*types.AttributeValueMemberS).Value
-	p.ContentKey = m["contentKey"].(*types.AttributeValueMemberS).Value
+	if val, ok := m["screenshotKey"]; ok && val != nil {
+		p.ScreenshotKey = val.(*types.AttributeValueMemberS).Value
+	}
+	if val, ok := m["contentKey"]; ok && val != nil {
+		p.ContentKey = val.(*types.AttributeValueMemberS).Value
+	}
 
 	return
 }

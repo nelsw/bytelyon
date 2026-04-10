@@ -10,7 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func Handle(r api.Request) api.Response {
+func Handler(r api.Request) api.Response {
 	switch r.Method() {
 	case http.MethodPost:
 		return handlePostArticle(r)

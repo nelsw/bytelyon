@@ -64,19 +64,6 @@ func (r Request) AuthResponse(ok bool, s ...string) AuthResponse {
 
 func (r Request) Response(code int, a ...any) Response {
 
-	var rb any
-	if code == http.StatusOK {
-		rb = true
-	} else {
-		rb = a
-	}
-
-	log.Log().
-		Dict("response", new(zerolog.Event).CreateDict().
-			Int("code", code).
-			Any("body", a)).
-		Msg("response")
-
 	var body string
 	if len(a) == 0 {
 		body = `{}`
@@ -90,6 +77,12 @@ func (r Request) Response(code int, a ...any) Response {
 			body = string(b)
 		}
 	}
+
+	log.Log().
+		Dict("response", new(zerolog.Event).CreateDict().
+			Int("code", code).
+			Any("body", body)).
+		Msg("response")
 
 	return Response{
 		StatusCode: code,
@@ -118,6 +111,10 @@ func (r Request) BotType() model.BotType {
 		return ""
 	}
 	return model.BotType(r.Query("type"))
+}
+
+func (r Request) Domain() string {
+	return strings.ReplaceAll(r.Query("domain"), " ", ".")
 }
 
 func (r Request) Target() string {

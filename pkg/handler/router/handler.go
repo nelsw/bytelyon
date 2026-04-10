@@ -4,6 +4,8 @@ import (
 	. "github.com/nelsw/bytelyon/pkg/api"
 	"github.com/nelsw/bytelyon/pkg/handler/router/articles"
 	"github.com/nelsw/bytelyon/pkg/handler/router/bots"
+	"github.com/nelsw/bytelyon/pkg/handler/router/pages"
+	"github.com/nelsw/bytelyon/pkg/handler/router/sitemaps"
 )
 
 func Handler(r Request) (Response, error) {
@@ -12,9 +14,13 @@ func Handler(r Request) (Response, error) {
 
 	switch r.RawPath {
 	case "/v1/bots":
-		return bots.Handle(r), nil
+		return bots.Handler(r), nil
 	case "/v1/articles":
-		return articles.Handle(r), nil
+		return articles.Handler(r), nil
+	case "/v1/sitemaps":
+		return sitemaps.Handler(r), nil
+	case "/v1/pages":
+		return pages.Handler(r), nil
 	}
 
 	return r.NI(), nil

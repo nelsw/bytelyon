@@ -25,10 +25,12 @@ func SavePage(page *model.Page) (err error) {
 		}
 	}
 	if len(page.ScreenshotData) > 0 {
-		if page.ScreenshotURL, err = s3.PutPublicImage(path+".png", page.ScreenshotData); err != nil {
+		key := path + ".png"
+		if _, err = s3.PutPublicImage(key, page.ScreenshotData); err != nil {
 			l.Err(err).Msg("failed to put page screenshot")
 		} else {
-			l.Debug().Msgf("put page screenshot: %s", page.ScreenshotURL)
+			l.Debug().Msgf("put page screenshot: %s", page.ScreenshotKey)
+			page.ScreenshotKey = key
 		}
 	}
 

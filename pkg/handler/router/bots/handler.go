@@ -14,7 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func Handle(r Request) Response {
+func Handler(r Request) Response {
 
 	r.Log()
 
@@ -72,7 +72,7 @@ func handleGet(r Request) Response {
 		return r.OK(model.NewSitemapResults(results))
 	}
 
-	return r.OK(results.ToNodes())
+	return r.OK(results)
 }
 
 // handlePut creates or updates a bot in the database for the given body.

@@ -11,20 +11,29 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func Create(url string, ctx playwright.BrowserContext) error {
-	page, err := New(url, ctx)
-	if err != nil {
-		return err
+func Create(url string, ctx playwright.BrowserContext) (err error) {
+	var page *model.Page
+
+	if page, err = New(url, ctx); err != nil {
+		log.Err(err).Msg("new page failed")
+		return
 	}
-	return repo.SavePage(page)
+	log.Info().Msg("new page succeeded")
+
+	if err = repo.SavePage(page); err != nil {
+		log.Err(err).Msg("save page failed")
+	} else {
+		log.Info().Msg("save page succeeded")
+	}
+	return
 }
 
 func New(url string, ctx playwright.BrowserContext) (page *model.Page, err error) {
 	log.Debug().Str("url", url).Msg("new page")
 	if page, err = NewPwPage(url, ctx); err != nil {
-		log.Err(err).Str("url", url).Msg("failed to create dynamic page")
+		log.Err(err).Str("url", url).Msg("new PW page failed")
 		if page, err = NewDocumentPage(url); err != nil {
-			log.Err(err).Str("url", url).Msg("failed to create static page")
+			log.Err(err).Str("url", url).Msg("new document page failed")
 		}
 	}
 	return

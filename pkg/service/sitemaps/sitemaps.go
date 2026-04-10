@@ -19,20 +19,25 @@ var (
 	badExtRegex    = regexp.MustCompile(`^.*\.(jpeg|png|gif|jpg|pdf)$`)
 )
 
-func Create(domain string, depth int, ctx playwright.BrowserContext) (err error) {
+func Create(domain string, depth int, ctx playwright.BrowserContext) error {
 
 	m := New(domain, depth)
 
-	if err = repo.SaveSitemap(m); err != nil {
-		return
+	if err := repo.SaveSitemap(m); err != nil {
+		return err
 	}
 
+	var wg sync.WaitGroup
 	for _, url := range m.URLs.Slice() {
-		if err = pages.Create(url, ctx); err != nil {
-			log.Err(err).Msg("failed to create sitemap page")
-		}
+		wg.Go(func() {
+			if err := pages.Create(url, ctx); err != nil {
+				log.Err(err).Msg("failed to create sitemap page")
+			}
+		})
 	}
-	return
+	wg.Wait()
+
+	return nil
 }
 
 func New(domain string, depth int) *model.Sitemap {

@@ -184,6 +184,11 @@ func (f *Fingerprint) GetState() *playwright.OptionalStorageState {
 			PartitionKey: c.PartitionKey,
 		})
 	}
+
+	if f.Origins == nil {
+		f.Origins = []playwright.Origin{}
+	}
+
 	return &playwright.OptionalStorageState{
 		Origins: f.Origins,
 		Cookies: cookies,

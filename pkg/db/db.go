@@ -23,13 +23,7 @@ func Delete(t Gettable) error {
 }
 
 // Put creates a new item or replaces an old item with a new item.
-func Put(t Puttable) error {
-	err := client.PutItem(context.Background(), db, t.Put())
-	log.Err(err).Any("table", t.Put().TableName).Msg("put")
-	return err
-}
-
-func PutItem(t Gettable) error {
+func Put(t Gettable) error {
 	item, err := attributevalue.MarshalMap(&t)
 	if err == nil {
 		err = client.PutItem(context.Background(), db, &dynamodb.PutItemInput{

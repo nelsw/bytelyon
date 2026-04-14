@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -20,13 +19,18 @@ import (
 // Bot represents a bot entity with associated configuration and state.
 type Bot struct {
 
-	// UserID is the partition key.
+	// UserID is the partition (hash) key.
+	// The partition key is part of the table's primary key.
+	// It is a hash value used to retrieve items from your table
+	// and allocate data across hosts for scalability and availability.
 	UserID ulid.ULID
 
 	// ID is the unique identifier of the bot.
 	ID ulid.ULID
 
-	// Target is the sort key.
+	// Target is the sort (range) key.
+	// You can use a sort key as the second part of a table's primary key.
+	// The sort key allows you to sort or search among all items sharing the same partition key.
 	Target string
 
 	// Type is the type of the bot.
@@ -59,8 +63,6 @@ func (b *Bot) Validate() error {
 		return errors.New("frequency must be greater than 0")
 	} else if err := b.Type.Validate(); err != nil {
 		return fmt.Errorf("invalid bot type: %w", err)
-	} else if b.Type == SitemapBotType && !strings.HasPrefix(b.Target, "https://") {
-		return fmt.Errorf("bad url, must begin with https://")
 	}
 	return nil
 }
@@ -104,25 +106,6 @@ func (b *Bot) Query() *dynamodb.QueryInput {
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
 		ScanIndexForward:          Ptr(false),
-	}
-}
-
-func (b *Bot) Create() *dynamodb.CreateTableInput {
-	return &dynamodb.CreateTableInput{
-		TableName: b.Type.TableName(),
-		KeySchema: []types.KeySchemaElement{
-			{AttributeName: Ptr("userId"), KeyType: types.KeyTypeHash},
-			{AttributeName: Ptr("target"), KeyType: types.KeyTypeRange},
-		},
-		AttributeDefinitions: []types.AttributeDefinition{
-			{AttributeName: Ptr("userId"), AttributeType: types.ScalarAttributeTypeS},
-			{AttributeName: Ptr("target"), AttributeType: types.ScalarAttributeTypeS},
-		},
-		ProvisionedThroughput: &types.ProvisionedThroughput{
-			ReadCapacityUnits:  Ptr(int64(10)),
-			WriteCapacityUnits: Ptr(int64(10)),
-		},
-		BillingMode: types.BillingModeProvisioned,
 	}
 }
 

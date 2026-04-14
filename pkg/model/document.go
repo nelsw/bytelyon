@@ -2,13 +2,13 @@ package model
 
 import (
 	"encoding/json"
+	"errors"
 	"maps"
 	"slices"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/nelsw/bytelyon/pkg/util"
-	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -45,43 +45,26 @@ var (
 )
 
 type Document struct {
-	ID                ulid.ULID         `json:"id"`
-	Meta              map[string]string `json:"meta"`
-	Paragraphs        []string          `json:"paragraphs"`
-	Title             string            `json:"title"`
 	*goquery.Document `json:"-"`
+
+	Content string `json:"content"`
+
+	Title string `json:"title"`
+
+	Meta Data[string] `json:"meta"`
+
+	Paragraphs *Set `json:"paragraphs"`
 }
 
 func (d *Document) MarshalZerologObject(evt *zerolog.Event) {
-	evt.Stringer("id", d.ID).
-		Str("title", d.Title).
+	evt.Str("title", d.Title).
 		Int("metaCount", len(d.Meta)).
-		Int("paragraphCount", len(d.Paragraphs))
+		Int("paragraphCount", d.Paragraphs.Len())
 }
 
 func (d *Document) String() string {
 	b, _ := json.MarshalIndent(d, "", "\t")
 	return string(b)
-}
-
-func (d *Document) Keywords() []string {
-	var m = make(map[string]bool)
-	for _, key := range keywordsMetaKeys {
-		if csv, ok := d.Meta[key]; ok {
-			for _, k := range strings.Split(csv, ",") {
-				if strings.Contains(k, ";") {
-					continue
-				}
-				k = strings.TrimSpace(k)
-				if k == "" {
-					continue
-				}
-				k = strings.ToLower(k)
-				m[k] = true
-			}
-		}
-	}
-	return slices.Collect(maps.Keys(m))
 }
 
 func (d *Document) MetaSite() (string, bool) {
@@ -135,30 +118,50 @@ func (d *Document) meta(keys []string, ff ...func(s string) bool) (string, bool)
 	return best, len(best) > 0
 }
 
-func (d *Document) setParagraphs() {
-	var ss []string
-	m := make(map[string]int)
+func (d *Document) GetParagraphs() *Set {
+	if d.Paragraphs == nil || d.Paragraphs.Len() == 0 {
+		d.SetParagraphs()
+	}
+	return d.Paragraphs
+}
+
+func (d *Document) GetMeta() Data[string] {
+	if d.Meta == nil || d.Meta.Len() == 0 {
+		d.SetMeta()
+	}
+	return d.Meta
+}
+
+func (d *Document) SetParagraphs() {
+
+	if d.Paragraphs == nil {
+		d.Paragraphs = NewSet()
+	}
+	if d.Paragraphs.Len() > 0 {
+		return
+	}
 	var txt string
 	d.Find("p").Each(func(i int, s *goquery.Selection) {
 		if txt = strings.TrimSpace(s.Text()); txt == "" {
 			return
 		}
-		ss = append(ss, txt)
-		if _, ok := m[txt]; !ok {
-			m[txt] = 0
-		} else {
-			m[txt] = m[txt] + 1
-		}
+		d.Paragraphs.Add(txt)
 	})
-	for _, s := range ss {
-		if m[s] == 0 {
-			d.Paragraphs = append(d.Paragraphs, s)
-		}
-	}
 	log.Info().EmbedObject(d).Msg("set paragraphs")
 }
 
-func (d *Document) setTitle() {
+func (d *Document) GetTitle() string {
+	if d.Title == "" {
+		d.SetTitle()
+	}
+	if d.Title == "" {
+		d.SetMeta()
+		d.Title, _ = d.MetaTitle()
+	}
+	return d.Title
+}
+
+func (d *Document) SetTitle() {
 	d.Find("title").Each(func(i int, s *goquery.Selection) {
 		if i == 0 {
 			d.Title = s.Text()
@@ -168,8 +171,13 @@ func (d *Document) setTitle() {
 	log.Info().EmbedObject(d).Msg("set title")
 }
 
-func (d *Document) setMeta() {
-	d.Meta = make(map[string]string)
+func (d *Document) SetMeta() {
+	if d.Meta == nil {
+		d.Meta = MakeData[string]()
+	}
+	if d.Meta.Len() > 0 {
+		return
+	}
 	var key, val string
 	d.Find("meta").Each(func(i int, s *goquery.Selection) {
 		key, val = "", ""
@@ -186,15 +194,45 @@ func (d *Document) setMeta() {
 	log.Info().EmbedObject(d).Msg("set meta tags")
 }
 
-func NewDocument(id ulid.ULID, content string) (*Document, error) {
+func (d *Document) GetHREFs() []string {
+	var m = make(map[string]bool)
+	d.Find("a").Each(func(i int, s *goquery.Selection) {
+		m[s.AttrOr("href", "")] = true
+	})
+	return slices.Collect(maps.Keys(m))
+}
+
+func (d *Document) ToPage(url string, t ...*Time) *Page {
+	if len(t) == 0 {
+		t = append(t, Now())
+	}
+	return &Page{
+		CreatedAt:   t[0],
+		URL:         url,
+		Title:       d.GetTitle(),
+		Meta:        d.GetMeta(),
+		Paragraphs:  d.GetParagraphs(),
+		ContentData: d.Content,
+	}
+}
+
+func ParseDocument(content string) (*Document, error) {
+
+	if content == "" {
+		log.Error().Msg("document content is empty")
+		return nil, errors.New("document content is empty")
+	}
+
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
-	d := &Document{ID: id, Document: doc}
-	log.Err(err).EmbedObject(d).Msg("NewDocument")
 	if err != nil {
+		log.Err(err).Msg("failed to parse document")
 		return nil, err
 	}
-	d.setMeta()
-	d.setTitle()
-	d.setParagraphs()
-	return d, nil
+
+	return &Document{
+		Document:   doc,
+		Content:    content,
+		Paragraphs: NewSet(),
+		Meta:       MakeData[string](),
+	}, nil
 }

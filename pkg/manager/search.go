@@ -61,7 +61,7 @@ func (j *Job) doSearch() {
 	log.Info().Msgf("Reached Google SERP for query: %s", j.bot.Target)
 
 	result := j.bot.NewBotResult()
-	var pages []*model.Page
+	var pages []*model.PageDTO
 
 	pages = append(pages, j.makePage(result, page, 0))
 
@@ -73,7 +73,7 @@ func (j *Job) doSearch() {
 
 	log.Info().Int("locators", len(locators)).Msg("Locators Found")
 
-	var pge *model.Page
+	var pge *model.PageDTO
 	for idx, loc := range locators {
 
 		pge, err = j.handleLocator(result, j.ctx, loc, idx)
@@ -87,13 +87,13 @@ func (j *Job) doSearch() {
 
 	result.Data["pages"] = pages
 
-	if err = db.PutItem(result); err != nil {
+	if err = db.Put(result); err != nil {
 		log.Warn().Err(err).Msg("Failed to Save Search Result (DB)")
 	}
 
 }
 
-func (j *Job) handleLocator(result *model.BotResult, ctx playwright.BrowserContext, loc playwright.Locator, idx int) (*model.Page, error) {
+func (j *Job) handleLocator(result *model.BotResult, ctx playwright.BrowserContext, loc playwright.Locator, idx int) (*model.PageDTO, error) {
 
 	var cb = func() error {
 		return loc.Click(playwright.LocatorClickOptions{
@@ -132,9 +132,9 @@ func (j *Job) handleLocator(result *model.BotResult, ctx playwright.BrowserConte
 	return j.makePage(result, page, idx), nil
 }
 
-func (j *Job) makePage(result *model.BotResult, page playwright.Page, idx int) *model.Page {
+func (j *Job) makePage(result *model.BotResult, page playwright.Page, idx int) *model.PageDTO {
 
-	var p = model.Page{
+	var p = model.PageDTO{
 		URL: page.URL(),
 	}
 

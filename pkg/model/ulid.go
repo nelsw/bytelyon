@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/oklog/ulid/v2"
-	"github.com/rs/zerolog/log"
 )
 
 func NewULID(args ...time.Time) ulid.ULID {
@@ -25,13 +24,4 @@ func NewULID(args ...time.Time) ulid.ULID {
 	}
 
 	return id
-}
-
-func ParseULID(s string) ulid.ULID {
-	id, err := ulid.ParseStrict(s)
-	if err == nil {
-		return id
-	}
-	log.Warn().Str("id", s).Msg("failed to parse ULID")
-	return NewULID()
 }

@@ -167,7 +167,7 @@ func (j *Job) createNewsResult(i *model.Item) *model.BotResult {
 		"description", i.Description,
 		"publishedAt", i.Time.String(),
 	)
-	if err := db.PutItem(r); err != nil {
+	if err := db.Put(r); err != nil {
 		log.Warn().Err(err).Msgf("failed to save news item bot result %s", i)
 	}
 	return r
@@ -191,13 +191,17 @@ func (j *Job) HandleNewsContent(r *model.BotResult, s string) (ok bool) {
 
 	var doc *model.Document
 
-	if doc, err = model.NewDocument(r.ID, s); err != nil {
+	if doc, err = model.ParseDocument(s); err != nil {
 		log.Warn().Err(err).Msg("failed to create doc to hydrate news HTML")
 		return
 	}
 
+	doc.SetTitle()
+	doc.SetMeta()
+	doc.SetParagraphs()
+
 	var body []string
-	for _, p := range doc.Paragraphs {
+	for _, p := range doc.Paragraphs.Slice() {
 		if strings.Count(p, r.GetStr("source")) > 1 ||
 			strings.Contains(p, "RELATED:") ||
 			strings.Contains(p, "Related:") {
@@ -262,7 +266,7 @@ func (j *Job) HandleNewsImage(r *model.BotResult) (ok bool) {
 }
 
 func (j *Job) UpdateNewsResult(r *model.BotResult) {
-	if err := db.PutItem(r); err != nil {
+	if err := db.Put(r); err != nil {
 		log.Warn().Err(err).Msg("Failed to update news item bot result")
 	} else {
 		log.Info().Msg("updated news item bot result")

@@ -76,7 +76,7 @@ func (j *Job) doSearch() {
 	var pge *model.PageDTO
 	for idx, loc := range locators {
 
-		pge, err = j.handleLocator(result, j.ctx, loc, idx)
+		pge, err = j.handleLocator(result, j.ctx, loc, idx+1)
 		if err != nil {
 			log.Warn().Err(err).Msg("Failed to handle locator")
 			continue

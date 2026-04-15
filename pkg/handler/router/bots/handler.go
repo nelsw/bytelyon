@@ -69,7 +69,7 @@ func handleGet(r Request) Response {
 	results := repo.FindBotResults(r.UserID(), r.ID(), r.BotType())
 
 	if r.BotType() == model.SitemapBotType {
-		return r.OK(model.NewSitemapResults(results))
+		//return r.OK(model.NewSitemapResults(results))
 	}
 
 	return r.OK(results)

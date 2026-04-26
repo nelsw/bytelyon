@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
-	"sync"
 
 	"github.com/nelsw/bytelyon/pkg/client"
 	"github.com/nelsw/bytelyon/pkg/db"
@@ -74,11 +73,9 @@ func (j *Job) doNewsFeed(u string) {
 		return
 	}
 
-	var wg sync.WaitGroup
 	for _, i := range rss.Channel.Items {
-		wg.Go(func() { j.doNewsFeedItem(i) })
+		j.doNewsFeedItem(i)
 	}
-	wg.Wait()
 }
 
 func (j *Job) doNewsFeedItem(i *model.Item) {

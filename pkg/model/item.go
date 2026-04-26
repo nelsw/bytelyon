@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/rs/zerolog/log"
@@ -26,7 +25,7 @@ type Item struct {
 	Title       string `xml:"title"`
 	Description string `xml:"description"`
 	Source      string `xml:"source"`
-	Time        *Time  `xml:"pubDate"`
+	PublishedAt *Time  `xml:"pubDate"`
 	NewsSource  string `xml:"News_Source"`
 }
 
@@ -42,15 +41,8 @@ func (i *Item) String() string {
 		i.Title,
 		i.Description,
 		i.Source,
-		i.Time,
+		i.PublishedAt,
 	)
-}
-
-// IsOldNews returns true if the given time is not zero
-// and Article publication date is before the given time.
-// We use this method to assist in preventing data dupes.
-func (i *Item) IsOldNews(t time.Time) bool {
-	return !t.IsZero() && !i.Time.Before(t)
 }
 
 func (i *Item) ContainsKeyword(keyword string) bool {

@@ -82,8 +82,9 @@ func (j *Job) doNewsFeedItem(i *model.Item) {
 
 	log.Info().Msgf("Processing RSS item %s", i)
 
-	// fail fast if we've seen this article
-	if i.IsOldNews(j.bot.WorkedAt) {
+	// fail fast if this news item could be a duplicate
+	if !i.PublishedAt.IsZero() &&
+		i.PublishedAt.Before(j.bot.WorkedAt) {
 		return
 	}
 
@@ -162,7 +163,7 @@ func (j *Job) createNewsResult(i *model.Item) *model.BotResult {
 		"title", i.Title,
 		"source", i.Source,
 		"description", i.Description,
-		"publishedAt", i.Time.String(),
+		"publishedAt", i.PublishedAt.String(),
 	)
 	if err := db.Put(r); err != nil {
 		log.Warn().Err(err).Msgf("failed to save news item bot result %s", i)

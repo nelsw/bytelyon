@@ -3,7 +3,7 @@ package model
 import (
 	"encoding/json"
 	"errors"
-	"path/filepath"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -11,24 +11,6 @@ import (
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
-
-const articleBlogID = "gid://shopify/Blog/82899828795"
-const articleQuery = `mutation CreateArticle($article: ArticleCreateInput!) 
-{ 
-	articleCreate(article: $article) { 
-		article { 
-			id 
-			title 
-			author { name } 
-			handle 
-			body 
-			summary 
-			tags 
-			image { altText originalSrc } 
-		} 
-		userErrors { code field message } 
-	} 
-}`
 
 var handleRegex = regexp.MustCompile("[^a-zA-Z0-9\\-]+")
 
@@ -43,6 +25,8 @@ type Article struct {
 	ImageAlt    string
 	Prompt      string
 	PublishedAt time.Time
+	URL         string
+	Keywords    []string
 }
 
 func (a *Article) UnmarshalJSON(b []byte) error {
@@ -78,6 +62,16 @@ func (a *Article) UnmarshalJSON(b []byte) error {
 
 	a.setHandle()
 
+	if s, ok := m["url"]; ok {
+		a.URL = s.(string)
+	}
+
+	if s, ok := m["keywords"]; ok {
+		for _, v := range s.([]any) {
+			a.Keywords = append(a.Keywords, fmt.Sprintf("%v", v))
+		}
+	}
+
 	if s, ok := m["summary"]; ok {
 		a.Summary = s.(string)
 	}
@@ -88,10 +82,7 @@ func (a *Article) UnmarshalJSON(b []byte) error {
 
 	s, ok := m["image"]
 	if !ok {
-		return nil
-	}
-	if filepath.Ext(s.(string)) != ".png" {
-		log.Warn().Str("image", s.(string)).Msg("image extension not supported")
+		log.Warn().Msg("article has no image")
 		return nil
 	}
 	if !strings.HasPrefix(s.(string), "https://") {
@@ -116,10 +107,25 @@ func (a *Article) ToShopifyPayload() []byte {
 	a.setHandle()
 
 	b, _ := json.Marshal(map[string]any{
-		"query": articleQuery,
+		"query": `mutation CreateArticle($article: ArticleCreateInput!) 
+{ 
+	articleCreate(article: $article) { 
+		article { 
+			id 
+			title 
+			author { name } 
+			handle 
+			body 
+			summary 
+			tags 
+			image { altText originalSrc } 
+		} 
+		userErrors { code field message } 
+	} 
+}`,
 		"variables": map[string]any{
 			"article": map[string]any{
-				"blogId":      articleBlogID,
+				"blogId":      "gid://shopify/Blog/82899828795",
 				"title":       a.Title,
 				"author":      map[string]any{"name": "Stu Andrew"},
 				"handle":      a.Handle,

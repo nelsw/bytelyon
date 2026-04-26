@@ -47,6 +47,7 @@ func (r Request) AuthResponse(ok bool, s ...string) AuthResponse {
 	ctx := make(map[string]any)
 	if !ok {
 		ctx["error"] = s[0]
+		ctx["message"] = s[0]
 	} else {
 		ctx["userId"] = s[0]
 		ctx["token"] = s[1]

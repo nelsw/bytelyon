@@ -33,8 +33,8 @@ func Prompt(system string, message string, html ...bool) (string, error) {
 	l.Info().Any("response", out).Msg("anthropic prompt succeeded")
 
 	txt := out.Content[0].Text
-	if len(html) > 0 && html[0] {
-
+	if len(html) == 0 || !html[0] {
+		return txt, nil
 	}
 
 	var buf bytes.Buffer

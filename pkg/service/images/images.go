@@ -32,11 +32,13 @@ func ToPublicURL(src string) (string, error) {
 		return "", err
 	}
 
-	var url string
-	if url, err = s3.PutPublicImage(strings.TrimPrefix(src, "https://"), b); err != nil {
+	key := strings.TrimPrefix(src, "https://")
+
+	if _, err = s3.PutPublicImage(key, b); err != nil {
 		return "", err
 	}
 
+	url := "https://bytelyon-public.s3.amazonaws.com/" + key
 	log.Debug().Str("url", url).Msg("public image")
 
 	return url, nil

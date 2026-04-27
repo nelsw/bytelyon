@@ -76,8 +76,12 @@ func (a *Article) UnmarshalJSON(b []byte) error {
 		a.Summary = s.(string)
 	}
 
-	if s, ok := m["tags"]; ok {
-		a.Tags = s.([]any)
+	if v, ok := m["tags"]; ok {
+		if _, ok = v.([]any); ok {
+			a.Tags = v.([]any)
+		} else if _, ok = v.(string); ok {
+			a.Tags = []any{v.(string)}
+		}
 	}
 
 	s, ok := m["image"]

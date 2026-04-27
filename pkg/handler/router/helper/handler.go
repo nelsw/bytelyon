@@ -2,6 +2,7 @@ package helper
 
 import (
 	"encoding/json"
+	"errors"
 
 	. "github.com/nelsw/bytelyon/pkg/api"
 	"github.com/nelsw/bytelyon/pkg/model"
@@ -10,6 +11,10 @@ import (
 func Handler(r Request) Response {
 
 	r.Log()
+
+	if r.Query("err") != "" {
+		return r.BAD(errors.New("test error"))
+	}
 
 	var m model.Data[any]
 	if err := json.Unmarshal([]byte(r.Body), &m); err != nil {

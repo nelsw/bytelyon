@@ -27,15 +27,11 @@ func Create(domain string, depth int, ctx playwright.BrowserContext) error {
 		return err
 	}
 
-	var wg sync.WaitGroup
 	for _, url := range m.URLs.Slice() {
-		wg.Go(func() {
-			if err := pages.Create(url, ctx); err != nil {
-				log.Err(err).Msg("failed to create sitemap page")
-			}
-		})
+		if err := pages.Create(url, ctx); err != nil {
+			log.Err(err).Msg("failed to create sitemap page")
+		}
 	}
-	wg.Wait()
 
 	return nil
 }
@@ -69,11 +65,11 @@ func New(domain string, depth int) *model.Sitemap {
 			}
 
 			if util.Domain(href) == m.Domain {
-				wg.Go(func() { ƒ(m, wg, href, d-1) })
+				ƒ(m, wg, href, d-1)
 			}
 
 			if strings.HasPrefix(href, "?") || strings.HasPrefix(href, "/") {
-				wg.Go(func() { ƒ(m, wg, "https://"+m.Domain+href, d-1) })
+				ƒ(m, wg, "https://"+m.Domain+href, d-1)
 			}
 		}
 	}

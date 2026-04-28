@@ -141,7 +141,7 @@ func (b *BotResult) UnmarshalJSON(data []byte) (err error) {
 	} else if b.BotID, err = ulid.ParseStrict(m["botId"].(string)); err != nil {
 		return fmt.Errorf("failed to parse BotID: %w", err)
 	} else if b.ID, err = ulid.ParseStrict(m["id"].(string)); err != nil {
-		return fmt.Errorf("failed to parse BotID: %w", err)
+		return fmt.Errorf("failed to parse ID: %w", err)
 	}
 
 	b.Type = BotType(m["type"].(string))

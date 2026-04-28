@@ -44,7 +44,7 @@ func Put(t Gettable) error {
 // Get retrieves an item from the DynamoDB table.
 func Get[T Gettable](t T) (T, error) {
 	item, err := GetItem(context.Background(), aws.DB(), t.Get())
-	if err != nil {
+	if err == nil {
 		err = attributevalue.UnmarshalMap(item, &t)
 	}
 	return t, err

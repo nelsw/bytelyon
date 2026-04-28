@@ -258,7 +258,7 @@ func Content(page playwright.Page) string {
 // Screenshot returns the screenshot of the page as a byte array or an empty byte array if the page has failed to load.
 func Screenshot(page playwright.Page, opts ...playwright.PageScreenshotOptions) []byte {
 	opts = append(opts, playwright.PageScreenshotOptions{FullPage: Ptr(true)})
-	b, err := page.Screenshot()
+	b, err := page.Screenshot(opts...)
 	if err != nil {
 		return nil
 	}

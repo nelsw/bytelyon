@@ -16,9 +16,9 @@ var (
 	s3c *s3.Client
 )
 
-func init() {
-	Init()
-}
+//func init() {
+//	Init()
+//}
 
 func Init(args ...string) {
 	if len(args) == 0 {
@@ -33,6 +33,7 @@ func Init(args ...string) {
 
 func DB() *dynamodb.Client {
 	if dbc == nil {
+		Init()
 		dbc = dynamodb.NewFromConfig(cfg)
 	}
 	return dbc
@@ -40,6 +41,7 @@ func DB() *dynamodb.Client {
 
 func S3() *s3.Client {
 	if s3c == nil {
+		Init()
 		s3c = s3.NewFromConfig(cfg)
 	}
 	return s3c

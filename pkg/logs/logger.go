@@ -4,6 +4,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func Init() {
-	log.Logger = MakeZerolog()
+func Init(args ...string) {
+	log.Logger = MakeZerolog(args...)
 }

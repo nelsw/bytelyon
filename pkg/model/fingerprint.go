@@ -152,11 +152,6 @@ func (f *Fingerprint) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) er
 		}
 	}
 
-	//var cookies []types.AttributeValue
-	//var origins []types.AttributeValue
-
-	log.Debug().Msgf("UnmarshalDynamoDBAttributeValue: %+v", m)
-
 	return nil
 }
 

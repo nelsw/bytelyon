@@ -32,7 +32,7 @@ func (t BotType) String() string {
 }
 
 func (t BotType) TableName(args ...string) *string {
-	s := "Bot_" + util.Capitalize(t.String())
+	s := "ByteLyon_Bot_" + util.Capitalize(t.String())
 	if len(args) > 0 {
 		s += "_" + util.Capitalize(args[0])
 	}

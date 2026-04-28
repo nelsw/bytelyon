@@ -1,4 +1,4 @@
-package manager
+package worker
 
 import (
 	"github.com/nelsw/bytelyon/pkg/service/sitemaps"

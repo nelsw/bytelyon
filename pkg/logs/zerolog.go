@@ -13,7 +13,7 @@ func NewZerolog() *zerolog.Logger {
 	return &l
 }
 
-func MakeZerolog() zerolog.Logger {
+func MakeZerolog(args ...string) zerolog.Logger {
 	l := log.Output(zerolog.ConsoleWriter{
 		Out: os.Stdout,
 		FormatLevel: func(a any) string {
@@ -36,22 +36,28 @@ func MakeZerolog() zerolog.Logger {
 		},
 		FieldsOrder: []string{
 			"ƒ",
+			"ready",
 			"userId", "botId", "id",
 			"type", "botType",
-			"ready",
+			"target",
 			"size",
 			"table",
 			"ip", "method", "authorization", "path", "query", "body",
 		},
 	})
 
-	if os.Getenv("LOG_LEVEL") == "release" {
-		return l.Level(zerolog.InfoLevel)
+	if len(args) == 0 {
+		args = append(args, os.Getenv("LOG_LEVEL"))
 	}
 
-	if os.Getenv("LOG_LEVEL") == "debug" {
-		return l.Level(zerolog.DebugLevel)
+	lvl, err := zerolog.ParseLevel(args[0])
+	if err != nil {
+		lvl = zerolog.TraceLevel
 	}
 
-	return l.Level(zerolog.TraceLevel).With().Caller().Logger()
+	if l = l.Level(lvl); lvl == zerolog.TraceLevel {
+		l = l.With().Caller().Logger()
+	}
+
+	return l
 }

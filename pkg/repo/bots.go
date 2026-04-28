@@ -14,14 +14,14 @@ func FindBots(userID ulid.ULID) model.Bots {
 		Stringer("userId", userID).
 		Logger()
 
-	l.Info().Send()
+	l.Trace().Send()
 
 	var arr []*model.Bot
 	for _, botType := range model.BotTypes() {
 		arr = append(arr, FindBotsByType(userID, botType)...)
 	}
 
-	l.Info().Int("size", len(arr)).Send()
+	l.Debug().Int("size", len(arr)).Send()
 
 	return arr
 }
@@ -34,15 +34,15 @@ func FindBotsByType(userID ulid.ULID, botType model.BotType) model.Bots {
 		Stringer("botType", botType).
 		Logger()
 
-	l.Info().Send()
+	l.Trace().Send()
 
 	all, err := db.Query(&model.Bot{UserID: userID, Type: botType})
 	if err != nil {
-		l.Error().Err(err).Msg("bots query failed")
+		l.Err(err).Send()
 		return nil
 	}
 
-	l.Info().Int("size", len(all)).Send()
+	l.Debug().Int("size", len(all)).Send()
 
 	return all
 }

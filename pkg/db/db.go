@@ -7,61 +7,54 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/nelsw/bytelyon/pkg/aws"
-	"github.com/nelsw/bytelyon/pkg/client"
-	. "github.com/nelsw/bytelyon/pkg/contract"
-	"github.com/rs/zerolog/log"
 )
 
-var ctx = context.Background()
-var db = aws.DB()
+// Gettable interface provides methods for retrieving DynamoDB items.
+type Gettable interface {
+	// Get returns a GetItemInput for retrieving a DynamoDB item.
+	Get() *dynamodb.GetItemInput
+}
+
+// Queryable interface provides methods for querying DynamoDB tables.
+type Queryable interface {
+	// Query returns a QueryInput for querying a DynamoDB table.
+	Query() *dynamodb.QueryInput
+}
 
 // Delete removes an item from a DynamoDB table.
 func Delete(t Gettable) error {
-	err := client.DeleteItem(ctx, db, &dynamodb.DeleteItemInput{TableName: t.Get().TableName, Key: t.Get().Key})
-	log.Err(err).Any("table", t.Get().TableName).Msg("delete")
-	return nil
+	return DeleteItem(context.Background(), aws.DB(), &dynamodb.DeleteItemInput{
+		TableName: t.Get().TableName,
+		Key:       t.Get().Key,
+	})
 }
 
 // Put creates a new item or replaces an old item with a new item.
 func Put(t Gettable) error {
 	item, err := attributevalue.MarshalMap(&t)
-	if err == nil {
-		err = client.PutItem(context.Background(), db, &dynamodb.PutItemInput{
-			TableName: t.Get().TableName,
-			Item:      item,
-		})
+	if err != nil {
+		return err
 	}
-	log.Err(err).Any("table", t.Get().TableName).Msg("put")
-	return err
+	return PutItem(context.Background(), aws.DB(), &dynamodb.PutItemInput{
+		TableName: t.Get().TableName,
+		Item:      item,
+	})
 }
 
 // Get retrieves an item from the DynamoDB table.
 func Get[T Gettable](t T) (T, error) {
-	item, err := client.GetItem(ctx, db, t.Get())
-	if err == nil {
+	item, err := GetItem(context.Background(), aws.DB(), t.Get())
+	if err != nil {
 		err = attributevalue.UnmarshalMap(item, &t)
 	}
-	log.Err(err).Any("table", t.Get().TableName).Msg("get")
 	return t, err
 }
 
 // Query items by the hash key.
-// See Bot for a composite key of a hash and range key.
 func Query[T Queryable](t T) (out []T, err error) {
 	var items []map[string]types.AttributeValue
-	if items, err = client.QueryItems(ctx, db, t.Query()); err == nil {
+	if items, err = QueryItems(context.Background(), aws.DB(), t.Query()); err == nil {
 		err = attributevalue.UnmarshalListOfMaps(items, &out)
 	}
-	log.Err(err).Any("table", t.Query().TableName).Int("size", len(out)).Msg("query")
-	return
-}
-
-// Scan is literally a full table scan; don't use this function.
-func Scan[T Scannable](t T) (out []T, err error) {
-	var items []map[string]types.AttributeValue
-	if items, err = client.ScanItems(ctx, db, t.Scan()); err == nil {
-		err = attributevalue.UnmarshalListOfMaps(items, &out)
-	}
-	log.Err(err).Any("table", t.Scan().TableName).Int("size", len(out)).Msg("scan")
 	return
 }

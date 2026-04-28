@@ -42,14 +42,10 @@ func (u *User) Put() *dynamodb.PutItemInput {
 		},
 	}
 }
-func (u *User) Scan() *dynamodb.ScanInput {
-	return &dynamodb.ScanInput{
-		TableName: u.Create().TableName,
-	}
-}
+
 func (u *User) Create() *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
-		TableName: Ptr("User"),
+		TableName: Ptr("ByteLyon_User"),
 		KeySchema: []types.KeySchemaElement{
 			{AttributeName: Ptr("id"), KeyType: types.KeyTypeHash},
 		},

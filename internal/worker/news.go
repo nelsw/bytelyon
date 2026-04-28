@@ -1,4 +1,4 @@
-package manager
+package worker
 
 import (
 	"encoding/xml"

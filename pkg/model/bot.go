@@ -52,12 +52,6 @@ type Bot struct {
 	Fingerprint *Fingerprint
 }
 
-func (b *Bot) Scan() *dynamodb.ScanInput {
-	return &dynamodb.ScanInput{
-		TableName: b.Type.TableName(),
-	}
-}
-
 func (b *Bot) Validate() error {
 	if b.Frequency < 0 {
 		return errors.New("frequency must be greater than 0")
@@ -80,7 +74,22 @@ func (b *Bot) StoragePath(n any, ext string) string {
 
 // IsReady returns true if the bot is ready to run.
 func (b *Bot) IsReady() bool {
-	return b.Frequency > 0 && b.WorkedAt.Add(b.Frequency).Before(time.Now().UTC())
+
+	// 0ns is what the web app sends to pause runs.
+	if b.Frequency == 0 {
+		return false
+	}
+
+	// 1ns is what the web app sends to run once ASAP.
+	if b.Frequency == 1 {
+		return true
+	}
+
+	// add the frequency to the time this bot was last worked
+	next := b.WorkedAt.Add(b.Frequency)
+
+	// if the next run is in the past, it's ready to run
+	return next.Before(time.Now().UTC())
 }
 
 func (b *Bot) Get() *dynamodb.GetItemInput {

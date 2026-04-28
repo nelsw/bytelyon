@@ -3,4 +3,4 @@
 state.json
 /bin/
 web/bot/search/*
-.env*
+.env

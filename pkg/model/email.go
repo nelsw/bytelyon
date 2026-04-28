@@ -24,18 +24,9 @@ type Email struct {
 	VerifiedAt time.Time `json:"verifiedAt"`
 }
 
-func (e *Email) TableName() *string {
-	return Ptr("Email")
-}
-
-func (e *Email) Scan() *dynamodb.ScanInput {
-	return &dynamodb.ScanInput{
-		TableName: e.TableName(),
-	}
-}
 func (e *Email) Create() *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
-		TableName: e.TableName(),
+		TableName: Ptr("ByteLyon_Email"),
 		KeySchema: []types.KeySchemaElement{
 			{AttributeName: Ptr("address"), KeyType: types.KeyTypeHash},
 		},
@@ -51,7 +42,7 @@ func (e *Email) Create() *dynamodb.CreateTableInput {
 }
 func (e *Email) Get() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: e.TableName(),
+		TableName: e.Create().TableName,
 		Key: map[string]types.AttributeValue{
 			"address": &types.AttributeValueMemberS{Value: e.Address},
 		},
@@ -59,7 +50,7 @@ func (e *Email) Get() *dynamodb.GetItemInput {
 }
 func (e *Email) Put() *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
-		TableName: e.TableName(),
+		TableName: e.Create().TableName,
 		Item: map[string]types.AttributeValue{
 			"address":    &types.AttributeValueMemberS{Value: e.Address},
 			"userId":     &types.AttributeValueMemberS{Value: e.UserID.String()},

@@ -24,7 +24,7 @@ func (s *Sitemap) String() string {
 
 func (s *Sitemap) Get() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: util.Ptr("Sitemap"),
+		TableName: util.Ptr("ByteLyon_Sitemap"),
 		Key: map[string]types.AttributeValue{
 			"domain": &types.AttributeValueMemberS{Value: s.Domain},
 		},

@@ -1,4 +1,4 @@
-package manager
+package worker
 
 import (
 	"time"
@@ -13,15 +13,6 @@ import (
 type Job struct {
 	ctx playwright.BrowserContext
 	bot *model.Bot
-}
-
-func NewJob(bot *model.Bot, ctx ...playwright.BrowserContext) *Job {
-	var j = new(Job)
-	j.bot = bot
-	if len(ctx) > 0 {
-		j.ctx = ctx[0]
-	}
-	return j
 }
 
 func (j *Job) Work() {

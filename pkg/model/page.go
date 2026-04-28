@@ -51,7 +51,7 @@ func (p *Page) Get() *dynamodb.GetItemInput {
 
 func (p *Page) Query() *dynamodb.QueryInput {
 	return &dynamodb.QueryInput{
-		TableName:                Ptr("Page"),
+		TableName:                Ptr("ByteLyon_Page"),
 		KeyConditionExpression:   Ptr("#0 = :0"),
 		ExpressionAttributeNames: map[string]string{"#0": "url"},
 		ExpressionAttributeValues: map[string]types.AttributeValue{

@@ -10,12 +10,17 @@ import (
 func NewSlog() *slog.Logger {
 
 	var sl slog.Level
-	if os.Getenv("MODE") == "release" {
-		sl = slog.LevelWarn
-	} else if os.Getenv("MODE") == "debug" {
-		sl = slog.LevelInfo
-	} else {
+	switch os.Getenv("SLOG_LEVEL") {
+	case "debug":
 		sl = slog.LevelDebug
+	case "info":
+		sl = slog.LevelInfo
+	case "warn":
+		sl = slog.LevelWarn
+	case "error":
+		sl = slog.LevelError
+	default:
+		sl = slog.LevelInfo
 	}
 
 	return slog.New(slogzerolog.Option{

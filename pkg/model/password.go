@@ -28,13 +28,9 @@ func (p *Password) Generate(text string) (err error) {
 	return
 }
 
-func (p *Password) TableName() *string {
-	return Ptr("Password")
-}
-
 func (p *Password) Create() *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
-		TableName: p.TableName(),
+		TableName: Ptr("Password"),
 		KeySchema: []types.KeySchemaElement{
 			{AttributeName: Ptr("userId"), KeyType: types.KeyTypeHash},
 		},
@@ -50,7 +46,7 @@ func (p *Password) Create() *dynamodb.CreateTableInput {
 }
 func (p *Password) Get() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: p.TableName(),
+		TableName: Ptr("Password"),
 		Key: map[string]types.AttributeValue{
 			"userId": &types.AttributeValueMemberS{Value: p.UserID.String()},
 		},
@@ -58,7 +54,7 @@ func (p *Password) Get() *dynamodb.GetItemInput {
 }
 func (p *Password) Put() *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
-		TableName: p.TableName(),
+		TableName: Ptr("Password"),
 		Item: map[string]types.AttributeValue{
 			"userId": &types.AttributeValueMemberS{Value: p.UserID.String()},
 			"hash":   &types.AttributeValueMemberB{Value: p.Hash},

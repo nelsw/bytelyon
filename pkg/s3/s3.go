@@ -1,64 +1,95 @@
 package s3
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/nelsw/bytelyon/pkg/aws"
-	"github.com/nelsw/bytelyon/pkg/client"
 	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/rs/zerolog/log"
 )
 
-const private = "bytelyon-private"
-const public = "bytelyon-public"
-
-var ctx = context.Background()
-var c = aws.S3()
-
-func PutPrivateObject(k string, d []byte) error {
-	if len(k) == 0 {
-		return errors.New("cannot put private object with empty key")
-	} else if len(d) == 0 {
-		return errors.New("cannot put private object with empty data")
-	}
-	return client.PutObject(ctx, c, private, k, d)
+func PutPrivateObject(key string, data []byte) error {
+	return put(key, data, false)
 }
 
-func PutPublicImage(k string, d []byte) (string, error) {
-	if len(k) == 0 {
-		return "", errors.New("cannot put public image with empty key")
-	} else if len(d) == 0 {
-		return "", errors.New("cannot put public image with empty data")
-	}
-	return fmt.Sprintf("https://%s.s3.amazonaws.com/%s", public, k), client.PutPublicImage(ctx, c, public, k, d)
+func PutPublicImage(key string, data []byte) (string, error) {
+	return "https://bytelyon-public.s3.amazonaws.com/" + key, put(key, data, true)
 }
 
 func PutPrivateBotData(b *model.Bot, k string, d []byte) (string, error) {
-	k = key(b, k)
-	if err := client.PutObject(ctx, c, private, k, d); err != nil {
-		return "", err
-	}
-	return k, nil
+	return putBotData(b, k, d, false)
 }
 
 func PutPublicBotData(b *model.Bot, k string, d []byte) (string, error) {
-	k = key(b, k)
-	if err := client.PutPublicImage(ctx, c, public, k, d); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("https://%s.s3.amazonaws.com/%s", public, k), nil
+	return putBotData(b, k, d, true)
 }
 
-func key(bot *model.Bot, key string) string {
-	key = fmt.Sprintf(
+func putBotData(b *model.Bot, k string, d []byte, isPublic bool) (string, error) {
+
+	k = fmt.Sprintf(
 		"users/%s/bots/%s/%s/%s",
-		bot.UserID,
-		bot.Type,
-		bot.Target,
-		key,
+		b.UserID,
+		b.Type,
+		strings.ReplaceAll(b.Target, " ", "-"),
+		k,
 	)
-	key = strings.ReplaceAll(key, " ", "-")
-	return key
+
+	if isPublic {
+		return PutPublicImage(k, d)
+	}
+	return k, PutPrivateObject(k, d)
+}
+
+// put creates a new object or replaces an old object with a new object.
+func put(key string, data []byte, isPublic bool) error {
+
+	var bucket string
+	if isPublic {
+		bucket = "bytelyon-public"
+	} else {
+		bucket = "bytelyon-private"
+	}
+
+	l := log.With().
+		Str("ƒ", "put").
+		Str("bucket", bucket).
+		Str("key", key).
+		Int("body", len(data)).
+		Bool("isPublic", isPublic).
+		Logger()
+
+	l.Trace().Send()
+
+	if len(key) == 0 {
+		return errors.New("cannot put object with empty key")
+	} else if len(data) == 0 {
+		return errors.New("cannot put object with empty data")
+	}
+
+	in := &s3.PutObjectInput{
+		Bucket: &bucket,
+		Key:    &key,
+		Body:   bytes.NewReader(data),
+	}
+
+	if isPublic {
+		in.ACL = types.ObjectCannedACLPublicRead
+		in.ContentType = util.Ptr(http.DetectContentType(data))
+	}
+
+	if _, err := aws.S3().PutObject(context.Background(), in); err != nil {
+		l.Err(err).Send()
+		return err
+	}
+
+	l.Debug().Send()
+	return nil
 }

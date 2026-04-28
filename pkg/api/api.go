@@ -20,14 +20,10 @@ type Response events.APIGatewayV2HTTPResponse
 type Request events.APIGatewayV2HTTPRequest
 
 func (r Request) Authorization() string  { return r.Headers["authorization"] }
-func (r Request) IsPreflight() bool      { return r.Method() == http.MethodOptions }
 func (r Request) Log()                   { log.Log().EmbedObject(r).Msg("request") }
 func (r Request) Method() string         { return r.RequestContext.HTTP.Method }
 func (r Request) Query(k string) string  { return r.QueryStringParameters[k] }
-func (r Request) BAD(a any) Response     { return r.Response(http.StatusBadRequest, a) }
-func (r Request) NOPE() Response         { return r.Response(http.StatusForbidden) }
-func (r Request) ERR(err error) Response { return r.Response(http.StatusInternalServerError, err) }
-func (r Request) EX() Response           { return r.Response(http.StatusInternalServerError) }
+func (r Request) BAD(err error) Response { return r.Response(http.StatusBadRequest, err) }
 func (r Request) NC() Response           { return r.Response(http.StatusNoContent) }
 func (r Request) NI() Response           { return r.Response(http.StatusNotImplemented) }
 func (r Request) OK(a any) Response      { return r.Response(http.StatusOK, a) }

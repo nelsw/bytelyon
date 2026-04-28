@@ -1,13 +1,13 @@
 package documents
 
 import (
-	"github.com/nelsw/bytelyon/pkg/client"
+	"github.com/nelsw/bytelyon/pkg/https"
 	"github.com/nelsw/bytelyon/pkg/model"
 )
 
 func New(url string) (*model.Document, error) {
 
-	b, err := client.Get(url)
+	b, err := https.Get(url)
 	if err != nil {
 		return nil, err
 	}

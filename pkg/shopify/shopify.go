@@ -1,4 +1,4 @@
-package client
+package shopify
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/https"
 	"github.com/rs/zerolog/log"
 )
 
@@ -90,15 +90,15 @@ func accessToken() (string, error) {
 
 // CreateArticle creates a Shopify Article.
 // https://shopify.dev/docs/api/admin-graphql/latest/mutations/articleCreate
-func CreateArticle(a *model.Article) (s string, err error) {
+func CreateArticle(in []byte) (err error) {
 
 	var tkn string
 	if tkn, err = accessToken(); err != nil {
 		return
 	}
 
-	var b []byte
-	b, err = PostJSON(shopifyAPI, a.ToShopifyPayload(), map[string]string{
+	var out []byte
+	out, err = https.PostJSON(shopifyAPI, in, map[string]string{
 		"Content-Type":           "application/json",
 		"X-Shopify-Access-Token": tkn,
 	})
@@ -107,14 +107,12 @@ func CreateArticle(a *model.Article) (s string, err error) {
 		return
 	}
 
-	log.Debug().Str("body", string(b)).Msg("shopify response")
-
 	var r CreateArticleResponse
-	if err = json.Unmarshal(b, &r); err != nil {
+	if err = json.Unmarshal(out, &r); err != nil {
 		return
 	} else if err = r.error(); err != nil {
 		return
 	}
 
-	return a.GetLink(), nil
+	return nil
 }

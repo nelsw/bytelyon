@@ -1,4 +1,4 @@
-package client
+package https
 
 import (
 	"bytes"

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nelsw/bytelyon/pkg/client"
+	"github.com/nelsw/bytelyon/pkg/https"
 	"github.com/nelsw/bytelyon/pkg/s3"
 	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/rs/zerolog/log"
@@ -22,7 +22,7 @@ func ToPublicURL(src string) (string, error) {
 		return "", errors.New("invalid file format: " + src)
 	}
 
-	out, err := client.Get(src)
+	out, err := https.Get(src)
 	if err != nil {
 		return "", err
 	}

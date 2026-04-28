@@ -8,8 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/nelsw/bytelyon/pkg/client"
+	"github.com/nelsw/bytelyon/internal/pw"
 	"github.com/nelsw/bytelyon/pkg/db"
+	"github.com/nelsw/bytelyon/pkg/https"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/s3"
 	"github.com/nelsw/bytelyon/pkg/util"
@@ -115,7 +116,7 @@ func (j *Job) fetchNewsArticle(s string) (string, []byte) {
 }
 
 func (j *Job) fetchNewsPage(s string) (content string, img []byte) {
-	page, err := client.NewPage(j.ctx)
+	page, err := pw.NewPage(j.ctx)
 	if err != nil {
 		log.Err(err).Msg("failed to create new page for news article with pw")
 		return
@@ -125,10 +126,10 @@ func (j *Job) fetchNewsPage(s string) (content string, img []byte) {
 	}(page)
 
 	var resp playwright.Response
-	if resp, err = client.GoTo(page, s); err != nil {
+	if resp, err = pw.GoTo(page, s); err != nil {
 		log.Err(err).Str("url", s).Msg("failed to go to news article url with pw")
 		return
-	} else if client.IsRequestBlocked(resp) || client.IsPageBlocked(page) {
+	} else if pw.IsRequestBlocked(resp) || pw.IsPageBlocked(page) {
 		log.Warn().Str("url", s).Msg("page/request is blocked for news article with pw")
 		return
 	}
@@ -149,7 +150,7 @@ func (j *Job) fetchNewsPage(s string) (content string, img []byte) {
 }
 
 func (j *Job) FetchNewsHTML(s string) string {
-	b, err := client.Get(s)
+	b, err := https.Get(s)
 	log.Err(err).
 		Str("ƒ", "FetchNewsHTML").
 		Str("url", s).
@@ -240,7 +241,7 @@ func (j *Job) HandleNewsImage(r *model.BotResult) (ok bool) {
 		return
 	}
 
-	out, err := client.Get(src)
+	out, err := https.Get(src)
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to download news article")
 		return

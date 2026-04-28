@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"context"
 	"time"
 
 	"github.com/nelsw/bytelyon/internal/pw"
@@ -19,13 +18,8 @@ type Worker struct {
 	stop, done bool
 }
 
-func New(userID ulid.ULID) *Worker {
-	return &Worker{
-		pwc:    pw.Run(),
-		userID: userID,
-		stop:   false,
-		done:   true,
-	}
+func New(pwc *playwright.Playwright, userID ulid.ULID) *Worker {
+	return &Worker{pwc, userID, false, true}
 }
 
 func (w *Worker) Start() {
@@ -36,28 +30,12 @@ func (w *Worker) Start() {
 	}
 }
 
-func (w *Worker) Stop(ctx context.Context) error {
-
+func (w *Worker) Stop() error {
 	w.stop = true
-
-	timer := time.NewTimer(time.Second)
-	defer func() {
-		timer.Stop()
-	}()
-
-	w.pwc.Stop()
-
-	for {
-		if w.done {
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-timer.C:
-			timer.Reset(time.Second)
-		}
+	for !w.done {
+		time.Sleep(time.Second)
 	}
+	return w.pwc.Stop()
 }
 
 func (w *Worker) sleep() {
@@ -69,27 +47,30 @@ func (w *Worker) sleep() {
 
 func (w *Worker) work() {
 
-	w.done = false
-	defer func() {
-		w.done = true
-	}()
-
 	bro, err := pw.NewBrowser(w.pwc, true)
 	if err != nil {
 		log.Err(err).Msgf("failed to create browser for %s", w.userID)
 		return
 	}
-	defer bro.Close()
 
-	ƒ := func(bot *model.Bot) {
+	w.done = false
+	defer func() {
+		bro.Close()
+		w.done = true
+	}()
+
+	var jobs []*Job
+	for _, bot := range repo.FindBots(w.userID) {
 
 		l := log.With().
 			Stringer("type", bot.Type).
 			Str("target", bot.Target).
 			Logger()
 
-		if l.Info().Bool("ready", bot.IsReady()).Send(); !bot.IsReady() {
-			return
+		l.Info().Bool("ready", bot.IsReady()).Send()
+
+		if !bot.IsReady() {
+			continue
 		}
 
 		if bot.Fingerprint == nil {
@@ -99,15 +80,13 @@ func (w *Worker) work() {
 		var ctx playwright.BrowserContext
 		if ctx, err = pw.NewBrowserContext(bro, bot.Fingerprint.GetState()); err != nil {
 			l.Err(err).Msg("failed to create browser context")
-			return
+			continue
 		}
-		defer ctx.Close()
 
-		j := &Job{ctx, bot}
-		j.Work()
+		jobs = append(jobs, &Job{ctx, bot})
 	}
 
-	for _, bot := range repo.FindBots(w.userID) {
-		ƒ(bot)
+	for _, job := range jobs {
+		job.Work()
 	}
 }

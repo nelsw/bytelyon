@@ -1,4 +1,4 @@
-package client
+package ai
 
 import (
 	"bytes"
@@ -9,9 +9,13 @@ import (
 	"github.com/yuin/goldmark"
 )
 
-var ai = anthropic.NewClient()
+var ai anthropic.Client
 
-func Prompt(system string, message string, html ...bool) (string, error) {
+func init() {
+	ai = anthropic.NewClient()
+}
+
+func Prompt(system, message string, html ...bool) (string, error) {
 
 	l := log.With().
 		Str("system", system).
@@ -44,20 +48,4 @@ func Prompt(system string, message string, html ...bool) (string, error) {
 	}
 
 	return buf.String(), nil
-}
-
-func SimpleUserMessage(ctx context.Context, client *anthropic.Client, system, message string) (string, error) {
-
-	out, err := client.Messages.New(ctx, anthropic.MessageNewParams{
-		MaxTokens: 2048,
-		Messages:  []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(message))},
-		System:    []anthropic.TextBlockParam{{Text: system}},
-		Model:     anthropic.ModelClaudeOpus4_6,
-	})
-
-	if err == nil && len(out.Content) > 0 {
-		return out.Content[0].Text, nil
-	}
-
-	return "", err
 }

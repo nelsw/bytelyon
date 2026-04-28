@@ -1,14 +1,13 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
+	"github.com/nelsw/bytelyon/internal/pw"
 	"github.com/nelsw/bytelyon/internal/worker"
 	"github.com/nelsw/bytelyon/pkg/aws"
 	"github.com/nelsw/bytelyon/pkg/logs"
@@ -16,9 +15,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func main() {
+var u string
 
-	var ak, sk, u, l string
+func init() {
+	var ak, sk, l string
 	flag.StringVar(&u, "u", "01KMXGBJJE2GMCA1A9EXDGF4AJ", "user id")
 	flag.StringVar(&l, "l", "debug", "log level [trace, debug, info, warn, error]")
 	flag.StringVar(&ak, "ak", "", "AWS Access Key ID")
@@ -35,8 +35,10 @@ func main() {
 	})
 
 	aws.Init(ak, sk, "us-east-1")
+}
 
-	w := worker.New(ulid.MustParse(u))
+func main() {
+	w := worker.New(pw.Run(), ulid.MustParse(u))
 	go w.Start()
 
 	quit := make(chan os.Signal, 1)
@@ -45,15 +47,8 @@ func main() {
 	log.Info().Msg("listening for quit signal (Ctrl+C)")
 	<-quit
 	fmt.Println()
+
 	log.Info().Msg("quitting")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := w.Stop(ctx); err != nil {
-		log.Err(err).Send()
-	}
-
-	<-ctx.Done()
+	w.Stop()
 	log.Info().Msg("exiting")
 }

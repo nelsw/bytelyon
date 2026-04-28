@@ -60,7 +60,24 @@ func (a *Article) UnmarshalJSON(b []byte) error {
 	}
 	a.ID = NewULID(a.PublishedAt)
 
-	a.setHandle()
+	// check if the article title is in the body
+	if z := strings.Index(a.Body, `</h1>`); strings.Index(a.Body, `<h1>`) == 0 && z != -1 {
+		a.Title = a.Body[4:z]
+	}
+
+	// replace all spaces with dashes
+	a.Handle = strings.ToLower(strings.ReplaceAll(a.Title, " ", "-"))
+
+	// remove all non-alphanumeric and non-dash characters
+	a.Handle = handleRegex.ReplaceAllString(a.Handle, "")
+
+	// remove duplicate dashes
+	for strings.Contains(a.Handle, "--") {
+		a.Handle = strings.ReplaceAll(a.Handle, "--", "-")
+	}
+
+	// append with the article id
+	a.Handle += "-" + a.ID.String()
 
 	if s, ok := m["url"]; ok {
 		a.URL = s.(string)
@@ -108,8 +125,6 @@ func (a *Article) UnmarshalJSON(b []byte) error {
 
 func (a *Article) ToShopifyPayload() []byte {
 
-	a.setHandle()
-
 	b, _ := json.Marshal(map[string]any{
 		"query": `mutation CreateArticle($article: ArticleCreateInput!) 
 { 
@@ -148,26 +163,4 @@ func (a *Article) ToShopifyPayload() []byte {
 
 func (a *Article) GetLink() string {
 	return "https://firefibers.com/blogs/news/" + a.Handle
-}
-
-func (a *Article) setHandle() {
-
-	// check if the article title is in the body
-	if z := strings.Index(a.Body, `</h1>`); strings.Index(a.Body, `<h1>`) == 0 && z != -1 {
-		a.Title = a.Body[4:z]
-	}
-
-	// replace all spaces with dashes
-	a.Handle = strings.ToLower(strings.ReplaceAll(a.Title, " ", "-"))
-
-	// remove all non-alphanumeric and non-dash characters
-	a.Handle = handleRegex.ReplaceAllString(a.Handle, "")
-
-	// remove duplicate dashes
-	for strings.Contains(a.Handle, "--") {
-		a.Handle = strings.ReplaceAll(a.Handle, "--", "-")
-	}
-
-	// append with the article id
-	a.Handle += "-" + a.ID.String()
 }

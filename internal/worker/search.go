@@ -3,7 +3,7 @@ package worker
 import (
 	"fmt"
 
-	"github.com/nelsw/bytelyon/pkg/client"
+	"github.com/nelsw/bytelyon/internal/pw"
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/s3"
@@ -27,7 +27,7 @@ func (j *Job) doSearch() {
 	var err error
 
 	var page playwright.Page
-	if page, err = client.NewPage(j.ctx); err != nil {
+	if page, err = pw.NewPage(j.ctx); err != nil {
 		return
 	}
 	defer func(page playwright.Page, options ...playwright.PageCloseOptions) {
@@ -35,26 +35,26 @@ func (j *Job) doSearch() {
 	}(page)
 
 	var resp playwright.Response
-	if resp, err = client.GoTo(page, "https://www.google.com"); err != nil {
+	if resp, err = pw.GoTo(page, "https://www.google.com"); err != nil {
 		return
 	}
 
-	if client.IsRequestBlocked(resp) || client.IsPageBlocked(page) {
-		client.WaitForLoadState(page)
-		if client.IsRequestBlocked(resp) || client.IsPageBlocked(page) {
+	if pw.IsRequestBlocked(resp) || pw.IsPageBlocked(page) {
+		pw.WaitForLoadState(page)
+		if pw.IsRequestBlocked(resp) || pw.IsPageBlocked(page) {
 			return
 		}
 	}
 
-	if err = client.Click(page, googleSearchInputSelectors...); err != nil {
+	if err = pw.Click(page, googleSearchInputSelectors...); err != nil {
 		return
-	} else if err = client.Type(page, j.bot.Target); err != nil {
+	} else if err = pw.Type(page, j.bot.Target); err != nil {
 		return
-	} else if err = client.Press(page, "Enter"); err != nil {
+	} else if err = pw.Press(page, "Enter"); err != nil {
 		return
-	} else if err = client.WaitForLoadState(page); err != nil {
+	} else if err = pw.WaitForLoadState(page); err != nil {
 		return
-	} else if client.IsPageBlocked(page) {
+	} else if pw.IsPageBlocked(page) {
 		return
 	}
 
@@ -125,7 +125,7 @@ func (j *Job) handleLocator(result *model.BotResult, ctx playwright.BrowserConte
 		return nil, err
 	}
 
-	if err = client.WaitForLoadState(page, *playwright.LoadStateDomcontentloaded); err != nil {
+	if err = pw.WaitForLoadState(page, *playwright.LoadStateDomcontentloaded); err != nil {
 		log.Warn().Err(err).Msg("Client - Failed to WaitForLoadState")
 	}
 

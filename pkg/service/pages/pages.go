@@ -3,7 +3,7 @@ package pages
 import (
 	"errors"
 
-	"github.com/nelsw/bytelyon/pkg/client"
+	"github.com/nelsw/bytelyon/internal/pw"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/repo"
 	"github.com/nelsw/bytelyon/pkg/service/documents"
@@ -51,7 +51,7 @@ func NewDocumentPage(url string, t ...*model.Time) (page *model.Page, err error)
 func NewPwPage(url string, ctx playwright.BrowserContext, t ...*model.Time) (page *model.Page, err error) {
 
 	var p playwright.Page
-	if p, err = client.NewPage(ctx); err != nil {
+	if p, err = pw.NewPage(ctx); err != nil {
 		log.Err(err).Msg("failed to create page")
 		return
 	}
@@ -60,24 +60,24 @@ func NewPwPage(url string, ctx playwright.BrowserContext, t ...*model.Time) (pag
 	}(p)
 
 	var resp playwright.Response
-	if resp, err = client.GoTo(p, url); err != nil {
+	if resp, err = pw.GoTo(p, url); err != nil {
 		log.Err(err).Str("url", url).Msg("failed to go to page")
 		return
-	} else if client.IsRequestBlocked(resp) || client.IsPageBlocked(p) {
+	} else if pw.IsRequestBlocked(resp) || pw.IsPageBlocked(p) {
 		log.Warn().Str("url", url).Msg("page/request is blocked")
 		return nil, errors.New("blocked")
 	}
 
 	var doc *model.Document
-	if doc, err = model.ParseDocument(client.Content(p)); err != nil {
+	if doc, err = model.ParseDocument(pw.Content(p)); err != nil {
 		return nil, err
 	}
 
 	page = doc.ToPage(url, t...)
 	if page.Title == "" {
-		page.Title = client.Title(p)
+		page.Title = pw.Title(p)
 	}
-	page.ScreenshotData = client.Screenshot(p)
+	page.ScreenshotData = pw.Screenshot(p)
 
 	return
 }

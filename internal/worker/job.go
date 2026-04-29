@@ -11,13 +11,25 @@ import (
 )
 
 type Job struct {
+	bro playwright.Browser
 	ctx playwright.BrowserContext
 	bot *model.Bot
 }
 
+func NewJob(bro playwright.Browser, ctx playwright.BrowserContext, bot *model.Bot) *Job {
+	return &Job{bro, ctx, bot}
+}
+
 func (j *Job) Work() {
 
-	defer j.ctx.Close()
+	defer func(bro playwright.Browser, ctx playwright.BrowserContext) {
+		if err := ctx.Close(); err != nil {
+			log.Err(err).Msg("failed to close browser context")
+		}
+		if err := bro.Close(); err != nil {
+			log.Err(err).Msg("failed to close browser")
+		}
+	}(j.bro, j.ctx)
 
 	switch j.bot.Type {
 	case model.SearchBotType:
@@ -48,6 +60,6 @@ func (j *Job) Work() {
 
 	// save bot
 	if err := db.Put(j.bot); err != nil {
-		log.Warn().Err(err).Msg("Failed to Save Search Bot (DB)")
+		log.Warn().Err(err).Msg("Failed to Save Search Bot")
 	}
 }

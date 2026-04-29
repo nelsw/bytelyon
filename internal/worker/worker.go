@@ -46,20 +46,6 @@ func (w *Worker) sleep() {
 }
 
 func (w *Worker) work() {
-
-	bro, err := pw.NewBrowser(w.pwc, true)
-	if err != nil {
-		log.Err(err).Msgf("failed to create browser for %s", w.userID)
-		return
-	}
-
-	w.done = false
-	defer func() {
-		bro.Close()
-		w.done = true
-	}()
-
-	var jobs []*Job
 	for _, bot := range repo.FindBots(w.userID) {
 
 		l := log.With().
@@ -73,6 +59,12 @@ func (w *Worker) work() {
 			continue
 		}
 
+		bro, err := pw.NewBrowser(w.pwc, bot.Headless)
+		if err != nil {
+			log.Err(err).Msgf("failed to create browser for %s", w.userID)
+			continue
+		}
+
 		if bot.Fingerprint == nil {
 			bot.Fingerprint = model.NewFingerprint()
 		}
@@ -83,10 +75,6 @@ func (w *Worker) work() {
 			continue
 		}
 
-		jobs = append(jobs, &Job{ctx, bot})
-	}
-
-	for _, job := range jobs {
-		job.Work()
+		NewJob(bro, ctx, bot).Work()
 	}
 }

@@ -44,9 +44,7 @@ func (a *Article) UnmarshalJSON(b []byte) error {
 	} else {
 		a.Body = s.(string)
 	}
-	if s, ok := m["prompt"]; !ok || s == "" {
-		return errors.New("empty article prompt")
-	} else {
+	if s, ok := m["prompt"]; ok {
 		a.Prompt = s.(string)
 	}
 

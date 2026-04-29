@@ -261,7 +261,7 @@ func (b *Bot) UnmarshalJSON(data []byte) (err error) {
 		}
 	}
 
-	if val, ok := m["headless"]; ok {
+	if val, ok := m["headless"]; ok && val != nil {
 		b.Headless = val.(bool)
 	}
 

@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var isStu = regexp.MustCompile(`^(01KMXGBJJE2GMCA1A9EXDGF4AJ|01KM010XK0HY8HWWFPJTZGRF0F|01KM01JC9PS1R4X4FDJNFAR4AZ)$`)
+var isMember = regexp.MustCompile(`^(01KMXGBJJE2GMCA1A9EXDGF4AJ|01KM010XK0HY8HWWFPJTZGRF0F)$`)
 
 type AuthResponse events.APIGatewayV2CustomAuthorizerSimpleResponse
 type Response events.APIGatewayV2HTTPResponse
@@ -26,6 +26,7 @@ func (r Request) Query(k string) string  { return r.QueryStringParameters[k] }
 func (r Request) BAD(err error) Response { return r.Response(http.StatusBadRequest, err) }
 func (r Request) NC() Response           { return r.Response(http.StatusNoContent) }
 func (r Request) NI() Response           { return r.Response(http.StatusNotImplemented) }
+func (r Request) NOPE() Response         { return r.Response(http.StatusForbidden) }
 func (r Request) OK(a any) Response      { return r.Response(http.StatusOK, a) }
 
 func (r Request) AuthOK(userID ulid.ULID, tkn string) AuthResponse {
@@ -133,8 +134,8 @@ func (r Request) ID() ulid.ULID {
 	return r.id(r.Query("id"))
 }
 
-func (r Request) IsStu() bool {
-	return isStu.MatchString(r.UserID().String())
+func (r Request) IsGuest() bool {
+	return isMember.MatchString(r.UserID().String()) == false
 }
 
 func (r Request) id(a any) ulid.ULID {

@@ -12,6 +12,10 @@ func Handler(r Request) Response {
 
 	r.Log()
 
+	if r.IsGuest() {
+		return r.NOPE()
+	}
+
 	if r.Query("err") != "" {
 		return r.BAD(errors.New("test error"))
 	}

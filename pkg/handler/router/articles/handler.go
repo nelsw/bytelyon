@@ -14,6 +14,9 @@ import (
 )
 
 func Handler(r api.Request) api.Response {
+	if r.IsGuest() {
+		return r.NOPE()
+	}
 	switch r.Method() {
 	case http.MethodPost:
 		return handlePost(r)

@@ -7,7 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func FindBots(userID ulid.ULID) model.Bots {
+func FindBots(userID ulid.ULID) []*model.Bot {
 
 	l := log.With().
 		Str("ƒ", "FindBots").
@@ -26,7 +26,7 @@ func FindBots(userID ulid.ULID) model.Bots {
 	return arr
 }
 
-func FindBotsByType(userID ulid.ULID, botType model.BotType) model.Bots {
+func FindBotsByType(userID ulid.ULID, botType model.BotType) []*model.Bot {
 
 	l := log.With().
 		Str("ƒ", "FindBotsByType").

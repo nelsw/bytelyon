@@ -210,8 +210,9 @@ func (b *Bot) MarshalJSON() ([]byte, error) {
 		m["blackList"] = b.BlackList
 	}
 
+	m["headless"] = b.Headless
+
 	if b.Type == SearchBotType {
-		m["headless"] = b.Headless
 		m["fingerprint"] = b.Fingerprint
 	}
 

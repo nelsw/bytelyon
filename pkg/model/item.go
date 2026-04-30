@@ -94,7 +94,7 @@ func (i *Item) ProcessXML() {
 	}
 
 	// remove source from the title if it exists
-	i.Title = strings.TrimPrefix(i.Title, " - "+i.Source)
+	i.Title = strings.TrimSuffix(i.Title, " - "+i.Source)
 
 	// remove html from the description
 	if idx := strings.Index(i.Description, `</a>`); idx > 0 {

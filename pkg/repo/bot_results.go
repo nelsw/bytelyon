@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func FindBotResults(userID, botID ulid.ULID, botType model.BotType) model.BotResults {
+func FindBotResults(userID, botID ulid.ULID, botType model.BotType) []*model.BotResult {
 
 	l := log.With().
 		Stringer("user_id", userID).
@@ -29,7 +29,7 @@ func FindBotResults(userID, botID ulid.ULID, botType model.BotType) model.BotRes
 		Int("size", len(arr)).
 		Msg("bot results found")
 
-	var res model.BotResults
+	var res []*model.BotResult
 	for _, result := range arr {
 		if result.UserID == userID {
 			res = append(res, result)

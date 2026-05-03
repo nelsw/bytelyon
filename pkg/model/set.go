@@ -91,6 +91,10 @@ func ParseSet(a any) *Set {
 	return s
 }
 
-func NewSet() *Set {
-	return &Set{d: MakeData[bool]()}
+func NewSet(items ...string) *Set {
+	s := &Set{d: MakeData[bool]()}
+	for _, i := range items {
+		s.Add(i)
+	}
+	return s
 }

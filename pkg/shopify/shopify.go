@@ -3,10 +3,8 @@ package shopify
 import (
 	"encoding/json"
 	"errors"
-	"io"
-	"net/http"
-	"net/url"
 	"os"
+	"time"
 
 	"github.com/nelsw/bytelyon/pkg/https"
 	"github.com/rs/zerolog/log"
@@ -62,26 +60,19 @@ func (r *CreateArticleResponse) error() (err error) {
 }
 
 func accessToken() (string, error) {
-	res, err := http.PostForm(shopifyAuth, url.Values{
-		"grant_type":    []string{"client_credentials"},
-		"client_id":     []string{os.Getenv("SHOPIFY_CLIENT_ID")},
-		"client_secret": []string{os.Getenv("SHOPIFY_CLIENT_SECRET")},
+
+	out, err := https.PostForm(shopifyAuth, map[string][]string{
+		"grant_type":    {"client_credentials"},
+		"client_id":     {os.Getenv("SHOPIFY_CLIENT_ID")},
+		"client_secret": {os.Getenv("SHOPIFY_CLIENT_SECRET")},
 	})
+
 	if err != nil {
 		return "", err
 	}
 
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(res.Body)
-
-	var b []byte
-	if b, err = io.ReadAll(res.Body); err != nil {
-		return "", err
-	}
-
 	var atr AccessTokenResponse
-	if err = json.Unmarshal(b, &atr); err != nil {
+	if err = json.Unmarshal(out, &atr); err != nil {
 		return "", err
 	}
 
@@ -116,3 +107,14 @@ func CreateArticle(in []byte) (err error) {
 
 	return nil
 }
+
+func GetOrders(from, to time.Time) ([]Order, error) {
+	tkn, err := accessToken()
+	if err != nil {
+		return nil, err
+	}
+
+	return getOrders(tkn, os.Getenv("SHOPIFY_SHOP"), from, to)
+}
+
+func GetOrder() {}

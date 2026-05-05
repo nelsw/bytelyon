@@ -36,6 +36,15 @@ var bannerBottomLines = []string{
 	YellowBoldIntense + `  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * `,
 }
 
+func PrintBanner(opts ...map[string]any) {
+	var lines []string
+	lines = append(lines, "\n")
+	lines = append(lines, bannerTopLines...)
+	lines = append(lines, bannerBottomLines...)
+	lines = append(lines, "\n")
+	println(strings.Join(lines, "\n") + Reset)
+}
+
 func PrintWorkerBanner(opts ...map[string]any) {
 	var lines []string
 	lines = append(lines, "\n")

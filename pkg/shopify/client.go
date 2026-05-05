@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -70,17 +71,67 @@ type Address struct {
 }
 
 type Customer struct {
-	Addresses      []Address `json:"addresses"`
-	AmountSpent    MoneyV2   `json:"amountSpent"`
-	CreatedAt      time.Time `json:"created_at"`
-	Currency       string    `json:"currency"`
-	Email          string    `json:"email"`
-	FirstName      string    `json:"firstName"`
-	ID             string    `json:"id"`
-	LastName       string    `json:"lastName"`
-	NumberOfOrders string    `json:"numberOfOrders"`
-	Phone          any       `json:"phone"`
-	Tags           []string  `json:"tags"`
+	Addresses          []Address `json:"addresses"`
+	AmountSpent        MoneyV2   `json:"amountSpent"`
+	CreatedAt          time.Time `json:"createdAt"`
+	Currency           string    `json:"currency"`
+	DefaultPhoneNumber struct {
+		PhoneNumber string `json:"phoneNumber"`
+	} `json:"defaultPhoneNumber"`
+	DefaultEmailAddress struct {
+		Email string `json:"emailAddress"`
+	} `json:"defaultEmailAddress"`
+	FirstName      string   `json:"firstName"`
+	ID             string   `json:"id"`
+	LastName       string   `json:"lastName"`
+	NumberOfOrders string   `json:"numberOfOrders"`
+	Phone          any      `json:"phone"`
+	Tags           []string `json:"tags"`
+	Ordered        string   `json:"ordered"`
+}
+
+func (c Customer) String() string {
+	b, _ := json.MarshalIndent(c.Row(), "", "\t")
+	return string(b)
+}
+
+func (c Customer) Row() any {
+	var phone string
+	if c.Phone != nil {
+		phone = c.Phone.(string)
+	} else {
+		for _, a := range c.Addresses {
+			if a.Phone != "" {
+				phone = a.Phone
+				break
+			}
+		}
+	}
+	numberOfOrders, _ := strconv.Atoi(c.NumberOfOrders)
+	var city, state string
+	for _, a := range c.Addresses {
+		if city == "" && a.City != "" {
+			city = a.City
+		}
+		if state == "" && a.Province != "" {
+			state = a.Province
+		}
+		if city != "" && state != "" {
+			break
+		}
+	}
+	return map[string]any{
+		"id":      c.ID,
+		"name":    c.FirstName + " " + c.LastName,
+		"tags":    c.Tags,
+		"city":    city,
+		"state":   state,
+		"email":   c.DefaultEmailAddress.Email,
+		"phone":   phone,
+		"orders":  numberOfOrders,
+		"ordered": c.Ordered,
+		"spent":   c.AmountSpent.Decimal(),
+	}
 }
 
 type MoneyBag struct {
@@ -92,7 +143,20 @@ type MoneyV2 struct {
 	CurrencyCode string `json:"currencyCode"`
 }
 
+func (m MoneyV2) Decimal() float64 {
+	f, _ := strconv.ParseFloat(m.Amount, 64)
+	return f
+}
+
 type Orders []Order
+
+func (o Orders) Table() any {
+	var arr []any
+	for _, i := range o {
+		arr = append(arr, i.Row())
+	}
+	return arr
+}
 
 func (o *Orders) UnmarshalJSON(b []byte) error {
 	var g Graph[Order]
@@ -114,7 +178,42 @@ type Order struct {
 	LineItems             LineItems `json:"lineItems"`
 }
 
+func (o Order) Row() any {
+	return map[string]any{
+		"id":        o.ID,
+		"createdAt": o.CreatedAt,
+		"customer":  o.Customer.FirstName + " " + o.Customer.LastName,
+		"discounts": o.TotalDiscountsSet.ShopMoney.Decimal(),
+		"price":     o.TotalPriceSet.ShopMoney.Decimal(),
+		"refunded":  o.TotalRefundedSet.ShopMoney.Decimal(),
+		"shipping":  o.TotalShippingPriceSet.ShopMoney.Decimal(),
+		"items":     o.LineItems.Table(),
+	}
+}
+
 type LineItems []LineItem
+
+func (l *LineItems) Table() any {
+	var arr []any
+	for _, i := range *l {
+		name := i.Variant.DisplayName
+		if name == "" {
+			name = i.Variant.Sku
+		}
+		if name == "" {
+			name = i.Title
+		}
+		name = strings.TrimSuffix(name, " - Default Title")
+		price, _ := strconv.ParseFloat(i.Variant.Price, 64)
+		arr = append(arr, map[string]any{
+			"id":       i.ID,
+			"quantity": i.Quantity,
+			"name":     name,
+			"price":    price,
+		})
+	}
+	return arr
+}
 
 func (l *LineItems) UnmarshalJSON(b []byte) error {
 	var g Graph[LineItem]

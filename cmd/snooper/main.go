@@ -12,15 +12,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func main() {
+var tkn, store, l string
 
-	var tkn, store string
-	flag.StringVar(&tkn, "token", "", "Shopify API token")
-	flag.StringVar(&store, "store", "", "Shopify store ID")
+func init() {
+	flag.StringVar(&tkn, "token", "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", "Shopify API token")
+	flag.StringVar(&store, "store", "e61745-7d", "Shopify store ID")
+	flag.StringVar(&l, "l", "debug", "log level [trace, debug, info, warn, error]")
 	flag.Parse()
 
-	logs.Init()
-	w := snooper.New("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", "e61745-7d")
+	logs.Init(l)
+	logs.PrintBanner()
+}
+
+func main() {
+	w := snooper.New(tkn, store)
 	go w.Start()
 	quit := make(chan os.Signal, 1)
 

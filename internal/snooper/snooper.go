@@ -34,25 +34,22 @@ func (w *Worker) work() {
 
 	var err error
 	var orderDB *store.DB[shopify.Order]
-	var customerDB *store.DB[shopify.Customer]
 
-	if customerDB, err = store.New[shopify.Customer]("customers.json"); err != nil {
-		panic(err)
-	} else if orderDB, err = store.New[shopify.Order]("orders.json"); err != nil {
+	if orderDB, err = store.New[shopify.Order]("orders.json"); err != nil {
 		panic(err)
 	}
 	defer func() {
-		customerDB.Close()
 		orderDB.Close()
 	}()
 
 	var orders shopify.Orders
-	if orders, err = shopify.GetOrders(w.tkn, w.store, time.Now().Add(-24*time.Hour), time.Now()); err != nil {
+	from := time.Now().Add(-24 * time.Hour)
+	to := time.Now()
+	if orders, err = shopify.GetOrders(w.tkn, w.store, from, to); err != nil {
 		panic(err)
 	}
 	for _, order := range orders {
 		orderDB.Put(order.ID, order)
-		customerDB.Put(order.Customer.ID, order.Customer)
 	}
 }
 

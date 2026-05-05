@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"time"
 
 	"github.com/nelsw/bytelyon/pkg/https"
 	"github.com/rs/zerolog/log"
@@ -107,14 +106,3 @@ func CreateArticle(in []byte) (err error) {
 
 	return nil
 }
-
-func GetOrders(from, to time.Time) ([]Order, error) {
-	tkn, err := accessToken()
-	if err != nil {
-		return nil, err
-	}
-
-	return getOrders(tkn, os.Getenv("SHOPIFY_SHOP"), from, to)
-}
-
-func GetOrder() {}

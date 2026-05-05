@@ -25,22 +25,122 @@ type ErrorResponse struct {
 	} `json:"errors"`
 }
 
-type OrdersResponse struct {
-	Data struct {
-		Orders struct {
-			Edges []struct {
-				Node Order `json:"node"`
-			} `json:"edges"`
-		} `json:"orders"`
-	} `json:"data"`
+type Graph[T any] struct {
+	Edges []struct {
+		Node T `json:"node"`
+	} `json:"edges"`
 }
 
-func (r OrdersResponse) Orders() []Order {
-	var orders []Order
-	for _, o := range r.Data.Orders.Edges {
-		orders = append(orders, o.Node)
+func (g Graph[T]) Slice() []T {
+	var arr []T
+	for _, e := range g.Edges {
+		arr = append(arr, e.Node)
 	}
-	return orders
+	return arr
+}
+
+type Error struct {
+	Errors []struct {
+		Message   string `json:"message"`
+		Locations []struct {
+			Line   int `json:"line"`
+			Column int `json:"column"`
+		}
+		Path       []string `json:"path"`
+		Extensions struct {
+			Code         string `json:"code"`
+			VariableName string `json:"variableName"`
+		} `json:"extensions"`
+	} `json:"errors"`
+}
+
+type Address struct {
+	Address1      string `json:"address1"`
+	Address2      string `json:"address2"`
+	City          string `json:"city"`
+	Company       string `json:"company"`
+	Country       string `json:"country"`
+	CountryCodeV2 string `json:"countryCodeV2"`
+	FirstName     string `json:"firstName"`
+	ID            string `json:"id"`
+	LastName      string `json:"lastName"`
+	Phone         string `json:"phone"`
+	Province      string `json:"province"`
+	Zip           string `json:"zip"`
+}
+
+type Customer struct {
+	Addresses      []Address `json:"addresses"`
+	AmountSpent    MoneyV2   `json:"amountSpent"`
+	CreatedAt      time.Time `json:"created_at"`
+	Currency       string    `json:"currency"`
+	Email          string    `json:"email"`
+	FirstName      string    `json:"firstName"`
+	ID             string    `json:"id"`
+	LastName       string    `json:"lastName"`
+	NumberOfOrders string    `json:"numberOfOrders"`
+	Phone          any       `json:"phone"`
+	Tags           []string  `json:"tags"`
+}
+
+type MoneyBag struct {
+	ShopMoney MoneyV2 `json:"shopMoney,omitempty"`
+}
+
+type MoneyV2 struct {
+	Amount       string `json:"amount"`
+	CurrencyCode string `json:"currencyCode"`
+}
+
+type Orders []Order
+
+func (o *Orders) UnmarshalJSON(b []byte) error {
+	var g Graph[Order]
+	if err := json.Unmarshal(b, &g); err != nil {
+		return err
+	}
+	*o = g.Slice()
+	return nil
+}
+
+type Order struct {
+	CreatedAt             string    `json:"createdAt"`
+	Customer              Customer  `json:"customer"`
+	ID                    string    `json:"id"`
+	TotalDiscountsSet     MoneyBag  `json:"totalDiscountsSet"`
+	TotalPriceSet         MoneyBag  `json:"totalPriceSet"`
+	TotalRefundedSet      MoneyBag  `json:"totalRefundedSet"`
+	TotalShippingPriceSet MoneyBag  `json:"totalShippingPriceSet"`
+	LineItems             LineItems `json:"lineItems"`
+}
+
+type LineItems []LineItem
+
+func (l *LineItems) UnmarshalJSON(b []byte) error {
+	var g Graph[LineItem]
+	if err := json.Unmarshal(b, &g); err == nil {
+		*l = g.Slice()
+		return nil
+	}
+	var arr []LineItem
+	err := json.Unmarshal(b, &arr)
+	if err != nil {
+		return err
+	}
+	*l = arr
+	return nil
+}
+
+type LineItem struct {
+	ID       string `json:"id"`
+	Quantity int    `json:"quantity"`
+	Title    string `json:"title"`
+	Variant  struct {
+		GID         string `json:"id"`
+		DisplayName string `json:"displayName"`
+		Price       string `json:"price"`
+		Sku         string `json:"sku"`
+	} `json:"variant"`
 }
 
 func createArticle(
@@ -84,81 +184,56 @@ func createArticle(
 	})
 }
 
-func getOrder(token, store, orderId string) ([]byte, error) {
-	val := `query {
-  order(id: "$orderId") {
-    id
-    name
-	customer {
-	  id
-	  firstName
-	  lastName
-	  createdAt
-	  updatedAt
-	  numberOfOrders
-	  state
-	  amountSpent { amount, currencyCode }
-	  defaultPhoneNumber { phoneNumber, marketingState }
-	  defaultEmailAddress { emailAddress, marketingState }
-	  verifiedEmail
-	  tags
-	  addresses(first: 100) {
-		id
-		firstName
-		lastName
-		address1
-		city
-		province
-		country
-		zip
-		phone
-		name
-		countryCodeV2
-      }
-	}
-    totalPriceSet {
-      presentmentMoney {
-        amount
-      }
-    }
-    lineItems(first: 10) {
-      nodes {
-        id
-        name
-      }
-    }
-  }
-}`
-	return do(token, store, val, map[string]string{
-		"orderId": orderId,
-	})
-}
-
-func getOrders(token, store string, from, to time.Time) ([]Order, error) {
-	q := `query Input($first: Int!, $query: String!) 
+func GetOrders(token, store string, from, to time.Time) ([]Order, error) {
+	q := `query GetOrders($first: Int!, $query: String!) 
 {
 	orders(first: $first, query: $query) {
 		edges { 
 			node { 
 				id
 				createdAt
-lineItems
-				totalPriceSet {
-					presentmentMoney { amount currencyCode }
-					shopMoney { amount currencyCode }
+				lineItems(first: 250) {	
+					edges { 
+						node {
+							id
+							quantity 
+							title
+							originalTotalSet { shopMoney { amount currencyCode } }
+							variant { id displayName price sku } 
+						} 
+					}
 				}
-				totalDiscountsSet {
-					presentmentMoney { amount currencyCode }
-					shopMoney { amount currencyCode }
-				}
-				totalRefundedSet {
-					presentmentMoney { amount currencyCode }
-					shopMoney { amount currencyCode }
-				}
-				totalShippingPriceSet {
-					presentmentMoney { amount currencyCode }
-					shopMoney { amount currencyCode }
-				}
+				totalPriceSet { shopMoney { amount currencyCode } }
+				totalDiscountsSet { shopMoney { amount currencyCode } }
+				totalRefundedSet { shopMoney { amount currencyCode } }
+				totalShippingPriceSet { shopMoney { amount currencyCode } }
+				customer {
+					  id
+					  firstName
+					  lastName
+					  createdAt
+					  updatedAt
+					  numberOfOrders
+					  state
+					  amountSpent { amount currencyCode }
+					  defaultPhoneNumber { phoneNumber marketingState }
+					  defaultEmailAddress { emailAddress marketingState }
+					  verifiedEmail
+					  tags
+					  addresses(first: 100) {
+						id
+						firstName
+						lastName
+						address1
+						city
+						province
+						country
+						zip
+						phone
+						name
+						countryCodeV2
+					  }
+					}
 			} 
 		}
   	}
@@ -177,17 +252,16 @@ lineItems
 		return nil, err
 	}
 
-	var a any
-	_ = json.Unmarshal(out, &a)
-	b, _ := json.MarshalIndent(a, "", "\t")
-	fmt.Println(string(b))
-
-	var r OrdersResponse
+	var r struct {
+		Data struct {
+			Orders Graph[Order] `json:"orders"`
+		} `json:"data"`
+	}
 	if err = json.Unmarshal(out, &r); err != nil {
 		return nil, err
 	}
 
-	return r.Orders(), nil
+	return r.Data.Orders.Slice(), nil
 }
 
 func do(token, store, query string, variables any) ([]byte, error) {

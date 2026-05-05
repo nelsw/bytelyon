@@ -16,10 +16,6 @@ var (
 	s3c *s3.Client
 )
 
-//func init() {
-//	Init()
-//}
-
 func Init(args ...string) {
 	if len(args) == 0 {
 		cfg, _ = config.LoadDefaultConfig(context.Background())

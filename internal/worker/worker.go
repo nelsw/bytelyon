@@ -23,7 +23,7 @@ func New(pwc *playwright.Playwright, userID ulid.ULID) *Worker {
 }
 
 func (w *Worker) Start() {
-	log.Info().Msg("working")
+	log.Info().Msg("starting")
 	for !w.stop {
 		w.work()
 		w.sleep()
@@ -46,6 +46,9 @@ func (w *Worker) sleep() {
 }
 
 func (w *Worker) work() {
+
+	log.Info().Msg("working")
+
 	for _, bot := range repo.FindBots(w.userID) {
 
 		l := log.With().

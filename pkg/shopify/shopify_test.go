@@ -3,6 +3,7 @@ package shopify
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -19,7 +20,10 @@ func TestAccessToken(t *testing.T) {
 
 func TestGetOrderIds(t *testing.T) {
 	assert.NoError(t, godotenv.Load("../../.env"))
-	out, err := GetOrders(time.Now().Add(time.Hour*24*365*-1), time.Now())
+	tkn, err := accessToken()
+	assert.NoError(t, err)
+	assert.NotEmpty(t, tkn)
+	out, err := GetOrders(tkn, os.Getenv("SHOPIFY_STORE"), time.Now().Add(time.Hour*24*365*-1), time.Now())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, out)
 	b, _ := json.MarshalIndent(out, "", "\t")

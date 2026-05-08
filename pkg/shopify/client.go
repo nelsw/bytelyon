@@ -242,12 +242,35 @@ type LineItem struct {
 	} `json:"variant"`
 }
 
-func createArticle(
+type createArticleResponse struct {
+	Data struct {
+		ArticleCreate struct {
+			Article struct {
+				Author struct {
+					Name string `json:"name"`
+				} `json:"author"`
+				Body   string `json:"body"`
+				Handle string `json:"handle"`
+				Id     string `json:"id"`
+				Image  struct {
+					AltText     string `json:"altText"`
+					OriginalSrc string `json:"originalSrc"`
+				} `json:"image"`
+				Summary string   `json:"summary"`
+				Tags    []string `json:"tags"`
+				Title   string   `json:"title"`
+			} `json:"article"`
+			UserErrors []any `json:"userErrors"`
+		} `json:"articleCreate"`
+	} `json:"data"`
+}
+
+func PostArticle(
 	token, store, blogId, title, author, handle, body, summary, imgSrc, imgAlt string,
 	publishedAt time.Time,
 	tags []string,
 ) ([]byte, error) {
-	return do(token, store, `mutation CreateArticle($article: ArticleCreateInput!) 
+	out, err := do(token, store, `mutation CreateArticle($article: ArticleCreateInput!) 
 { 
 	articleCreate(article: $article) { 
 		article { 
@@ -281,6 +304,22 @@ func createArticle(
 			},
 		},
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var r createArticleResponse
+	if err = json.Unmarshal(out, &r); err != nil {
+		return nil, err
+	}
+
+	if len(r.Data.ArticleCreate.UserErrors) > 0 {
+		b, _ := json.MarshalIndent(r.Data.ArticleCreate.UserErrors, "", "\t")
+		return nil, errors.New("article create errors: " + string(b))
+	}
+
+	return out, nil
 }
 
 func GetOrders(token, store string, from, to time.Time) ([]Order, error) {

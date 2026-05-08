@@ -15,8 +15,8 @@ import (
 var tkn, store, l string
 
 func init() {
-	flag.StringVar(&tkn, "token", "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", "Shopify API token")
-	flag.StringVar(&store, "store", "e61745-7d", "Shopify store ID")
+	flag.StringVar(&tkn, "token", "", "Shopify API token")
+	flag.StringVar(&store, "store", "", "Shopify store ID")
 	flag.StringVar(&l, "l", "debug", "log level [trace, debug, info, warn, error]")
 	flag.Parse()
 

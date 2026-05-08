@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -55,13 +56,24 @@ func get(url string) ([]byte, int, error) {
 	return b, res.StatusCode, err
 }
 
-func PostJSON(url string, b []byte, h map[string]string) ([]byte, error) {
+func PostForm(u string, v url.Values) ([]byte, error) {
+	return post(u, []byte(v.Encode()), map[string]string{
+		"Content-Type": "application/x-www-form-urlencoded",
+	})
+}
 
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(b))
+func PostJSON(u string, b []byte, h map[string]string) ([]byte, error) {
+	h["Content-Type"] = "application/json"
+	return post(u, b, h)
+}
+
+func post(u string, b []byte, h map[string]string) ([]byte, error) {
+
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(b))
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/json")
+
 	for k, v := range h {
 		req.Header.Set(k, v)
 	}
@@ -70,6 +82,7 @@ func PostJSON(url string, b []byte, h map[string]string) ([]byte, error) {
 	if res, err = http.DefaultClient.Do(req); err != nil {
 		return nil, err
 	}
+
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(res.Body)

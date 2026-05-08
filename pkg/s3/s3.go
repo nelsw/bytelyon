@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -63,7 +64,6 @@ func put(key string, data []byte, isPublic bool) error {
 		Str("bucket", bucket).
 		Str("key", key).
 		Int("body", len(data)).
-		Bool("isPublic", isPublic).
 		Logger()
 
 	l.Trace().Send()
@@ -92,4 +92,39 @@ func put(key string, data []byte, isPublic bool) error {
 
 	l.Debug().Send()
 	return nil
+}
+
+func GetPrivateObject(key string) ([]byte, error) {
+
+	bucket := "bytelyon-private"
+
+	l := log.With().
+		Str("ƒ", "put").
+		Str("bucket", bucket).
+		Str("key", key).
+		Bool("isPublic", false).
+		Logger()
+
+	l.Trace().Send()
+
+	out, err := aws.S3().GetObject(context.Background(), &s3.GetObjectInput{
+		Bucket: &bucket,
+		Key:    &key,
+	})
+
+	if err != nil {
+		l.Err(err).Send()
+		return nil, err
+	}
+
+	var b []byte
+	if b, err = io.ReadAll(out.Body); err != nil {
+		l.Err(err).Send()
+		return nil, err
+	}
+	out.Body.Close()
+
+	l.Debug().Send()
+
+	return b, nil
 }

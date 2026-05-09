@@ -358,6 +358,8 @@ func (j *Job) workNews() {
 	defer db.Close()
 
 	var b []byte
+	var rss RSS
+	var doc *model.Document
 	for _, u := range urls {
 
 		if b, err = https.Get(u); err != nil {
@@ -371,44 +373,39 @@ func (j *Job) workNews() {
 			}))
 		}
 
-		var rss RSS
 		if err = xml.Unmarshal(b, &rss); err != nil {
 			log.Err(err).Str("url", u).Msg("Failed to unmarshal RSS feed")
 			continue
 		}
 
 		for _, i := range rss.Channel.Items {
-			if j.WorkNewsItem(i) {
-				db.Put(i.Entry())
+
+			// process the news item before anything else
+			i.ProcessXML()
+
+			log.Info().Msgf("working news rss item %s", i.URL)
+
+			// fail fast if this news item could be a duplicate
+			if i.PublishedAt.Before(j.bot.WorkedAt) {
+				log.Debug().Str("url", i.URL).Msg("news item is older than last processed")
+				continue
 			}
 
+			// get an HTML document for this news item
+			if doc, err = pw.Document(j.ctx, i.URL); err != nil {
+				log.Warn().Err(err).Str("url", i.URL).Msg("Failed to fetch news document")
+				continue
+			}
+
+			// process the HTML document and check if it's blacklisted'
+			if i.ProcessDoc(doc); i.IsBlacklisted(j.bot.BlackList) {
+				continue
+			}
+
+			// save the news item to the database
+			db.Put(i.Entry())
 		}
 	}
 
 	log.Info().Msgf("processed news worker %s", j.bot.Target)
-}
-
-func (j *Job) WorkNewsItem(i *Item) bool {
-
-	i.ProcessXML()
-
-	log.Info().Msgf("working news rss item %s", i.URL)
-
-	// fail fast if this news item could be a duplicate
-	if i.PublishedAt.Before(j.bot.WorkedAt) {
-		log.Debug().Str("url", i.URL).Msg("news item is older than last processed")
-		//return false
-	}
-
-	doc, err := pw.Document(j.ctx, i.URL)
-	if err != nil {
-		log.Warn().Err(err).Str("url", i.URL).Msg("Failed to fetch news document")
-		return false
-	}
-
-	if i.ProcessDoc(doc); i.IsBlacklisted(j.bot.BlackList) {
-		return false
-	}
-
-	return true
 }

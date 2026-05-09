@@ -102,7 +102,7 @@ func handlePost(r Request) Response {
 
 func handleGet(r Request) Response {
 
-	orderDB, err := store.New[shopify.Order]("orders.json")
+	orderDB, err := store.New[string, shopify.Order]("orders.json")
 	if err != nil {
 		return r.BAD(err)
 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 
@@ -17,7 +18,9 @@ type Time time.Time
 func (v *Time) IsZero() bool            { return v.UTC().IsZero() }
 func (v *Time) String() string          { return v.UTC().Format(time.RFC3339) }
 func (v *Time) Before(t time.Time) bool { return v.UTC().Before(t.UTC()) }
+func (v *Time) ULID() ulid.ULID         { return NewULID(v.UTC()) }
 func (v *Time) UTC() time.Time          { return time.Time(*v).UTC() }
+
 func (v *Time) ToAttributeValue() types.AttributeValue {
 	return &types.AttributeValueMemberS{Value: v.String()}
 }

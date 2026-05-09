@@ -1,10 +1,12 @@
 package pw
 
 import (
+	"errors"
 	"math/rand"
 	"regexp"
 
 	"github.com/nelsw/bytelyon/pkg/logs"
+	"github.com/nelsw/bytelyon/pkg/model"
 	. "github.com/nelsw/bytelyon/pkg/util"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
@@ -272,4 +274,29 @@ func Title(page playwright.Page) string {
 		return ""
 	}
 	return s
+}
+
+// Document returns a goquery Document instance of the page content.
+func Document(ctx playwright.BrowserContext, url string) (*model.Document, error) {
+	page, err := NewPage(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func(page playwright.Page) {
+		_ = page.Close()
+	}(page)
+
+	var resp playwright.Response
+	if resp, err = GoTo(page, url); err != nil {
+		return nil, err
+	} else if IsRequestBlocked(resp) || IsPageBlocked(page) {
+		return nil, errors.New("blocked")
+	}
+
+	var s string
+	if s, err = page.Content(); err != nil {
+		return nil, err
+	}
+
+	return model.ParseDocument(s)
 }

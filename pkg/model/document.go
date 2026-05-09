@@ -140,12 +140,16 @@ func (d *Document) SetParagraphs() {
 	if d.Paragraphs.Len() > 0 {
 		return
 	}
+	m := make(map[string]int)
 	var txt string
 	d.Find("p").Each(func(i int, s *goquery.Selection) {
 		if txt = strings.TrimSpace(s.Text()); txt == "" {
 			return
 		}
-		d.Paragraphs.Add(txt)
+		if _, ok := m[txt]; ok {
+			return
+		}
+		m[txt] = i
 	})
 	log.Info().EmbedObject(d).Msg("set paragraphs")
 }
@@ -159,6 +163,12 @@ func (d *Document) GetTitle() string {
 		d.Title, _ = d.MetaTitle()
 	}
 	return d.Title
+}
+
+func (d *Document) GetImage() Image {
+	src, _ := d.MetaImage()
+	alt, _ := d.MetaImageAlt()
+	return MakeImage(src, alt)
 }
 
 func (d *Document) SetTitle() {
@@ -192,6 +202,7 @@ func (d *Document) SetMeta() {
 		d.Meta[key] = val
 	})
 	log.Info().EmbedObject(d).Msg("set meta tags")
+	log.Trace().Any("meta", d.Meta).Msg("meta tags")
 }
 
 func (d *Document) GetHREFs() []string {

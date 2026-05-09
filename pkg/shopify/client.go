@@ -281,7 +281,7 @@ func PostArticle(
 			body 
 			summary 
 			tags 
-			image { altText originalSrc } 
+			image { altText url } 
 		} 
 		userErrors { code field message } 
 	}

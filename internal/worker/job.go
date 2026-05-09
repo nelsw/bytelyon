@@ -37,7 +37,7 @@ func (j *Job) Work() {
 	case model.SitemapBotType:
 		sitemap.New(j.bot.Target, j.ctx).Work()
 	case model.NewsBotType:
-		j.doNews()
+		j.workNews()
 	default:
 		log.Warn().Msgf("bot type [%s] not supported", j.bot.Type)
 		return

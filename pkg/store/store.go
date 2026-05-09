@@ -2,29 +2,41 @@ package store
 
 import (
 	"encoding/json"
+	"fmt"
 	"iter"
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/nelsw/bytelyon/pkg/s3"
 )
 
-type table[T any] map[string]T
-
-type DB[T any] struct {
-	table table[T]
-	key   string
+type DB[K comparable, V any] struct {
+	m         sync.Mutex
+	table     map[K]V
+	key       string
+	committed bool
 }
 
-func New[T any](key string) (*DB[T], error) {
-	s := new(DB[T])
-	s.table = make(map[string]T)
-	s.key = key
+func New[K comparable, V any](args ...any) (*DB[K, V], error) {
+	s := new(DB[K, V])
+	s.committed = true
+	s.table = make(map[K]V)
+
+	var arr []string
+	for _, a := range args {
+		arr = append(arr, fmt.Sprint(a))
+	}
+	s.key = strings.Join(arr, "/")
+	if !strings.HasSuffix(s.key, ".json") {
+		s.key += ".json"
+	}
+
 	return s, s.init()
 }
 
-func (db *DB[T]) init() error {
+func (db *DB[K, V]) init() error {
 
 	b, err := s3.GetPrivateObject(db.key)
 	if err == nil {
@@ -32,37 +44,55 @@ func (db *DB[T]) init() error {
 	}
 
 	if strings.Contains(err.Error(), "StatusCode: 404") {
-		db.table = make(map[string]T)
+		db.table = make(map[K]V)
 		return nil
 	}
 
 	return err
 }
 
-func (db *DB[T]) Close() error {
+func (db *DB[K, V]) Close() error {
 	return db.Commit()
 }
 
-func (db *DB[T]) Keys() []string {
+func (db *DB[K, V]) Keys() []K {
 	return slices.Collect(maps.Keys(db.table))
 }
 
-func (db *DB[T]) All() iter.Seq2[string, T] {
+func (db *DB[K, V]) Values() []V {
+	return slices.Collect(maps.Values(db.table))
+}
+
+func (db *DB[K, V]) All() iter.Seq2[K, V] {
 	return maps.All(db.table)
 }
 
-func (db *DB[T]) Get(k string) T {
+func (db *DB[K, V]) Get(k K) V {
 	return db.table[k]
 }
 
-func (db *DB[T]) Put(k string, v T) {
+func (db *DB[K, V]) Put(k K, v V) {
 	db.table[k] = v
+	db.committed = false
 }
 
-func (db *DB[T]) Commit() error {
-	b, err := json.Marshal(db.table)
-	if err != nil {
+func (db *DB[K, V]) Drop(k K) {
+	delete(db.table, k)
+	db.committed = false
+}
+
+func (db *DB[K, V]) Commit() error {
+
+	if db.committed {
+		return nil
+	}
+
+	if b, err := json.Marshal(db.table); err != nil {
+		return err
+	} else if err = s3.PutPrivateObject(db.key, b); err != nil {
 		return err
 	}
-	return s3.PutPrivateObject(db.key, b)
+
+	db.committed = true
+	return nil
 }

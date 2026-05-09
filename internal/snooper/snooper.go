@@ -33,9 +33,9 @@ func (w *Worker) work() {
 	log.Info().Msg("working")
 
 	var err error
-	var orderDB *store.DB[shopify.Order]
+	var orderDB *store.DB[string, shopify.Order]
 
-	if orderDB, err = store.New[shopify.Order]("orders.json"); err != nil {
+	if orderDB, err = store.New[string, shopify.Order]("orders.json"); err != nil {
 		panic(err)
 	}
 	defer func() {

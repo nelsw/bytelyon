@@ -62,15 +62,18 @@ func (p *Page) Query() *dynamodb.QueryInput {
 }
 
 func (p *Page) MarshalDynamoDBAttributeValue() (types.AttributeValue, error) {
-	return &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
+	m := map[string]types.AttributeValue{
 		"url":           &types.AttributeValueMemberS{Value: p.URL},
 		"title":         &types.AttributeValueMemberS{Value: p.Title},
 		"meta":          p.Meta.ToAttributeValue(),
-		"paragraphs":    p.Paragraphs.ToAttributeValue(),
 		"screenshotKey": &types.AttributeValueMemberS{Value: p.ScreenshotKey},
 		"contentKey":    &types.AttributeValueMemberS{Value: p.ContentKey},
 		"createdAt":     p.CreatedAt.ToAttributeValue(),
-	}}, nil
+	}
+	if p.Paragraphs.Len() > 0 {
+		m["paragraphs"] = p.Paragraphs.ToAttributeValue()
+	}
+	return &types.AttributeValueMemberM{Value: m}, nil
 }
 
 func (p *Page) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error) {

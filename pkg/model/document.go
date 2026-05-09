@@ -140,16 +140,12 @@ func (d *Document) SetParagraphs() {
 	if d.Paragraphs.Len() > 0 {
 		return
 	}
-	m := make(map[string]int)
 	var txt string
 	d.Find("p").Each(func(i int, s *goquery.Selection) {
 		if txt = strings.TrimSpace(s.Text()); txt == "" {
 			return
 		}
-		if _, ok := m[txt]; ok {
-			return
-		}
-		m[txt] = i
+		d.Paragraphs.Add(txt)
 	})
 	log.Info().EmbedObject(d).Msg("set paragraphs")
 }

@@ -98,6 +98,7 @@ func handlePut(r Request) Response {
 
 	if b.Type == model.SitemapBotType {
 		b.Target = util.Domain(b.Target)
+		b.Target = strings.ToLower(b.Target)
 	}
 
 	if err := db.Put(b); err != nil {

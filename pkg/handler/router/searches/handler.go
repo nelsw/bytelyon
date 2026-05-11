@@ -1,4 +1,4 @@
-package news
+package searches
 
 import (
 	"net/http"
@@ -18,13 +18,13 @@ func Handler(r api.Request) api.Response {
 }
 
 func handleGet(r api.Request) api.Response {
-	if a, ok := em.GetNews(r.UserID(), r.Target()); ok {
+	if a, ok := em.GetSitemap(r.UserID(), r.Target()); ok {
 		return r.OK(a)
 	}
 	return r.NC()
 }
 
 func handleDelete(r api.Request) api.Response {
-	em.DeleteNews(r.UserID(), r.Target())
+	em.DeleteSitemap(r.UserID(), r.Target())
 	return r.NC()
 }

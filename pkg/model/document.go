@@ -209,20 +209,6 @@ func (d *Document) GetHREFs() []string {
 	return slices.Collect(maps.Keys(m))
 }
 
-func (d *Document) ToPage(url string, t ...*Time) *Page {
-	if len(t) == 0 {
-		t = append(t, Now())
-	}
-	return &Page{
-		CreatedAt:   t[0],
-		URL:         url,
-		Title:       d.GetTitle(),
-		Meta:        d.GetMeta(),
-		Paragraphs:  d.GetParagraphs(),
-		ContentData: d.Content,
-	}
-}
-
 func ParseDocument(content string) (*Document, error) {
 
 	if content == "" {

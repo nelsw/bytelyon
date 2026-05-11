@@ -4,23 +4,27 @@ import (
 	"net/http"
 
 	"github.com/nelsw/bytelyon/pkg/api"
-	"github.com/nelsw/bytelyon/pkg/db"
-	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/em"
 )
 
 func Handler(r api.Request) api.Response {
 	switch r.Method() {
 	case http.MethodGet:
 		return handleGet(r)
+	case http.MethodDelete:
+		return handleDelete(r)
 	}
 	return r.NI()
 }
 
 func handleGet(r api.Request) api.Response {
-	sitemap, err := db.Get(&model.Sitemap{Domain: r.Domain()})
-	if err != nil {
-		return r.BAD(err)
+	if a, ok := em.GetSitemap(r.UserID(), r.Target()); ok {
+		return r.OK(a)
 	}
-	sitemap.SetNodes()
-	return r.OK(sitemap)
+	return r.NC()
+}
+
+func handleDelete(r api.Request) api.Response {
+	em.DeleteSitemap(r.UserID(), r.Target())
+	return r.NC()
 }

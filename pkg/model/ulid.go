@@ -9,13 +9,15 @@ import (
 
 func NewULID(args ...time.Time) ulid.ULID {
 
-	var t = time.Now().UTC()
+	var t time.Time
 	if len(args) > 0 {
 		t = args[0]
+	} else {
+		t = time.Now()
 	}
 
 	id, err := ulid.New(
-		ulid.Timestamp(t),
+		ulid.Timestamp(t.UTC()),
 		rand.New(rand.NewSource(time.Now().UnixNano())),
 	)
 

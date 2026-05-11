@@ -2,8 +2,12 @@ package pw
 
 import (
 	"errors"
+	"fmt"
+	"maps"
 	"math/rand"
 	"regexp"
+	"slices"
+	"strings"
 
 	"github.com/nelsw/bytelyon/pkg/logs"
 	"github.com/nelsw/bytelyon/pkg/model"
@@ -13,11 +17,22 @@ import (
 )
 
 var (
-	blockedRegex = regexp.MustCompile("(google.com/sorry|captcha|unusual traffic)")
-	installed    = false
+	blockedRegex = regexp.MustCompile(`(google.com/sorry|captcha|unusual traffic)`)
+	hrefSchemes  = regexp.MustCompile(`^(mailto|tel|sms|fax|callto|geo):.*`)
+
+	googleSearchInputSelectors = []string{
+		"input[name='q']",
+		"input[title='Search']",
+		"input[aria-label='Search']",
+		"textarea[title='Search']",
+		"textarea[name='q']",
+		"textarea[aria-label='Search']",
+		"textarea",
+	}
+	installed = false
 )
 
-// Install gets drivers from the web and installs them to the machine running ByteLyon
+// Install gets drivers from the document and installs them to the machine running ByteLyon
 func Install() {
 	if installed {
 		return
@@ -64,7 +79,7 @@ func NewBrowser(c *playwright.Playwright, headless bool) (playwright.Browser, er
 			"--disable-renderer-backgrounding",
 			"--disable-setuid-sandbox",
 			"--disable-site-isolation-trials",
-			"--disable-web-security",
+			"--disable-document-security",
 			"--enable-features=NetworkService,NetworkServiceInProcess",
 			"--force-color-profile=srgb",
 			"--hide-scrollbars",
@@ -183,14 +198,14 @@ func Type(page playwright.Page, s string) error {
 	})
 }
 
-// Press executes a keyboard event on a page.
+// Press executes a keyboard event on a document.
 func Press(page playwright.Page, s string) error {
 	return page.Keyboard().Press(s, playwright.KeyboardPressOptions{
 		Delay: Ptr(Between(200, 500.0)),
 	})
 }
 
-// NewPage creates a new page in the browser context.
+// NewPage creates a new document in the browser context.
 func NewPage(ctx playwright.BrowserContext) (page playwright.Page, err error) {
 	if page, err = ctx.NewPage(); err == nil {
 		err = page.AddInitScript(playwright.Script{Content: Ptr(`() => {
@@ -211,7 +226,39 @@ func GoTo(page playwright.Page, url string) (playwright.Response, error) {
 	})
 }
 
-// Click the first page element located by the given selectors.
+// Visit navigates to the given URL, waits for the document to load,
+// and scrolls to the bottom of the page to ensure all content is visible.
+func Visit(page playwright.Page, url string) error {
+
+	if res, err := GoTo(page, url); err != nil {
+		return err
+	} else if !res.Ok() {
+		return fmt.Errorf("failed to visit %s: [%d] %s", url, res.Status(), res.StatusText())
+	} else if err = WaitForLoadState(page, "networkidle"); err != nil {
+		return err
+	}
+
+	_, err := page.Evaluate(`async () => {
+  await new Promise((resolve) => {
+    let totalHeight = 0;
+    let distance = 100;
+    let timer = setInterval(() => {
+      let scrollHeight = document.body.scrollHeight;
+      window.scrollBy(0, distance);
+      totalHeight += distance;
+      if (totalHeight >= scrollHeight) {
+		window.scrollTo(0, 0);
+        clearInterval(timer);
+        resolve();
+      }
+    }, 100);
+  });
+}`)
+
+	return err
+}
+
+// Click the first document element located by the given selectors.
 func Click(page playwright.Page, selectors ...string) (err error) {
 
 	var count int
@@ -247,36 +294,54 @@ func WaitForLoadState(page playwright.Page, ls ...playwright.LoadState) error {
 	})
 }
 
-// Content returns the page content or an empty string if the page has failed to load.
+// Content returns the document content or an empty string if the document has failed to load.
 func Content(page playwright.Page) string {
 	s, err := page.Content()
 	if err != nil {
-		log.Err(err).Msg("failed to get page content")
+		log.Err(err).Msg("failed to get document content")
 		return ""
 	}
 	return s
 }
 
-// Screenshot returns the screenshot of the page as a byte array or an empty byte array if the page has failed to load.
-func Screenshot(page playwright.Page, opts ...playwright.PageScreenshotOptions) []byte {
-	opts = append(opts, playwright.PageScreenshotOptions{FullPage: Ptr(true)})
-	b, err := page.Screenshot(opts...)
+// Screenshot returns the screenshot of the document as a byte array or an empty byte array if the document has failed to load.
+func Screenshot(page playwright.Page) []byte {
+	/*
+		await page.evaluate(async () => {
+		  await new Promise((resolve) => {
+		    let totalHeight = 0;
+		    let distance = 100;
+		    let timer = setInterval(() => {
+		      let scrollHeight = document.body.scrollHeight;
+		      window.scrollBy(0, distance);
+		      totalHeight += distance;
+		      if (totalHeight >= scrollHeight) {
+		        clearInterval(timer);
+		        resolve();
+		      }
+		    }, 100);
+		  });
+		});
+	*/
+	b, err := page.Screenshot(playwright.PageScreenshotOptions{FullPage: Ptr(true)})
 	if err != nil {
+		log.Err(err).Msg("failed to get document screenshot")
 		return nil
 	}
 	return b
 }
 
-// Title returns the page title or an empty string if the page has failed to load.
+// Title returns the document title or an empty string if the document has failed to load.
 func Title(page playwright.Page) string {
 	s, err := page.Title()
 	if err != nil {
+		log.Err(err).Msg("failed to get document title")
 		return ""
 	}
 	return s
 }
 
-// Document returns a goquery Document instance of the page content.
+// Document returns a goquery Document instance of the document content.
 func Document(ctx playwright.BrowserContext, url string) (*model.Document, error) {
 	page, err := NewPage(ctx)
 	if err != nil {
@@ -299,4 +364,172 @@ func Document(ctx playwright.BrowserContext, url string) (*model.Document, error
 	}
 
 	return model.ParseDocument(s)
+}
+
+// Meta returns a map of meta tags by inspecting meta tag properties.
+func Meta(page playwright.Page) map[string]string {
+
+	m := make(map[string]string)
+
+	var k, v string
+	for _, l := range Locators(page, "meta") {
+		if k = attribute(l, "name"); k == "" {
+			if k = attribute(l, "property"); k == "" {
+				continue
+			}
+		}
+		if v = attribute(l, "content"); v == "" {
+			continue
+		}
+		m[k] = v
+	}
+
+	return m
+}
+
+// Links returns absolute and relative links of a document by inspecting anchor tag properties.
+// - ✅ (absolute) https://ByteLyon.com/dashboard
+// - ✅ (relative) /dashboard
+// - ❌ (fragment) #contact
+// - ❌ (download) foo.pdf
+// - ❌ (schemes) mailto:foo@bar.com
+// - ❌ (js) javascript:void(0);
+func Links(page playwright.Page) []string {
+	var m = make(map[string]bool)
+
+	for _, a := range Locators(page, "a") {
+
+		// does it have a hypertext reference?
+		href, err := a.GetAttribute("href")
+		if err != nil {
+			continue
+		}
+
+		// trim whitespace (yes, technically it's possible)
+		if href = strings.TrimSpace(href); href == "" {
+			continue
+		}
+
+		// is it a js link?
+		if strings.Contains(href, "javascript:") {
+			continue
+		}
+
+		// is it a file link?
+		if HasFileExtension(href) {
+			continue
+		}
+
+		// is it a fragment?
+		if strings.HasPrefix(href, "#") {
+			continue
+		}
+
+		// is it a browser function?
+		if hrefSchemes.MatchString(href) {
+			continue
+		}
+
+		m[href] = true
+	}
+
+	return slices.Collect(maps.Keys(m))
+}
+
+// Paragraphs returns a list of unique paragraphs in the document.
+func Paragraphs(page playwright.Page) (paragraphs []string) {
+
+	uniqueParagraphs := make(map[string]int)
+	for i, p := range Locators(page, "p") {
+		//if txt := textContent(p); txt != "" && !parser.Skip(txt) {
+		//	uniqueParagraphs[txt] = i
+		//}
+		if txt := textContent(p); txt != "" {
+			uniqueParagraphs[txt] = i
+		}
+	}
+
+	orderedParagraphs := make(map[int]string)
+	for k, v := range uniqueParagraphs {
+		orderedParagraphs[v] = k
+	}
+
+	for _, k := range slices.Sorted(maps.Keys(orderedParagraphs)) {
+		paragraphs = append(paragraphs, orderedParagraphs[k])
+	}
+
+	return
+}
+
+// Headings returns a map of headings by their level.
+func Headings(page playwright.Page) (headings map[string][]string) {
+	for _, h := range []string{"h1", "h2", "h3", "h4", "h5", "h6"} {
+		for _, l := range Locators(page, h) {
+			headings[h] = append(headings[h], textContent(l))
+		}
+	}
+	return
+}
+
+func SearchGoogle(q string, ctx playwright.BrowserContext) (page playwright.Page, err error) {
+	if page, err = NewPage(ctx); err != nil {
+		return
+	}
+
+	var resp playwright.Response
+	if resp, err = GoTo(page, "https://www.google.com"); err != nil {
+		return
+	}
+
+	if IsRequestBlocked(resp) || IsPageBlocked(page) {
+		if WaitForLoadState(page); IsRequestBlocked(resp) || IsPageBlocked(page) {
+			return
+		}
+	}
+
+	if err = Click(page, googleSearchInputSelectors...); err != nil {
+		return
+	} else if err = Type(page, q); err != nil {
+		return
+	} else if err = Press(page, "Enter"); err != nil {
+		return
+	} else if err = WaitForLoadState(page); err != nil {
+		return
+	} else if IsPageBlocked(page) {
+		return
+	}
+
+	log.Info().Msgf("Reached Google SERP for query: %s", q)
+
+	return
+}
+
+func Locators(page playwright.Page, s string) []playwright.Locator {
+	arr, err := page.Locator(s).All()
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Str("selector", s).
+			Msg("failed to get locators")
+		return []playwright.Locator{}
+	}
+	return arr
+}
+
+func textContent(l playwright.Locator) string {
+	s, err := l.TextContent()
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to get text content")
+		return ""
+	}
+	return strings.TrimSpace(s)
+}
+
+func attribute(l playwright.Locator, a string) string {
+	s, err := l.GetAttribute(a)
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to get attribute")
+		return ""
+	}
+	return strings.TrimSpace(s)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/nelsw/bytelyon/pkg/handler/router/helper"
 	"github.com/nelsw/bytelyon/pkg/handler/router/news"
 	"github.com/nelsw/bytelyon/pkg/handler/router/pages"
+	"github.com/nelsw/bytelyon/pkg/handler/router/searches"
 	"github.com/nelsw/bytelyon/pkg/handler/router/shopify"
 	"github.com/nelsw/bytelyon/pkg/handler/router/sitemaps"
 )
@@ -30,6 +31,8 @@ func Handler(r Request) (Response, error) {
 		return shopify.Handler(r), nil
 	case "/v1/sitemaps":
 		return sitemaps.Handler(r), nil
+	case "/v1/searches":
+		return searches.Handler(r), nil
 	}
 
 	return r.NI(), nil

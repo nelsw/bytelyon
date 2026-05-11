@@ -8,6 +8,7 @@ import (
 
 	. "github.com/nelsw/bytelyon/pkg/api"
 	"github.com/nelsw/bytelyon/pkg/db"
+	"github.com/nelsw/bytelyon/pkg/em"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/repo"
 	"github.com/nelsw/bytelyon/pkg/util"
@@ -57,7 +58,7 @@ func handleDelete(r Request) Response {
 func handleGet(r Request) Response {
 
 	// if the request is for bots
-	if r.ID().IsZero() {
+	if r.Target() == "" {
 		bots := repo.FindBotsByType(r.UserID(), r.BotType())
 		sort.Slice(bots, func(i, j int) bool {
 			return strings.Compare(bots[i].Target, bots[j].Target) == -1
@@ -65,14 +66,20 @@ func handleGet(r Request) Response {
 		return r.OK(bots)
 	}
 
-	// else the request is for bot results
-	results := repo.FindBotResults(r.UserID(), r.ID(), r.BotType())
+	var a any
+	var ok bool
 
-	if r.BotType() == model.SitemapBotType {
-		//return r.OK(model.NewSitemapResults(results))
+	switch r.BotType() {
+	case model.NewsBotType:
+	case model.SearchBotType:
+	case model.SitemapBotType:
+		a, ok = em.GetSitemap(r.UserID(), r.Target())
 	}
 
-	return r.OK(results)
+	if ok {
+		return r.OK(a)
+	}
+	return r.NC()
 }
 
 // handlePut creates or updates a bot in the database for the given body.

@@ -3,7 +3,9 @@ package worker
 import (
 	"time"
 
-	"github.com/nelsw/bytelyon/internal/sitemap"
+	"github.com/nelsw/bytelyon/internal/prowler/news"
+	"github.com/nelsw/bytelyon/internal/prowler/search"
+	"github.com/nelsw/bytelyon/internal/prowler/sitemap"
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/playwright-community/playwright-go"
@@ -33,11 +35,17 @@ func (j *Job) Work() {
 
 	switch j.bot.Type {
 	case model.SearchBotType:
-		j.doSearch()
+		search.
+			New(j.bot.Target, j.ctx).
+			Prowl(j.bot.UserID)
 	case model.SitemapBotType:
-		sitemap.New(j.bot.Target, j.ctx).Work()
+		sitemap.
+			New(j.bot.Target, 5, j.ctx).
+			Prowl(j.bot.UserID)
 	case model.NewsBotType:
-		j.workNews()
+		news.
+			New(j.bot.Target, j.ctx).
+			Prowl(j.bot.UserID, j.bot.WorkedAt, j.bot.BlackList)
 	default:
 		log.Warn().Msgf("bot type [%s] not supported", j.bot.Type)
 		return

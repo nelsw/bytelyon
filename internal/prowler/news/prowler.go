@@ -1,4 +1,4 @@
-package worker
+package news
 
 import (
 	"bytes"
@@ -13,13 +13,18 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/nelsw/bytelyon/internal/parser"
 	"github.com/nelsw/bytelyon/internal/pw"
+	"github.com/nelsw/bytelyon/pkg/em"
+	"github.com/nelsw/bytelyon/pkg/entity"
 	"github.com/nelsw/bytelyon/pkg/https"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/oklog/ulid/v2"
+	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/html"
 )
@@ -35,6 +40,7 @@ type RSS struct {
 	} `xml:"channel"`
 }
 
+// todo - article
 type Item struct {
 	URL         string      `xml:"link" json:"url"`
 	Title       string      `xml:"title" json:"title"`
@@ -338,11 +344,32 @@ func decodeParts(signature, timestamp, base64Str string) (string, error) {
 	return s, nil
 }
 
-func (j *Job) workNews() {
+type Prowler struct {
 
-	log.Info().Msgf("processing news worker %s", j.bot.Target)
+	// ctx is the context of the browser, which is used to run the browser and the page
+	ctx playwright.BrowserContext
 
-	q := strings.ReplaceAll(j.bot.Target, ` `, `+`)
+	e *entity.News
+}
+
+func New(topic string, ctx playwright.BrowserContext) *Prowler {
+	return &Prowler{
+		ctx: ctx,
+		e:   entity.NewNews(topic),
+	}
+}
+
+func (p *Prowler) Prowl(userID ulid.ULID, workedAt time.Time, blacklist []string) {
+	defer func() {
+		em.SaveNews(userID, p.e)
+	}()
+	p.prowl(workedAt, blacklist)
+}
+
+func (p *Prowler) prowl(workedAt time.Time, blacklist []string) {
+	log.Info().Msgf("processing news worker %s", p.e.Topic)
+
+	q := strings.ReplaceAll(p.e.Topic, ` `, `+`)
 	urls := []string{
 		fmt.Sprintf("https://www.bing.com/search?format=rss&q=%s", q),
 		fmt.Sprintf("https://www.bing.com/news/search?format=rss&q=%s", q),
@@ -380,19 +407,19 @@ func (j *Job) workNews() {
 			log.Info().Msgf("working news rss item %s", i.URL)
 
 			// fail fast if this news item could be a duplicate
-			if i.PublishedAt.Before(j.bot.WorkedAt) {
+			if i.PublishedAt.Before(workedAt) {
 				log.Debug().Str("url", i.URL).Msg("news item is older than last processed")
 				continue
 			}
 
 			// get an HTML document for this news item
-			if doc, err = pw.Document(j.ctx, i.URL); err != nil {
+			if doc, err = pw.Document(p.ctx, i.URL); err != nil {
 				log.Warn().Err(err).Str("url", i.URL).Msg("Failed to fetch news document")
 				continue
 			}
 
 			// process the HTML document and check if it's blacklisted'
-			if i.ProcessDoc(doc); i.IsBlacklisted(j.bot.BlackList) {
+			if i.ProcessDoc(doc); i.IsBlacklisted(blacklist) {
 				continue
 			}
 
@@ -400,5 +427,7 @@ func (j *Job) workNews() {
 		}
 	}
 
-	log.Info().Msgf("processed news worker %s", j.bot.Target)
+	log.Info().Msgf("processed news worker %s", p.e.Topic)
+
+	em.SaveNews()
 }

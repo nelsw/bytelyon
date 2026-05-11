@@ -99,10 +99,9 @@ func GetPrivateObject(key string) ([]byte, error) {
 	bucket := "bytelyon-private"
 
 	l := log.With().
-		Str("ƒ", "put").
+		Str("ƒ", "GetPrivateObject").
 		Str("bucket", bucket).
 		Str("key", key).
-		Bool("isPublic", false).
 		Logger()
 
 	l.Trace().Send()

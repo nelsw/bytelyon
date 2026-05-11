@@ -2,11 +2,9 @@ package shopify
 
 import (
 	"encoding/json"
-	"maps"
 	"net/http"
 	"os"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 
@@ -15,10 +13,23 @@ import (
 	"github.com/nelsw/bytelyon/pkg/service/images"
 	"github.com/nelsw/bytelyon/pkg/shopify"
 	"github.com/nelsw/bytelyon/pkg/store"
+	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 
 var handleRegex = regexp.MustCompile("[^a-zA-Z0-9\\-]+")
+
+type Post struct {
+	ID          ulid.ULID `json:"id"`
+	Handle      string    `json:"handle"`
+	Title       string    `json:"title,omitempty"`
+	Body        string    `json:"body,omitempty"`
+	Summary     string    `json:"summary,omitempty"`
+	Tags        []string  `json:"tags,omitempty"`
+	ImgSrc      string    `json:"imgSrc,omitempty"`
+	ImgAlt      string    `json:"imgAlt,omitempty"`
+	PublishedAt time.Time `json:"publishedAt"`
+}
 
 func Handler(r Request) Response {
 
@@ -40,7 +51,7 @@ func Handler(r Request) Response {
 
 func handlePost(r Request) Response {
 
-	var p = new(model.Post)
+	var p = new(Post)
 	if err := json.Unmarshal([]byte(r.Body), p); err != nil {
 		log.Err(err).Msg("failed to unmarshal post")
 		return r.BAD(err)
@@ -109,8 +120,8 @@ func handleGet(r Request) Response {
 	orderDB.Close()
 
 	var orders []any
-	customers := map[string]any{}
-	for _, order := range orderDB.All() {
+	customers := model.MakeMap[string, any]()
+	for _, order := range orderDB.Values() {
 		orders = append(orders, order.Row())
 		c := order.Customer
 		c.Ordered = order.CreatedAt
@@ -126,7 +137,7 @@ func handleGet(r Request) Response {
 	}
 
 	return r.OK(map[string]any{
-		"customers": slices.Collect(maps.Values(customers)),
+		"customers": customers.Values(),
 		"orders":    orders,
 	})
 }

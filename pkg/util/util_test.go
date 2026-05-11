@@ -1,11 +1,18 @@
 package util
 
 import (
-	"errors"
+	"encoding/json"
+	"fmt"
+	"net/url"
 	"testing"
 )
 
 func Test_Supress_String(t *testing.T) {
-	v := Suppress[string]("", errors.New("err"))
-	t.Logf("v=[%s]", v)
+	u, err := url.Parse("FireFibers.com/wat")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(u.String())
+	b, _ := json.MarshalIndent(u, "", "\t")
+	fmt.Println(string(b))
 }

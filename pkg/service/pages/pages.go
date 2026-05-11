@@ -6,78 +6,42 @@ import (
 	"github.com/nelsw/bytelyon/internal/pw"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/repo"
-	"github.com/nelsw/bytelyon/pkg/service/documents"
+	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
 )
 
-func Create(url string, ctx playwright.BrowserContext) (err error) {
-	var page *model.Page
+func Create(id ulid.ULID, url string, ctx playwright.BrowserContext) (err error) {
 
-	if page, err = New(url, ctx); err != nil {
-		log.Err(err).Msg("new page failed")
-		return
-	}
-	log.Info().Msg("new page succeeded")
-
-	if err = repo.SavePage(page); err != nil {
-		log.Err(err).Msg("save page failed")
-	} else {
-		log.Info().Msg("save page succeeded")
-	}
-	return
-}
-
-func New(url string, ctx playwright.BrowserContext) (page *model.Page, err error) {
-	log.Debug().Str("url", url).Msg("new page")
-	if page, err = NewPwPage(url, ctx); err != nil {
-		log.Err(err).Str("url", url).Msg("new PW page failed")
-		if page, err = NewDocumentPage(url); err != nil {
-			log.Err(err).Str("url", url).Msg("new document page failed")
-		}
-	}
-	return
-}
-
-func NewDocumentPage(url string, t ...*model.Time) (page *model.Page, err error) {
-	var doc *model.Document
-	if doc, err = documents.New(url); err != nil {
-		log.Err(err).Str("url", url).Msg("failed to create page")
-		return
-	}
-	return doc.ToPage(url, t...), nil
-}
-
-func NewPwPage(url string, ctx playwright.BrowserContext, t ...*model.Time) (page *model.Page, err error) {
+	log.Trace().Str("url", url).Msg("new document")
 
 	var p playwright.Page
 	if p, err = pw.NewPage(ctx); err != nil {
-		log.Err(err).Msg("failed to create page")
+		log.Err(err).Msg("failed to create document")
 		return
 	}
 	defer func(page playwright.Page) {
-		_ = p.Close()
+		_ = page.Close()
 	}(p)
 
 	var resp playwright.Response
 	if resp, err = pw.GoTo(p, url); err != nil {
-		log.Err(err).Str("url", url).Msg("failed to go to page")
+		log.Err(err).Str("url", url).Msg("failed to go to document")
 		return
 	} else if pw.IsRequestBlocked(resp) || pw.IsPageBlocked(p) {
-		log.Warn().Str("url", url).Msg("page/request is blocked")
-		return nil, errors.New("blocked")
+		log.Warn().Str("url", url).Msg("document/request is blocked")
+		return errors.New("blocked")
 	}
 
-	var doc *model.Document
-	if doc, err = model.ParseDocument(pw.Content(p)); err != nil {
-		return nil, err
-	}
+	page := model.NewPage(id, url, pw.Title(p), pw.Content(p), pw.Screenshot(p))
 
-	page = doc.ToPage(url, t...)
-	if page.Title == "" {
-		page.Title = pw.Title(p)
+	log.Debug().Msgf("new document %s", page)
+
+	if err = repo.SavePage(page); err != nil {
+		log.Err(err).Msg("save new document failed")
+	} else {
+		log.Info().Msg("saved new document succeeded")
 	}
-	page.ScreenshotData = pw.Screenshot(p)
 
 	return
 }

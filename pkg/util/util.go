@@ -2,12 +2,15 @@ package util
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"math/rand"
 	"net/http"
+	"net/url"
+	"path"
 	"reflect"
 	"regexp"
 	"strings"
@@ -20,28 +23,11 @@ var (
 	fileExtRegex = regexp.MustCompile(`.(webp|jpg|jpeg|png)`)
 )
 
-func Check(err error) {
+func Safe[T any](t T, err error) T {
 	if err != nil {
-		panic(err)
-	}
-}
-
-func Must[T any](t T, err error) T {
-	Check(err)
-	return t
-}
-
-func Suppress[T any](t T, err error) T {
-	if err == nil {
-		log.Warn().Err(err).Msg("suppressing error")
+		log.Warn().Msgf("Suppressed: %v", err)
 	}
 	return t
-}
-
-func IsEmpty[T any](val T) bool {
-	v := reflect.ValueOf(val)
-	// .IsZero() handles structs, primitives, and pointers
-	return !v.IsValid() || v.IsZero()
 }
 
 func Ptr[T any](t T) *T { return &t }
@@ -50,11 +36,18 @@ func Between[T int | float64](min, max T) T {
 	return T(rand.Intn(int(max)-int(min)) + int(min))
 }
 
+// Domain returns the domain name from a URL in lowercase.
+// Unlinke url.Parse, this ƒ does not require a protocol to determine a hostname.
 func Domain(s string) string {
-	s = strings.TrimPrefix(s, "https://")
-	s = strings.TrimPrefix(s, "http://")
-	s = strings.TrimPrefix(s, "www.")
-	s = strings.Split(s, "/")[0]
+
+	s = Host(s)
+
+	// remove subdomains
+	for strings.Count(s, ".") > 1 {
+		ss := strings.Split(s, ".")
+		s = ss[len(ss)-2] + "." + ss[len(ss)-1]
+	}
+
 	return s
 }
 
@@ -99,4 +92,46 @@ func PtrOrNil[T any](a T) *T {
 		return nil
 	}
 	return &a
+}
+
+func HasFileExtension(rawUrl string) bool {
+	u, err := url.Parse(rawUrl)
+	if err != nil {
+		return false
+	}
+	ext := path.Ext(u.Path) // Returns ".jpg", ".pdf", etc.
+	return ext != ""
+}
+
+// Host returns the host name from a URL in lowercase.
+// Unlinke url.Parse, this ƒ does not require a protocol to determine a hostname.
+func Host(s string) string {
+
+	// remove protocol
+	s = strings.TrimPrefix(s, "https://")
+	s = strings.TrimPrefix(s, "http://")
+
+	// remove path
+	s = strings.Split(s, "/")[0]
+
+	// remove query
+	s = strings.Split(s, "?")[0]
+
+	// remove fragment
+	s = strings.Split(s, "#")[0]
+
+	// remove port
+	s = strings.Split(s, ":")[0]
+
+	// if there is no period, it can't be a URL/URI
+	if !strings.Contains(s, ".") {
+		return ""
+	}
+
+	return strings.ToLower(s)
+}
+
+func JSON(a any) string {
+	b, _ := json.MarshalIndent(a, "", "\t")
+	return string(b)
 }

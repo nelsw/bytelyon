@@ -7,8 +7,8 @@ import (
 	"github.com/nelsw/bytelyon/internal/pw"
 	"github.com/nelsw/bytelyon/pkg/em"
 	"github.com/nelsw/bytelyon/pkg/entity"
+	"github.com/nelsw/bytelyon/pkg/model"
 	. "github.com/nelsw/bytelyon/pkg/util"
-	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
 )
@@ -25,29 +25,29 @@ type Prowler struct {
 	// ctx is the context of the browser, which is used to run the browser and the page
 	ctx playwright.BrowserContext
 
-	e *entity.Sitemap
+	*entity.Sitemap
 }
 
-func New(s string, depth int, ctx playwright.BrowserContext) *Prowler {
+func New(bot *model.Bot, ctx playwright.BrowserContext) *Prowler {
 	return &Prowler{
-		depth: depth,
-		ctx:   ctx,
-		e:     entity.NewSitemap(s),
+		depth:   5, // todo - make configurable
+		ctx:     ctx,
+		Sitemap: entity.NewSitemap(bot),
 	}
 }
 
-func (p *Prowler) Prowl(userID ulid.ULID) {
+func (p *Prowler) Prowl() {
 	defer func() {
-		em.SaveSitemap(userID, p.e)
+		em.PutSitemap(p.Sitemap)
 	}()
-	p.wg.Go(func() { p.prowl("https://"+p.e.Domain, p.depth) })
+	p.wg.Go(func() { p.prowl("https://"+p.Target, p.depth) })
 	p.wg.Wait()
 }
 
 func (p *Prowler) prowl(url string, depth int) {
 
 	// check if we're at the depth limit or if we've already visited this URL
-	if depth--; depth < 0 || p.e.Pages.Has(url) {
+	if depth--; depth < 0 || p.Has(url) {
 		return
 	}
 
@@ -61,23 +61,23 @@ func (p *Prowler) prowl(url string, depth int) {
 
 		// if the link is relative to the root url
 		if strings.HasPrefix(link, "/") {
-			urls = append(urls, "https://"+p.e.Domain+link)
+			urls = append(urls, "https://"+p.Target+link)
 			continue
 		}
 
 		// if the link is a url; check the host equals our domain
-		if host := Host(link); host != "" && host != p.e.Domain {
+		if host := Host(link); host != "" && host != p.Target {
 			continue
 		}
 
 		// if the link is a secure URL
-		if strings.HasPrefix(link, "https://"+p.e.Domain) {
+		if strings.HasPrefix(link, "https://"+p.Target) {
 			urls = append(urls, link)
 			continue
 		}
 
 		// if the link is missing URL protocol
-		if strings.HasPrefix(link, p.e.Domain) {
+		if strings.HasPrefix(link, p.Target) {
 			urls = append(urls, "https://"+link)
 			continue
 		}
@@ -110,9 +110,7 @@ func (p *Prowler) put(url string) (links []string) {
 		return
 	}
 
-	defer func() {
-		page.Close()
-	}()
+	defer page.Close()
 
 	if err = pw.Visit(page, url); err != nil {
 		l.Warn().Msgf("Visit failed: %s", err.Error())
@@ -121,7 +119,5 @@ func (p *Prowler) put(url string) (links []string) {
 
 	l.Debug().Msgf("put %s", url)
 
-	ep := entity.NewPage(page, p.e.ID.Timestamp())
-	p.e.AddPage(ep)
-	return ep.Links
+	return p.Set(url, entity.NewPage(page)).Links
 }

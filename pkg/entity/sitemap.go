@@ -1,51 +1,43 @@
 package entity
 
 import (
+	"encoding/json"
+
 	"github.com/nelsw/bytelyon/pkg/dto"
 	"github.com/nelsw/bytelyon/pkg/model"
-	"github.com/nelsw/bytelyon/pkg/util"
-	"github.com/oklog/ulid/v2"
 )
 
 type Sitemap struct {
-	ID     ulid.ULID   `json:"id"`
-	Domain string      `json:"domain"`
-	Nodes  []*dto.Node `json:"nodes"`
-	URLs   []string    `json:"urls"`
-
-	Pages *model.SyncMap[string, *Page] `json:"-"`
+	*model.Bot
+	*model.SyncMap[string, *Page]
+	root *dto.Node
 }
 
-func NewSitemap(domain string) *Sitemap {
+func NewSitemap(bot *model.Bot) *Sitemap {
 	return &Sitemap{
-		ID:     model.NewULID(),
-		Domain: domain,
+		Bot:     bot,
+		SyncMap: model.NewSyncMap[string, *Page](),
+		root:    dto.NewNode("https://" + bot.Target),
 	}
 }
 
-func (s *Sitemap) AddPage(p *Page) {
-	s.URLs = append(s.URLs, p.URL)
-	s.Pages.Set(p.URL, p)
+func (s *Sitemap) Merge(x *Sitemap) {
+	for _, p := range x.Values() {
+		s.Add(p)
+	}
 }
 
-func (s *Sitemap) AddURLs(urls []string) {
-	m := model.MakeMap[string, bool]()
-	for _, url := range urls {
-		m.Set(url, true)
-	}
-	for _, url := range s.URLs {
-		m.Set(url, true)
-	}
-	s.URLs = m.Keys()
-	s.setNodes()
+func (s *Sitemap) Add(p *Page) {
+	s.Set(p.URL, p)
+	s.root.Add(p.URL)
 }
 
-func (s *Sitemap) setNodes() {
-	n := dto.NewNode("")
-	for _, url := range s.URLs {
-		n.Add(url)
+func (s *Sitemap) MarshalJSON() ([]byte, error) {
+	for _, url := range s.Keys() {
+		s.root.Add(url)
 	}
-	s.Nodes = n.Children.Values()
+	return json.Marshal(map[string]any{
+		"bot":   s.Bot,
+		"nodes": s.root.Children.Values(),
+	})
 }
-
-func (s *Sitemap) String() string { return util.JSON(s) }

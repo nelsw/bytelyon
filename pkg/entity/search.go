@@ -1,27 +1,35 @@
 package entity
 
 import (
+	"encoding/json"
+
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/oklog/ulid/v2"
 )
 
 type Search struct {
-	ID    ulid.ULID `json:"id"`
-	Query string    `json:"query"`
-	URLs  []string  `json:"urls"`
-
-	Pages *model.SyncMap[string, *Page] `json:"-"`
+	UTC  uint64
+	Data []any
+	*model.Bot
+	model.Map[string, ulid.ULID]
 }
 
-func NewSearch(query string) *Search {
+func NewSearch(bot *model.Bot) *Search {
 	return &Search{
-		ID:    model.NewULID(),
-		Query: query,
-		Pages: model.NewSyncMap[string, *Page](),
+		Bot: bot,
+		UTC: ulid.Now(),
+		Map: model.MakeMap[string, ulid.ULID](),
 	}
 }
 
-func (s *Search) AddPage(p *Page) {
-	s.URLs = append(s.URLs, p.URL)
-	s.Pages.Set(p.URL, p)
+func (s *Search) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"bot":  s.Bot,
+		"data": s.Data,
+	})
+}
+
+func (s *Search) Add(p *Page) {
+	s.Map.Set(p.URL, p.ID)
+	s.Data = append(s.Data, p)
 }

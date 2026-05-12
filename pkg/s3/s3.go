@@ -127,3 +127,54 @@ func GetPrivateObject(key string) ([]byte, error) {
 
 	return b, nil
 }
+
+func DeletePrivateObject(key string) error {
+
+	bucket := "bytelyon-private"
+
+	l := log.With().
+		Str("ƒ", "delete").
+		Str("bucket", bucket).
+		Str("key", key).
+		Logger()
+
+	l.Trace().Send()
+
+	_, err := aws.S3().DeleteObject(context.Background(), &s3.DeleteObjectInput{
+		Bucket: &bucket,
+		Key:    &key,
+	})
+
+	if err != nil {
+		l.Err(err).Send()
+		return err
+	}
+
+	l.Debug().Send()
+	return nil
+}
+
+func DeletePublicImage(key string) error {
+	bucket := "bytelyon-public"
+
+	l := log.With().
+		Str("ƒ", "delete").
+		Str("bucket", bucket).
+		Str("key", key).
+		Logger()
+
+	l.Trace().Send()
+
+	_, err := aws.S3().DeleteObject(context.Background(), &s3.DeleteObjectInput{
+		Bucket: &bucket,
+		Key:    &key,
+	})
+
+	if err != nil {
+		l.Err(err).Send()
+		return err
+	}
+
+	l.Debug().Send()
+	return nil
+}

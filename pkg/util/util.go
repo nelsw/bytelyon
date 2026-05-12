@@ -103,13 +103,29 @@ func HasFileExtension(rawUrl string) bool {
 	return ext != ""
 }
 
+// Or returns the first argument that is not zero, or the final argument if all are zero.
+func Or[T any](ors ...T) T {
+	return OrFunc(func(or T) bool { return true }, ors...)
+}
+
+// OrFunc returns the first argument that is not zero and returns true from the given function;
+// else the final argument is returned.
+func OrFunc[T any](f func(or T) bool, ors ...T) T {
+
+	var or T
+	for _, or = range ors {
+		if !reflect.ValueOf(or).IsZero() && f(or) {
+			return or
+		}
+	}
+	return or
+}
+
 // Host returns the host name from a URL in lowercase.
 // Unlinke url.Parse, this ƒ does not require a protocol to determine a hostname.
 func Host(s string) string {
 
-	// remove protocol
-	s = strings.TrimPrefix(s, "https://")
-	s = strings.TrimPrefix(s, "http://")
+	s = RemoveProtocol(s)
 
 	// remove path
 	s = strings.Split(s, "/")[0]
@@ -131,7 +147,16 @@ func Host(s string) string {
 	return strings.ToLower(s)
 }
 
-func JSON(a any) string {
-	b, _ := json.MarshalIndent(a, "", "\t")
-	return string(b)
+func JSON(a any) []byte {
+	return Safe(json.MarshalIndent(a, "", "\t"))
+}
+
+func JSONString(a any) string {
+	return string(JSON(a))
+}
+
+func RemoveProtocol(s string) string {
+	s = strings.TrimPrefix(s, "http://")
+	s = strings.TrimPrefix(s, "https://")
+	return s
 }

@@ -35,17 +35,11 @@ func (j *Job) Work() {
 
 	switch j.bot.Type {
 	case model.SearchBotType:
-		search.
-			New(j.bot.Target, j.ctx).
-			Prowl(j.bot.UserID)
+		search.New(j.bot, j.ctx).Prowl()
 	case model.SitemapBotType:
-		sitemap.
-			New(j.bot.Target, 5, j.ctx).
-			Prowl(j.bot.UserID)
+		sitemap.New(j.bot, j.ctx).Prowl()
 	case model.NewsBotType:
-		news.
-			New(j.bot.Target, j.ctx).
-			Prowl(j.bot.UserID, j.bot.WorkedAt, j.bot.BlackList)
+		news.New(j.bot, j.ctx).Prowl()
 	default:
 		log.Warn().Msgf("bot type [%s] not supported", j.bot.Type)
 		return

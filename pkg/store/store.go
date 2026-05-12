@@ -59,10 +59,10 @@ func New[K cmp.Ordered, V any](args ...any) (*DB[K, V], error) {
 }
 
 func (db *DB[K, V]) String() string {
-	return util.JSON(map[string]any{
+	return string(util.JSON(map[string]any{
 		"key":   db.key,
 		"table": db.table,
-	})
+	}))
 }
 
 func (db *DB[K, V]) init() error {

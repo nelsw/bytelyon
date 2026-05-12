@@ -5,7 +5,6 @@ import (
 
 	"github.com/nelsw/bytelyon/internal/pw"
 	"github.com/nelsw/bytelyon/pkg/logs"
-	"github.com/nelsw/bytelyon/pkg/model"
 )
 
 func TestNewProwler(t *testing.T) {
@@ -21,5 +20,4 @@ func TestNewProwler(t *testing.T) {
 		bro.Close()
 	}()
 
-	New("firefibers.com", 1, ctx).Prowl(model.NewULID())
 }

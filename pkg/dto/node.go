@@ -44,6 +44,8 @@ func (n *Node) Add(url string) {
 		node = node.Children[label]
 		uri = uri[idx+1:]
 	}
-	node.Children[uri] = NewNode(uri)
-	node.Children[uri].Data = url
+	if _, ok := node.Children[uri]; !ok {
+		node.Children[uri] = NewNode(uri)
+		node.Children[uri].Data = url
+	}
 }

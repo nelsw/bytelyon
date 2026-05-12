@@ -1,39 +1,34 @@
 package em
 
 import (
+	"encoding/json"
+
 	"github.com/nelsw/bytelyon/pkg/entity"
 	"github.com/nelsw/bytelyon/pkg/model"
-	"github.com/nelsw/bytelyon/pkg/store"
-	"github.com/oklog/ulid/v2"
+	"github.com/nelsw/bytelyon/pkg/s3"
+	"github.com/nelsw/bytelyon/pkg/util"
 )
 
-func newsDB(userID ulid.ULID) (*store.DB[string, *entity.News], error) {
-	return store.New[string, *entity.News]("users", userID, "bots", model.NewsBotType)
+func DeleteNews(bot *model.Bot, utc ...uint64) {
+	if x := GetNews(bot); len(utc) > 0 {
+		x.Delete(utc[0])
+		s3.PutPrivateObject(bot.Key(), util.JSON(x))
+	} else {
+		s3.DeletePrivateObject(bot.Key())
+	}
 }
 
-func SaveNews(userID ulid.ULID, e *entity.News) {
-	db, err := newsDB(userID)
-	if err != nil {
-		return
-	}
-	defer db.Close()
-	db.Set(topic, news)
-}
+func GetNews(bot *model.Bot) model.Map[uint64, *entity.News] {
 
-func GetNews(userID ulid.ULID, topic string) (*entity.News, bool) {
-	db, err := newsDB(userID)
+	out, err := s3.GetPrivateObject(bot.Key())
 	if err != nil {
-		return nil, false
+		return model.MakeMap[uint64, *entity.News]()
 	}
-	defer db.Close()
-	return db.Get(topic)
-}
 
-func DeleteNews(userID ulid.ULID, topic string) {
-	db, err := newsDB(userID)
-	if err != nil {
-		return
+	var pages model.Map[uint64, *entity.News]
+	if err = json.Unmarshal(out, &pages); err != nil {
+		return model.MakeMap[uint64, *entity.News]()
 	}
-	defer db.Close()
-	db.Drop(topic)
+
+	return pages
 }

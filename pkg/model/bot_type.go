@@ -39,6 +39,17 @@ func (t BotType) TableName(args ...string) *string {
 	return &s
 }
 
+func (t BotType) Plural() string {
+	if t == SearchBotType {
+		return "searches"
+	} else if t == NewsBotType {
+		return "news"
+	} else if t == SitemapBotType {
+		return "sitemaps"
+	}
+	return "Unknown"
+}
+
 func BotTypes() []BotType {
 	return []BotType{SearchBotType, NewsBotType, SitemapBotType}
 }

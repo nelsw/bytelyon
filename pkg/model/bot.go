@@ -226,8 +226,8 @@ func (b *Bot) UnmarshalJSON(data []byte) (err error) {
 		return err
 	}
 
-	if _, ok := m["userId"]; ok {
-		if b.UserID, err = ulid.ParseStrict(m["userId"].(string)); err != nil {
+	if s, ok := m["userId"]; ok && s != nil && s != "" {
+		if b.UserID, err = ulid.ParseStrict(s.(string)); err != nil {
 			return fmt.Errorf("failed to parse bot UserID: %w", err)
 		}
 	}
@@ -309,4 +309,8 @@ func (b *Bot) MarshalZerologObject(evt *zerolog.Event) {
 		Strs("blackList", b.BlackList).
 		Bool("headless", b.Headless).
 		Any("fingerprint", b.Fingerprint)
+}
+
+func (b *Bot) Key() string {
+	return fmt.Sprintf("users/%s/%s/%s.json", b.UserID, b.Type.Plural(), b.Target)
 }

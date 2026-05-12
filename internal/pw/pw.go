@@ -1,7 +1,6 @@
 package pw
 
 import (
-	"errors"
 	"fmt"
 	"maps"
 	"math/rand"
@@ -10,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/nelsw/bytelyon/pkg/logs"
-	"github.com/nelsw/bytelyon/pkg/model"
-	. "github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/util/ptr"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
 )
@@ -61,7 +60,7 @@ func Run() *playwright.Playwright {
 func NewBrowser(c *playwright.Playwright, headless bool) (playwright.Browser, error) {
 	return c.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
 		Headless: &headless,
-		Timeout:  Ptr(2 * 60_000.0),
+		Timeout:  ptr.Of(2 * 60_000.0),
 		Args: []string{
 			"--disable-accelerated-2d-canvas",
 			"--disable-background-networking",
@@ -114,20 +113,20 @@ func NewBrowserContext(bro playwright.Browser, state *playwright.OptionalStorage
 			"Mozilla/5.0 (X11; Linux x86_64; CentOS Ubuntu 19.04) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5957.0 Safari/537.36",
 		}
 
-		return Ptr(agents[rand.Intn(len(agents))])
+		return ptr.Of(agents[rand.Intn(len(agents))])
 	}
 
 	ctx, err := bro.NewContext(playwright.BrowserNewContextOptions{
-		AcceptDownloads:   Ptr(true),
+		AcceptDownloads:   ptr.True,
 		ColorScheme:       playwright.ColorSchemeDark,
 		ForcedColors:      playwright.ForcedColorsNone,
-		HasTouch:          Ptr(false),
-		IsMobile:          Ptr(false),
-		JavaScriptEnabled: Ptr(true),
-		Locale:            Ptr("en-US"),
+		HasTouch:          ptr.False,
+		IsMobile:          ptr.False,
+		JavaScriptEnabled: ptr.True,
+		Locale:            ptr.Of("en-US"),
 		Permissions:       []string{"geolocation", "notifications"},
 		ReducedMotion:     playwright.ReducedMotionNoPreference,
-		TimezoneId:        Ptr("America/New_York"),
+		TimezoneId:        ptr.Of("America/New_York"),
 		UserAgent:         userAgent(),
 		StorageState:      state,
 	})
@@ -136,7 +135,7 @@ func NewBrowserContext(bro playwright.Browser, state *playwright.OptionalStorage
 		return nil, err
 	}
 
-	err = ctx.AddInitScript(playwright.Script{Content: Ptr(`() => {
+	err = ctx.AddInitScript(playwright.Script{Content: ptr.Of(`() => {
   // navigator
   Object.defineProperty(navigator, "webdriver", { get: () => false });
   Object.defineProperty(navigator, "plugins", {
@@ -194,21 +193,21 @@ func IsRequestBlocked(res playwright.Response) bool {
 // Type fills text to type into a focused element.
 func Type(page playwright.Page, s string) error {
 	return page.Keyboard().Type(s, playwright.KeyboardTypeOptions{
-		Delay: Ptr(Between(500.0, 1000.0)),
+		Delay: ptr.Of(util.Between(500.0, 1000.0)),
 	})
 }
 
 // Press executes a keyboard event on a document.
 func Press(page playwright.Page, s string) error {
 	return page.Keyboard().Press(s, playwright.KeyboardPressOptions{
-		Delay: Ptr(Between(200, 500.0)),
+		Delay: ptr.Of(util.Between(200, 500.0)),
 	})
 }
 
 // NewPage creates a new document in the browser context.
 func NewPage(ctx playwright.BrowserContext) (page playwright.Page, err error) {
 	if page, err = ctx.NewPage(); err == nil {
-		err = page.AddInitScript(playwright.Script{Content: Ptr(`() => {
+		err = page.AddInitScript(playwright.Script{Content: ptr.Of(`() => {
   Object.defineProperty(window.screen, "width", { get: () => 1920 });
   Object.defineProperty(window.screen, "height", { get: () => 1080 });
   Object.defineProperty(window.screen, "colorDepth", { get: () => 24 });
@@ -221,7 +220,7 @@ func NewPage(ctx playwright.BrowserContext) (page playwright.Page, err error) {
 // GoTo returns the main resource response.
 func GoTo(page playwright.Page, url string) (playwright.Response, error) {
 	return page.Goto(url, playwright.PageGotoOptions{
-		Timeout:   Ptr(10_000.0),
+		Timeout:   ptr.Of(10_000.0),
 		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
 	})
 }
@@ -234,8 +233,6 @@ func Visit(page playwright.Page, url string) error {
 		return err
 	} else if !res.Ok() {
 		return fmt.Errorf("failed to visit %s: [%d] %s", url, res.Status(), res.StatusText())
-	} else if err = WaitForLoadState(page, "networkidle"); err != nil {
-		return err
 	}
 
 	_, err := page.Evaluate(`async () => {
@@ -246,7 +243,7 @@ func Visit(page playwright.Page, url string) error {
       let scrollHeight = document.body.scrollHeight;
       window.scrollBy(0, distance);
       totalHeight += distance;
-      if (totalHeight >= scrollHeight) {
+      if (totalHeight >= scrollHeight || totalHeight >= 10_000) {
 		window.scrollTo(0, 0);
         clearInterval(timer);
         resolve();
@@ -274,7 +271,7 @@ func Click(page playwright.Page, selectors ...string) (err error) {
 			continue
 		}
 
-		if err = locator.Click(playwright.LocatorClickOptions{Delay: Ptr(Between(200, 500.0))}); err != nil {
+		if err = locator.Click(playwright.LocatorClickOptions{Delay: ptr.Of(util.Between(200, 500.0))}); err != nil {
 			continue
 		}
 
@@ -306,24 +303,7 @@ func Content(page playwright.Page) string {
 
 // Screenshot returns the screenshot of the document as a byte array or an empty byte array if the document has failed to load.
 func Screenshot(page playwright.Page) []byte {
-	/*
-		await page.evaluate(async () => {
-		  await new Promise((resolve) => {
-		    let totalHeight = 0;
-		    let distance = 100;
-		    let timer = setInterval(() => {
-		      let scrollHeight = document.body.scrollHeight;
-		      window.scrollBy(0, distance);
-		      totalHeight += distance;
-		      if (totalHeight >= scrollHeight) {
-		        clearInterval(timer);
-		        resolve();
-		      }
-		    }, 100);
-		  });
-		});
-	*/
-	b, err := page.Screenshot(playwright.PageScreenshotOptions{FullPage: Ptr(true)})
+	b, err := page.Screenshot(playwright.PageScreenshotOptions{FullPage: ptr.True})
 	if err != nil {
 		log.Err(err).Msg("failed to get document screenshot")
 		return nil
@@ -341,31 +321,6 @@ func Title(page playwright.Page) string {
 	return s
 }
 
-// Document returns a goquery Document instance of the document content.
-func Document(ctx playwright.BrowserContext, url string) (*model.Document, error) {
-	page, err := NewPage(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer func(page playwright.Page) {
-		_ = page.Close()
-	}(page)
-
-	var resp playwright.Response
-	if resp, err = GoTo(page, url); err != nil {
-		return nil, err
-	} else if IsRequestBlocked(resp) || IsPageBlocked(page) {
-		return nil, errors.New("blocked")
-	}
-
-	var s string
-	if s, err = page.Content(); err != nil {
-		return nil, err
-	}
-
-	return model.ParseDocument(s)
-}
-
 // Meta returns a map of meta tags by inspecting meta tag properties.
 func Meta(page playwright.Page) map[string]string {
 
@@ -373,12 +328,12 @@ func Meta(page playwright.Page) map[string]string {
 
 	var k, v string
 	for _, l := range Locators(page, "meta") {
-		if k = attribute(l, "name"); k == "" {
-			if k = attribute(l, "property"); k == "" {
+		if k = Attribute(l, "name"); k == "" {
+			if k = Attribute(l, "property"); k == "" {
 				continue
 			}
 		}
-		if v = attribute(l, "content"); v == "" {
+		if v = Attribute(l, "content"); v == "" {
 			continue
 		}
 		m[k] = v
@@ -416,7 +371,7 @@ func Links(page playwright.Page) []string {
 		}
 
 		// is it a file link?
-		if HasFileExtension(href) {
+		if util.HasFileExtension(href) {
 			continue
 		}
 
@@ -463,6 +418,7 @@ func Paragraphs(page playwright.Page) (paragraphs []string) {
 
 // Headings returns a map of headings by their level.
 func Headings(page playwright.Page) (headings map[string][]string) {
+	headings = make(map[string][]string)
 	for _, h := range []string{"h1", "h2", "h3", "h4", "h5", "h6"} {
 		for _, l := range Locators(page, h) {
 			headings[h] = append(headings[h], textContent(l))
@@ -525,7 +481,7 @@ func textContent(l playwright.Locator) string {
 	return strings.TrimSpace(s)
 }
 
-func attribute(l playwright.Locator, a string) string {
+func Attribute(l playwright.Locator, a string) string {
 	s, err := l.GetAttribute(a)
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to get attribute")

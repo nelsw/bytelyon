@@ -9,6 +9,7 @@ import (
 	"github.com/nelsw/bytelyon/pkg/s3"
 	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
+	"github.com/rs/zerolog/log"
 )
 
 type Sitemap struct {
@@ -16,7 +17,7 @@ type Sitemap struct {
 
 	root *dto.Node
 
-	urls *model.SyncMap[string, []ulid.ULID]
+	*model.SyncMap[string, []ulid.ULID]
 
 	userID ulid.ULID
 }
@@ -34,10 +35,10 @@ func (e *Sitemap) Save() { s3.PutPrivateObject(e.key(), util.JSON(e)) }
 
 func (e *Sitemap) Create(userID ulid.ULID, domain string) *Sitemap {
 	x := &Sitemap{
-		Domain: domain,
-		root:   dto.NewNode(domain, "https://"+domain),
-		urls:   model.NewSyncMap[string, []ulid.ULID](),
-		userID: userID,
+		Domain:  domain,
+		root:    dto.NewNode(domain, "https://"+domain),
+		SyncMap: model.NewSyncMap[string, []ulid.ULID](),
+		userID:  userID,
 	}
 	x.Save()
 	return x
@@ -60,6 +61,8 @@ func (e *Sitemap) Find(userID ulid.ULID, domain string) *Sitemap {
 		return nil
 	}
 
+	log.Trace().Str("domain", e.Domain).Msg("sitemap found")
+
 	return e
 }
 
@@ -69,40 +72,49 @@ func (e *Sitemap) Add(p *Page) {
 		return
 	}
 
-	ids, ok := e.urls.Get(p.URL)
+	ids, ok := e.Get(p.URL)
 	if !ok {
 		ids = []ulid.ULID{}
 	}
 
-	e.urls.Set(p.URL, append(ids, p.ID))
+	e.Set(p.URL, append(ids, p.ID))
 	e.root.Add(p.URL)
 	e.Save()
 }
 
 func (e *Sitemap) MarshalJSON() ([]byte, error) {
 	var pages int
-	for _, ids := range e.urls.Values() {
+	for _, ids := range e.Values() {
 		pages += len(ids)
 	}
 	return json.Marshal(map[string]any{
-		"domain": e.Domain,
-		"nodes":  []*dto.Node{e.root},
-		"urls":   e.urls.Len(),
-		"pages":  pages,
+		"domain":    e.Domain,
+		"nodes":     []*dto.Node{e.root},
+		"data":      e.ToMap(),
+		"urlCount":  e.Len(),
+		"pageCount": pages,
 	})
 }
 
 func (e *Sitemap) UnmarshalJSON(b []byte) error {
 	var alias struct {
-		Domain string      `json:"domain"`
-		Nodes  []*dto.Node `json:"nodes"`
+		Domain string `json:"domain"`
+
+		Nodes []*dto.Node `json:"nodes"`
+
+		Map map[string][]ulid.ULID `json:"data"`
 	}
+
 	if err := json.Unmarshal(b, &alias); err != nil {
 		return err
 	}
+
 	e.Domain = alias.Domain
+
 	if len(alias.Nodes) > 0 {
 		e.root = alias.Nodes[0]
 	}
+
+	e.SyncMap = model.NewSyncMap[string, []ulid.ULID](alias.Map)
 	return nil
 }

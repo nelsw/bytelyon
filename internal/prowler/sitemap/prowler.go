@@ -3,11 +3,13 @@ package sitemap
 import (
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/nelsw/bytelyon/pkg/entity"
 	"github.com/nelsw/bytelyon/pkg/model"
 	. "github.com/nelsw/bytelyon/pkg/util"
 	"github.com/playwright-community/playwright-go"
+	"github.com/rs/zerolog/log"
 )
 
 // Prowler is a crawler that recursively visits all the URLs on a website using a virtual browser.
@@ -22,37 +24,50 @@ type Prowler struct {
 	// ctx is the context of the browser, which is used to run the browser and the page
 	ctx playwright.BrowserContext
 
-	*model.SyncMap[string, bool]
+	urls *model.SyncMap[string, bool]
 
 	*entity.Sitemap
+
+	capacitor *model.Capacitor
 }
 
 func New(bot *model.Bot, ctx playwright.BrowserContext) *Prowler {
 	return &Prowler{
-		depth:   5, // todo - make configurable
-		ctx:     ctx,
-		Sitemap: new(entity.Sitemap).From(bot.UserID, bot.Target),
-		SyncMap: model.NewSyncMap[string, bool](),
+		depth:     5, // todo - make configurable
+		ctx:       ctx,
+		Sitemap:   new(entity.Sitemap).From(bot.UserID, bot.Target),
+		urls:      model.NewSyncMap[string, bool](),
+		capacitor: model.NewCapacitor(15),
 	}
 }
 
 func (p *Prowler) Prowl() {
 	p.wg.Go(func() { p.prowl("https://"+p.Domain, p.depth) })
 	p.wg.Wait()
+	log.Info().Msgf("prowled sitemap %s", p.Domain)
 }
 
 func (p *Prowler) prowl(url string, depth int) {
 
 	// check if we're at the depth limit or if we've already visited this URL
-	if depth--; depth < 0 || p.Has(url) {
+	if depth <= 0 || p.urls.Has(url) {
 		return
 	}
 
+	p.urls.Set(url, true)
+
+	for !p.capacitor.Inc() {
+		time.Sleep(time.Second)
+	}
+
 	page := new(entity.Page).Scrape(url, p.ctx)
+	p.capacitor.Dec()
+
 	if page == nil {
 		return
 	}
 	page.Save()
+
 	p.Add(page)
 	p.Save()
 
@@ -96,6 +111,6 @@ func (p *Prowler) prowl(url string, depth int) {
 	}
 
 	for _, u := range urls {
-		p.wg.Go(func() { p.prowl(u, depth) })
+		p.wg.Go(func() { p.prowl(u, p.depth-1) })
 	}
 }

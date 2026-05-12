@@ -46,3 +46,7 @@ func (m Map[K, V]) Delete(k K) bool {
 	delete(m, k)
 	return existed
 }
+
+func (m Map[K, V]) Len() int {
+	return len(m)
+}

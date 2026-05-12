@@ -47,8 +47,14 @@ func (n *Node) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	n.Children = model.MakeMap[string, *Node]()
+	for _, node := range alias.Children {
+		n.Children[node.Label] = node
+		n.Children[node.Label].Data = node.Data
+	}
 
-	return json.Unmarshal(b, n)
+	n.Label = alias.Label
+	n.Data = alias.Data
+	return nil
 }
 
 func (n *Node) Add(url string) {

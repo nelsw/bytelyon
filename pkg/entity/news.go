@@ -114,20 +114,20 @@ func (e *News) MarshalJSON() ([]byte, error) {
 
 func (e *News) UnmarshalJSON(b []byte) error {
 
-	var m map[string]any
-	if err := json.Unmarshal(b, &m); err != nil {
+	var alias struct {
+		Topic    string          `json:"topic"`
+		Articles []model.Article `json:"articles"`
+	}
+
+	if err := json.Unmarshal(b, &alias); err != nil {
 		return err
 	}
 
-	e.articles = make(map[string]model.Article)
-	if v, ok := m["articles"]; ok && v != nil {
-		for _, a := range v.([]any) {
-			e.articles[a.(model.Article).URL] = a.(model.Article)
-		}
-	}
+	e.Topic = alias.Topic
 
-	if v, ok := m["topic"]; ok && v != nil {
-		e.Topic = v.(string)
+	e.articles = make(map[string]model.Article)
+	for _, a := range alias.Articles {
+		e.articles[a.URL] = a
 	}
 
 	return nil

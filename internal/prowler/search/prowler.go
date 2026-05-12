@@ -45,9 +45,12 @@ func (p *Prowler) prowlSearchPage() {
 	p.Save()
 
 	for _, l := range pw.Locators(searchPage, "[data-dtld]") {
-		// todo - blacklist
 		domain := pw.Attribute(l, "data-dtld")
-		log.Info().Str("data-dtld", domain).Msg("Prowl")
+		if p.blackMap[domain] {
+			log.Info().Str("domain", domain).Msg("skipping (blacklisted)")
+			return
+		}
+		log.Info().Str("domain", domain).Msg("scraping")
 		p.prowlResultPages(l)
 	}
 }

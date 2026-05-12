@@ -3,6 +3,7 @@ package news
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/nelsw/bytelyon/internal/pw"
 	"github.com/nelsw/bytelyon/internal/rss"
@@ -28,7 +29,6 @@ func New(bot *model.Bot, ctx playwright.BrowserContext) *Prowler {
 }
 
 func (p *Prowler) Prowl() {
-	defer p.News.Save()
 
 	log.Info().Msgf("processing news worker %s", p.Topic)
 
@@ -42,6 +42,7 @@ func (p *Prowler) Prowl() {
 	var items []*rss.Item
 	for _, url := range urls {
 		if ii, err := rss.Items(url); err == nil {
+			log.Debug().Str("url", url).Int("size", len(ii)).Msg("news items")
 			items = append(items, ii...)
 		}
 	}
@@ -72,9 +73,13 @@ func (p *Prowler) Prowl() {
 		return entity.NewPage(page)
 	}
 
+	var wg sync.WaitGroup
 	for _, i := range items {
-		p.Add(ƒ(i), i.PublishedAt, i.Source, i.Description)
+		wg.Go(func() {
+			p.Add(ƒ(i), i.PublishedAt, i.Source, i.Description)
+		})
 	}
+	wg.Wait()
 
 	log.Info().Msgf("processed news worker %s", p.Topic)
 }

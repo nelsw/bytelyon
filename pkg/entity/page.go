@@ -55,6 +55,7 @@ func NewPage(p playwright.Page) *Page {
 
 func (p *Page) MakeArticle(pubDate time.Time, source, description string) model.Article {
 	return model.Article{
+		ID:            p.ID,
 		URL:           p.URL,
 		Title:         p.Title,
 		Body:          p.Paragraphs,

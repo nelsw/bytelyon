@@ -16,8 +16,6 @@ import (
 type News struct {
 	Topic string
 
-	pages map[string]ulid.ULID
-
 	articles map[string]model.Article
 
 	userID    ulid.ULID
@@ -42,7 +40,6 @@ func (e *News) From(bot *model.Bot) *News {
 
 func (e *News) Create(bot *model.Bot) *News {
 	n := &News{
-		pages:     make(map[string]ulid.ULID),
 		articles:  make(map[string]model.Article),
 		Topic:     bot.Target,
 		userID:    bot.UserID,
@@ -81,7 +78,7 @@ func (e *News) Add(p *Page, pubDate time.Time, source, description string) {
 
 	if p == nil {
 		return
-	} else if _, ok := e.pages[p.URL]; ok {
+	} else if _, ok := e.articles[p.URL]; ok {
 		return
 	} else if !e.workedAt.IsZero() && pubDate.Before(e.workedAt) {
 		return
@@ -101,7 +98,6 @@ func (e *News) Add(p *Page, pubDate time.Time, source, description string) {
 		}
 	}
 
-	e.pages[p.URL] = p.ID
 	e.articles[p.URL] = a
 
 	e.Save()
@@ -112,7 +108,6 @@ func (e *News) MarshalJSON() ([]byte, error) {
 		"articles": slices.SortedFunc(maps.Values(e.articles), func(a, z model.Article) int {
 			return a.PublishedAt.Compare(z.PublishedAt)
 		}),
-		"pages": e.pages,
 		"topic": e.Topic,
 	})
 }
@@ -120,14 +115,20 @@ func (e *News) MarshalJSON() ([]byte, error) {
 func (e *News) UnmarshalJSON(b []byte) error {
 
 	var m map[string]any
-
 	if err := json.Unmarshal(b, &m); err != nil {
 		return err
 	}
 
-	e.articles = m["articles"].(map[string]model.Article)
-	e.pages = m["pages"].(map[string]ulid.ULID)
-	e.Topic = m["topic"].(string)
+	e.articles = make(map[string]model.Article)
+	if v, ok := m["articles"]; ok && v != nil {
+		for _, a := range v.([]any) {
+			e.articles[a.(model.Article).URL] = a.(model.Article)
+		}
+	}
+
+	if v, ok := m["topic"]; ok && v != nil {
+		e.Topic = v.(string)
+	}
 
 	return nil
 }

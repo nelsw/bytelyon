@@ -3,9 +3,12 @@ package model
 import (
 	"strings"
 	"time"
+
+	"github.com/oklog/ulid/v2"
 )
 
 type Article struct {
+	ID            ulid.ULID `json:"id"`
 	URL           string    `json:"url"`
 	Title         string    `json:"title"`
 	Body          []string  `json:"body"`

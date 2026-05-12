@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"time"
 
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/s3"
@@ -14,13 +13,9 @@ import (
 )
 
 type News struct {
-	Topic string
-
-	articles map[string]model.Article
-
-	userID    ulid.ULID
-	workedAt  time.Time
-	blackList []string
+	Topic    string
+	Articles map[string]model.Article
+	userID   ulid.ULID
 }
 
 func (e *News) key() string {
@@ -31,33 +26,39 @@ func (e *News) Save() {
 	s3.PutPrivateObject(e.key(), util.JSON(e))
 }
 
-func (e *News) From(bot *model.Bot) *News {
-	if f := e.Find(bot.UserID, bot.Target); f != nil {
-		return f
+func (e *News) From(userID ulid.ULID, topic string) *News {
+	if x := e.Find(userID, topic); x != nil {
+		return x
 	}
-	return e.Create(bot)
+	return e.Create(userID, topic)
 }
 
-func (e *News) Create(bot *model.Bot) *News {
-	n := &News{
-		articles:  make(map[string]model.Article),
-		Topic:     bot.Target,
-		userID:    bot.UserID,
-		workedAt:  bot.WorkedAt,
-		blackList: bot.BlackList,
+func (e *News) Create(userID ulid.ULID, topic string) *News {
+	x := &News{
+		Articles: make(map[string]model.Article),
+		Topic:    topic,
+		userID:   userID,
 	}
-	n.Save()
-	return n
+	x.Save()
+	return x
 }
 
-func (e *News) Delete(userID ulid.ULID, topic string, pageID ...ulid.ULID) {
-	e.userID = userID
-	e.Topic = topic
-	if len(pageID) == 0 {
+func (e *News) Delete(userID ulid.ULID, topic string, url ...string) {
+
+	if e.Find(userID, topic) == nil {
+		return
+	}
+
+	if len(url) == 0 {
 		s3.DeletePrivateObject(e.key())
 		return
 	}
-	e.Find(userID, topic)
+
+	if a, ok := e.Articles[url[0]]; ok {
+		new(Page).Delete(a.URL, a.ID)
+		delete(e.Articles, a.URL)
+		e.Save()
+	}
 }
 
 func (e *News) Find(userID ulid.ULID, topic string) *News {
@@ -74,38 +75,9 @@ func (e *News) Find(userID ulid.ULID, topic string) *News {
 	return e
 }
 
-func (e *News) Add(p *Page, pubDate time.Time, source, description string) {
-
-	if p == nil {
-		return
-	} else if _, ok := e.articles[p.URL]; ok {
-		return
-	} else if !e.workedAt.IsZero() && pubDate.Before(e.workedAt) {
-		return
-	}
-
-	p.Save()
-
-	blackMap := make(map[string]bool)
-	for _, word := range e.blackList {
-		blackMap[word] = true
-	}
-
-	a := p.MakeArticle(pubDate, source, description)
-	for _, word := range a.Words() {
-		if _, ok := blackMap[word]; ok {
-			return
-		}
-	}
-
-	e.articles[p.URL] = a
-
-	e.Save()
-}
-
 func (e *News) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"articles": slices.SortedFunc(maps.Values(e.articles), func(a, z model.Article) int {
+		"articles": slices.SortedFunc(maps.Values(e.Articles), func(a, z model.Article) int {
 			return a.PublishedAt.Compare(z.PublishedAt)
 		}),
 		"topic": e.Topic,
@@ -125,9 +97,9 @@ func (e *News) UnmarshalJSON(b []byte) error {
 
 	e.Topic = alias.Topic
 
-	e.articles = make(map[string]model.Article)
+	e.Articles = make(map[string]model.Article)
 	for _, a := range alias.Articles {
-		e.articles[a.URL] = a
+		e.Articles[a.URL] = a
 	}
 
 	return nil

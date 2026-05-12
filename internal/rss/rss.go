@@ -29,16 +29,15 @@ type Item struct {
 	Source      string    `json:"source,omitempty"`
 }
 
-func Items(url string) ([]*Item, error) {
+func Items(url string, after time.Time, exclude map[string]bool) []*Item {
+	var res []*Item
+
 	b, err := https.Get(url)
 	if err != nil {
 		log.Err(err).Str("url", url).Msg("Failed to get RSS feed")
-		return nil, err
+		return res
 	}
-	return items(b), nil
-}
 
-func items(b []byte) (res []*Item) {
 	for _, item := range strings.Split(string(b), "</item>") {
 
 		_, str, ok := strings.Cut(item, "<item>")
@@ -48,26 +47,44 @@ func items(b []byte) (res []*Item) {
 
 		var i Item
 
-		if date, err := time.Parse(time.RFC1123, getBetween(str, "<pubDate>", "</pubDate>")); err == nil {
-			i.PublishedAt = date
-		} else {
+		/*
+			pubDate
+		*/
+		i.PublishedAt, _ = time.Parse(time.RFC1123, getBetween(str, "<pubDate>", "</pubDate>"))
+		if i.PublishedAt.IsZero() {
 			i.PublishedAt = time.Now()
+		} else if i.PublishedAt.Before(after) {
+			continue
 		}
 
-		i.Title = getBetween(str, "<title>", "</title>")
-
+		/*
+			link
+		*/
 		i.Link = getBetween(str, "<link>", "</link>")
-		if strings.Contains(i.Link, "news.google.com") {
-			if l, err := decodeGoogleURL(i.Link); err != nil {
-				log.Warn().Err(err).Msg("failed to decode google")
-			} else {
-				i.Link = l
-			}
-		} else if strings.Contains(i.Link, "bing.com") {
+		if strings.Contains(url, "news.google.com") {
+			i.Link = decodeGoogleURL(i.Link)
+		} else if strings.Contains(url, "bing.com") {
 			i.Link = decodeBingURL(i.Link)
+		}
+		if exclude[i.Link] {
+			continue
+		}
+
+		/*
+			description
+		*/
+		if !strings.Contains(url, "google.com") {
 			i.Description = getBetween(str, "<description>", "</description>")
 		}
 
+		/*
+			title
+		*/
+		i.Title = getBetween(str, "<title>", "</title>")
+
+		/*
+			source
+		*/
 		if strings.Contains(str, "<News:Source>") {
 			i.Source = getBetween(str, "<News:Source>", "</News:Source>")
 		} else {
@@ -79,7 +96,8 @@ func items(b []byte) (res []*Item) {
 
 		res = append(res, &i)
 	}
-	return
+
+	return res
 }
 
 func getBetween(str, start, end string) string {
@@ -108,27 +126,34 @@ func decodeBingURL(s string) string {
 	return l
 }
 
-func decodeGoogleURL(s string) (string, error) {
-	res, err := http.Get(s)
+func decodeGoogleURL(s string) string {
+
+	b, err := https.Get(s)
 	if err != nil {
-		return s, err
+		log.Warn().Str("url", s).Msg("failed to get gstatic html")
+		return s
 	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(res.Body)
 
 	var doc *html.Node
-	if doc, err = html.Parse(res.Body); err != nil {
-		return s, err
+	if doc, err = html.Parse(bytes.NewReader(b)); err != nil {
+		log.Warn().Str("url", s).Msg("failed to parse gstatic html")
+		return s
 	}
 
 	matches := gStaticRegex.FindStringSubmatch(s)
 	if len(matches) < 2 {
-		log.Warn().Str("url", s).Msg("failed to match regex")
-		return s, nil
+		log.Warn().Str("url", s).Msg("failed to match gstatic regex")
+		return s
 	}
 
-	return decodeNode(doc, matches[1])
+	var out string
+	if out, err = decodeNode(doc, matches[1]); err != nil {
+		log.Warn().Str("url", s).Msg("failed to decode gstatic node")
+		return s
+	}
+
+	log.Debug().Str("url", s).Str("out", out).Msg("decoded gstatic url")
+	return out
 }
 
 func decodeNode(n *html.Node, encodedText string) (string, error) {
@@ -158,12 +183,12 @@ func decodeNode(n *html.Node, encodedText string) (string, error) {
 
 func decodeParts(signature, timestamp, base64Str string) (string, error) {
 	endpoint := "https://news.google.com/_/DotsSplashUi/data/batchexecute"
-	payload := []interface{}{
+	payload := []any{
 		"Fbv4je",
 		fmt.Sprintf("[\"garturlreq\",[[\"X\",\"X\",[\"X\",\"X\"],null,null,1,1,\"US:en\",null,1,null,null,null,null,null,0,1],\"X\",\"X\",1,[1,1,1],1,1,null,0,0,null,0],\"%s\",%s,\"%s\"]", base64Str, timestamp, signature),
 	}
-	outer := [][]interface{}{payload}
-	bodyBytes, _ := json.Marshal([][][]interface{}{outer})
+	outer := [][]any{payload}
+	bodyBytes, _ := json.Marshal([][][]any{outer})
 	form := url.Values{}
 	form.Set("f.req", url.QueryEscape(string(bodyBytes)))
 
@@ -197,19 +222,19 @@ func decodeParts(signature, timestamp, base64Str string) (string, error) {
 		return "", errors.New("unexpected batchexecute response format")
 	}
 
-	payload = []interface{}{}
+	payload = []any{}
 	if err = json.Unmarshal([]byte(parts[1]), &payload); err != nil {
 		return "", err
 	} else if len(payload) == 0 {
 		return "", errors.New("empty payload")
 	}
 
-	entry, ok := payload[0].([]interface{})
+	entry, ok := payload[0].([]any)
 	if !ok || len(entry) < 3 {
 		return "", errors.New("unexpected entry structure")
 	}
 
-	var inner []interface{}
+	var inner []any
 	if s, ok = entry[2].(string); !ok {
 		return "", errors.New("missing inner json string")
 	} else if err = json.Unmarshal([]byte(s), &inner); err != nil {

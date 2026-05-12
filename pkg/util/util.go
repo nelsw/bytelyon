@@ -111,10 +111,10 @@ func Or[T any](ors ...T) T {
 // OrFunc returns the first argument that is not zero and returns true from the given function;
 // else the final argument is returned.
 func OrFunc[T any](f func(or T) bool, ors ...T) T {
-
 	var or T
+	var v reflect.Value
 	for _, or = range ors {
-		if !reflect.ValueOf(or).IsZero() && f(or) {
+		if v = reflect.ValueOf(or); !v.IsZero() && f(or) {
 			return or
 		}
 	}
@@ -147,12 +147,14 @@ func Host(s string) string {
 	return strings.ToLower(s)
 }
 
-func JSON(a any) []byte {
-	return Safe(json.MarshalIndent(a, "", "\t"))
+// Path returns the path from a URL.
+func Path(url string) string {
+	_, r, _ := strings.Cut(url, Domain(url))
+	return r
 }
 
-func JSONString(a any) string {
-	return string(JSON(a))
+func JSON(a any) []byte {
+	return Safe(json.MarshalIndent(a, "", "\t"))
 }
 
 func RemoveProtocol(s string) string {

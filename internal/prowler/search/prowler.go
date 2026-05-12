@@ -2,7 +2,6 @@ package search
 
 import (
 	"github.com/nelsw/bytelyon/internal/pw"
-	"github.com/nelsw/bytelyon/pkg/em"
 	"github.com/nelsw/bytelyon/pkg/entity"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/util/ptr"
@@ -16,28 +15,35 @@ type Prowler struct {
 	ctx playwright.BrowserContext
 
 	*entity.Search
+
+	blackMap map[string]bool
 }
 
 func New(bot *model.Bot, ctx playwright.BrowserContext) *Prowler {
 	return &Prowler{
-		ctx:    ctx,
-		Search: entity.NewSearch(bot),
+		ctx:      ctx,
+		Search:   new(entity.Search).From(bot.UserID, bot.Target),
+		blackMap: bot.BlackMap(),
 	}
 }
 
 func (p *Prowler) Prowl() {
-	defer em.PutSearch(p.Search)
 	p.prowlSearchPage()
 }
 
 func (p *Prowler) prowlSearchPage() {
-	searchPage, err := pw.SearchGoogle(p.Target, p.ctx)
+	searchPage, err := pw.SearchGoogle(p.Query, p.ctx)
 	if err != nil {
 		return
 	}
 	defer searchPage.Close()
 
-	p.Add(entity.NewPage(searchPage))
+	page := entity.NewPage(searchPage)
+	page.Save()
+
+	p.Serp = page.SERP
+	p.Save()
+
 	for _, l := range pw.Locators(searchPage, "[data-dtld]") {
 		// todo - blacklist
 		domain := pw.Attribute(l, "data-dtld")
@@ -60,17 +66,21 @@ func (p *Prowler) prowlResultPages(l playwright.Locator) {
 		Predicate: func(p playwright.Page) bool { return true },
 	}
 
-	page, err := p.ctx.ExpectPage(cb, opt)
+	resultPage, err := p.ctx.ExpectPage(cb, opt)
 	if err != nil {
 		log.Warn().Err(err).Msg("Client - Failed to ExpectPage")
 		return
 	}
-	defer page.Close()
+	defer resultPage.Close()
 
-	if err = page.BringToFront(); err != nil {
+	if err = resultPage.BringToFront(); err != nil {
 		log.Warn().Err(err).Msg("Client - Failed to BringToFront")
 		return
 	}
 
-	p.Add(entity.NewPage(page))
+	page := entity.NewPage(resultPage)
+	page.Save()
+
+	p.Snippets = append(p.Snippets, page.MakeSnippet())
+	p.Save()
 }

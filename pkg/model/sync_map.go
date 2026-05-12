@@ -62,3 +62,9 @@ func (m *SyncMap[K, V]) Values() []V {
 	defer m.mutex.Unlock()
 	return m.Map.Values()
 }
+
+func (m *SyncMap[K, V]) Len() int {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	return len(m.Map)
+}

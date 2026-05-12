@@ -13,11 +13,15 @@ type Node struct {
 	Data     any
 }
 
-func NewNode(label string) *Node {
-	return &Node{
+func NewNode(label string, data ...any) *Node {
+	n := &Node{
 		Children: model.MakeMap[string, *Node](),
 		Label:    label,
 	}
+	if len(data) > 0 {
+		n.Data = data[0]
+	}
+	return n
 }
 
 func (n *Node) MarshalJSON() ([]byte, error) {
@@ -31,6 +35,20 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		m["children"] = n.Children.Values()
 	}
 	return json.Marshal(m)
+}
+
+func (n *Node) UnmarshalJSON(b []byte) error {
+	var alias struct {
+		Children []*Node `json:"children"`
+		Label    string  `json:"label"`
+		Data     any     `json:"data"`
+	}
+	if err := json.Unmarshal(b, &alias); err != nil {
+		return err
+	}
+	n.Children = model.MakeMap[string, *Node]()
+
+	return json.Unmarshal(b, n)
 }
 
 func (n *Node) Add(url string) {

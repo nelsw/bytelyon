@@ -52,6 +52,14 @@ type Bot struct {
 	Fingerprint *Fingerprint
 }
 
+func (b *Bot) BlackMap() map[string]bool {
+	m := make(map[string]bool)
+	for _, s := range b.BlackList {
+		m[s] = true
+	}
+	return m
+}
+
 func (b *Bot) Validate() error {
 	if b.Frequency < 0 {
 		return errors.New("frequency must be greater than 0")

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/nelsw/bytelyon/internal/pw"
 	"github.com/nelsw/bytelyon/internal/rss"
 	"github.com/nelsw/bytelyon/pkg/entity"
 	"github.com/nelsw/bytelyon/pkg/model"
@@ -19,12 +19,18 @@ type Prowler struct {
 	ctx playwright.BrowserContext
 
 	*entity.News
+
+	lastProwl time.Time
+
+	blackMap map[string]bool
 }
 
 func New(bot *model.Bot, ctx playwright.BrowserContext) *Prowler {
 	return &Prowler{
-		ctx:  ctx,
-		News: new(entity.News).From(bot),
+		ctx:       ctx,
+		News:      new(entity.News).From(bot.UserID, bot.Target),
+		lastProwl: bot.WorkedAt,
+		blackMap:  bot.BlackMap(),
 	}
 }
 
@@ -39,44 +45,35 @@ func (p *Prowler) Prowl() {
 		fmt.Sprintf("https://news.google.com/rss/search?q=%s&hl=en-US&gl=US&ceid=US:en", q),
 	}
 
-	var items []*rss.Item
-	for _, url := range urls {
-		if ii, err := rss.Items(url); err == nil {
-			log.Debug().Str("url", url).Int("size", len(ii)).Msg("news items")
-			items = append(items, ii...)
-		}
+	var exclude = make(map[string]bool)
+	for _, a := range p.News.Articles {
+		exclude[a.URL] = true
 	}
 
-	ƒ := func(i *rss.Item) *entity.Page {
-
-		l := log.With().
-			Str("ƒ", "Prowler.put").
-			Str("url", i.Link).
-			Logger()
-
-		l.Trace().Send()
-
-		page, err := pw.NewPage(p.ctx)
-		if err != nil {
-			l.Warn().Msgf("NewPage failed: %s", err.Error())
-			return nil
-		}
-		defer page.Close()
-
-		if err = pw.Visit(page, i.Link); err != nil {
-			l.Warn().Msgf("Visit failed: %s", err.Error())
-			return nil
-		}
-
-		l.Debug().Send()
-
-		return entity.NewPage(page)
+	var items []*rss.Item
+	for _, url := range urls {
+		items = append(items, rss.Items(url, p.lastProwl, exclude)...)
 	}
 
 	var wg sync.WaitGroup
 	for _, i := range items {
 		wg.Go(func() {
-			p.Add(ƒ(i), i.PublishedAt, i.Source, i.Description)
+
+			page := new(entity.Page).Scrape(i.Link, p.ctx)
+			if page == nil {
+				return
+			}
+			page.Save()
+
+			a := page.MakeArticle(i.PublishedAt, i.Source, i.Description)
+			for _, word := range a.Words() {
+				if _, ok := p.blackMap[word]; ok {
+					return
+				}
+			}
+
+			p.Articles[a.URL] = a
+			p.Save()
 		})
 	}
 	wg.Wait()

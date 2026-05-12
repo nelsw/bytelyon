@@ -2,42 +2,107 @@ package entity
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/nelsw/bytelyon/pkg/dto"
 	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/s3"
+	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/oklog/ulid/v2"
 )
 
 type Sitemap struct {
-	*model.Bot
-	*model.SyncMap[string, *Page]
+	Domain string
+
 	root *dto.Node
+
+	urls *model.SyncMap[string, []ulid.ULID]
+
+	userID ulid.ULID
 }
 
-func NewSitemap(bot *model.Bot) *Sitemap {
-	return &Sitemap{
-		Bot:     bot,
-		SyncMap: model.NewSyncMap[string, *Page](),
-		root:    dto.NewNode("https://" + bot.Target),
+func (e *Sitemap) From(userID ulid.ULID, domain string) *Sitemap {
+	if x := e.Find(userID, domain); x != nil {
+		return x
+	}
+	return e.Create(userID, domain)
+}
+
+func (e *Sitemap) key() string { return fmt.Sprintf("users/%s/sitemaps/%s.json", e.userID, e.Domain) }
+
+func (e *Sitemap) Save() { s3.PutPrivateObject(e.key(), util.JSON(e)) }
+
+func (e *Sitemap) Create(userID ulid.ULID, domain string) *Sitemap {
+	x := &Sitemap{
+		Domain: domain,
+		root:   dto.NewNode(domain, "https://"+domain),
+		urls:   model.NewSyncMap[string, []ulid.ULID](),
+		userID: userID,
+	}
+	x.Save()
+	return x
+}
+
+func (e *Sitemap) Delete(userID ulid.ULID, domain string) {
+	if e.Find(userID, domain) != nil {
+		s3.DeletePrivateObject(e.key())
 	}
 }
 
-func (s *Sitemap) Merge(x *Sitemap) {
-	for _, p := range x.Values() {
-		s.Add(p)
+func (e *Sitemap) Find(userID ulid.ULID, domain string) *Sitemap {
+
+	e.userID = userID
+	e.Domain = domain
+
+	if out, err := s3.GetPrivateObject(e.key()); err != nil {
+		return nil
+	} else if err = json.Unmarshal(out, e); err != nil {
+		return nil
 	}
+
+	return e
 }
 
-func (s *Sitemap) Add(p *Page) {
-	s.Set(p.URL, p)
-	s.root.Add(p.URL)
+func (e *Sitemap) Add(p *Page) {
+
+	if p == nil {
+		return
+	}
+
+	ids, ok := e.urls.Get(p.URL)
+	if !ok {
+		ids = []ulid.ULID{}
+	}
+
+	e.urls.Set(p.URL, append(ids, p.ID))
+	e.root.Add(p.URL)
+	e.Save()
 }
 
-func (s *Sitemap) MarshalJSON() ([]byte, error) {
-	for _, url := range s.Keys() {
-		s.root.Add(url)
+func (e *Sitemap) MarshalJSON() ([]byte, error) {
+	var pages int
+	for _, ids := range e.urls.Values() {
+		pages += len(ids)
 	}
 	return json.Marshal(map[string]any{
-		"bot":   s.Bot,
-		"nodes": s.root.Children.Values(),
+		"domain": e.Domain,
+		"nodes":  []*dto.Node{e.root},
+		"urls":   e.urls.Len(),
+		"pages":  pages,
 	})
+}
+
+func (e *Sitemap) UnmarshalJSON(b []byte) error {
+	var alias struct {
+		Domain string      `json:"domain"`
+		Nodes  []*dto.Node `json:"nodes"`
+	}
+	if err := json.Unmarshal(b, &alias); err != nil {
+		return err
+	}
+	e.Domain = alias.Domain
+	if len(alias.Nodes) > 0 {
+		e.root = alias.Nodes[0]
+	}
+	return nil
 }

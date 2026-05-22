@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/nelsw/bytelyon/pkg/api"
-	"github.com/nelsw/bytelyon/pkg/em"
+	"github.com/nelsw/bytelyon/pkg/model"
 )
 
 func Handler(r api.Request) api.Response {
@@ -18,13 +18,13 @@ func Handler(r api.Request) api.Response {
 }
 
 func handleGet(r api.Request) api.Response {
-	if a, ok := em.GetSitemap(r.UserID(), r.Target()); ok {
-		return r.OK(a)
+	if e := new(model.Search).Find(r.UserID(), r.Query("query")); e != nil {
+		return r.OK(e)
 	}
 	return r.NC()
 }
 
 func handleDelete(r api.Request) api.Response {
-	em.DeleteSitemap(r.UserID(), r.Target())
+	new(model.Search).Delete(r.UserID(), r.Query("query"))
 	return r.NC()
 }

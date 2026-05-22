@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	. "github.com/nelsw/bytelyon/pkg/api"
-	"github.com/nelsw/bytelyon/pkg/model"
 )
 
 func Handler(r Request) Response {
@@ -20,7 +19,7 @@ func Handler(r Request) Response {
 		return r.BAD(errors.New("test error"))
 	}
 
-	var m model.Data[any]
+	var m map[string]any
 	if err := json.Unmarshal([]byte(r.Body), &m); err != nil {
 		return r.BAD(err)
 	}

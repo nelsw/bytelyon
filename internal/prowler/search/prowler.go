@@ -2,9 +2,9 @@ package search
 
 import (
 	"github.com/nelsw/bytelyon/internal/pw"
-	"github.com/nelsw/bytelyon/pkg/entity"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/util/ptr"
+	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
 )
@@ -14,16 +14,19 @@ type Prowler struct {
 	// ctx is the context of the browser, which is used to run the browser and the page
 	ctx playwright.BrowserContext
 
-	*entity.Search
+	*model.Search
 
 	blackMap map[string]bool
 }
 
-func New(bot *model.Bot, ctx playwright.BrowserContext) *Prowler {
+func New(userID ulid.ULID, query string, blackMap map[string]bool, ctx playwright.BrowserContext) *Prowler {
+	if blackMap == nil {
+		blackMap = make(map[string]bool)
+	}
 	return &Prowler{
 		ctx:      ctx,
-		Search:   new(entity.Search).From(bot.UserID, bot.Target),
-		blackMap: bot.BlackMap(),
+		Search:   new(model.Search).From(userID, query),
+		blackMap: blackMap,
 	}
 }
 
@@ -38,7 +41,7 @@ func (p *Prowler) prowlSearchPage() {
 	}
 	defer searchPage.Close()
 
-	page := entity.NewPage(searchPage)
+	page := model.NewPage(searchPage)
 	page.Save()
 
 	p.Serp = page.SERP
@@ -81,7 +84,7 @@ func (p *Prowler) prowlResultPages(l playwright.Locator) {
 		return
 	}
 
-	page := entity.NewPage(resultPage)
+	page := model.NewPage(resultPage)
 	page.Save()
 
 	p.Snippets = append(p.Snippets, page.MakeSnippet())

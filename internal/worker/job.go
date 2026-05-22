@@ -35,9 +35,9 @@ func (j *Job) Work() {
 
 	switch j.bot.Type {
 	case model.SearchBotType:
-		search.New(j.bot, j.ctx).Prowl()
+		search.New(j.bot.UserID, j.bot.Target, j.bot.BlackMap(), j.ctx).Prowl()
 	case model.SitemapBotType:
-		sitemap.New(j.bot, j.ctx).Prowl()
+		sitemap.New(j.bot.UserID, j.bot.Target, j.ctx).Prowl()
 	case model.NewsBotType:
 		news.New(j.bot, j.ctx).Prowl()
 	default:

@@ -8,7 +8,6 @@ import (
 
 	. "github.com/nelsw/bytelyon/pkg/api"
 	"github.com/nelsw/bytelyon/pkg/db"
-	"github.com/nelsw/bytelyon/pkg/em"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/repo"
 	"github.com/nelsw/bytelyon/pkg/util"
@@ -52,34 +51,13 @@ func handleDelete(r Request) Response {
 	return r.NC()
 }
 
-// handleGet queries the database for bots and bot results using the following routes:
-// - bots: /bots?type=...
-// - results: /bots?type=...&id=...
+// handleGet queries the database for bots.
 func handleGet(r Request) Response {
-
-	// if the request is for bots
-	if r.Target() == "" {
-		bots := repo.FindBotsByType(r.UserID(), r.BotType())
-		sort.Slice(bots, func(i, j int) bool {
-			return strings.Compare(bots[i].Target, bots[j].Target) == -1
-		})
-		return r.OK(bots)
-	}
-
-	var a any
-	var ok bool
-
-	switch r.BotType() {
-	case model.NewsBotType:
-	case model.SearchBotType:
-	case model.SitemapBotType:
-		a, ok = em.GetSitemap(r.UserID(), r.Target())
-	}
-
-	if ok {
-		return r.OK(a)
-	}
-	return r.NC()
+	bots := repo.FindBotsByType(r.UserID(), r.BotType())
+	sort.Slice(bots, func(i, j int) bool {
+		return strings.Compare(bots[i].Target, bots[j].Target) == -1
+	})
+	return r.OK(bots)
 }
 
 // handlePut creates or updates a bot in the database for the given body.
@@ -99,13 +77,10 @@ func handlePut(r Request) Response {
 	log.Debug().Object("bot", b).Msg("bot validated")
 
 	b.UserID = r.UserID()
-	if b.ID.IsZero() {
-		b.ID = model.NewULID()
-	}
+	b.Target = strings.ToLower(b.Target)
 
 	if b.Type == model.SitemapBotType {
 		b.Target = util.Domain(b.Target)
-		b.Target = strings.ToLower(b.Target)
 	}
 
 	if err := db.Put(b); err != nil {

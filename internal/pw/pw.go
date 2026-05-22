@@ -469,6 +469,7 @@ func Locators(page playwright.Page, s string) []playwright.Locator {
 			Msg("failed to get locators")
 		return []playwright.Locator{}
 	}
+	log.Trace().Int("count", len(arr)).Msgf("found %d locators for selector: %s", len(arr), s)
 	return arr
 }
 

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/internal/rss"
-	"github.com/nelsw/bytelyon/pkg/entity"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
@@ -18,7 +17,7 @@ type Prowler struct {
 	// ctx is the context of the browser, which is used to run the browser and the page
 	ctx playwright.BrowserContext
 
-	*entity.News
+	*model.News
 
 	lastProwl time.Time
 
@@ -28,7 +27,7 @@ type Prowler struct {
 func New(bot *model.Bot, ctx playwright.BrowserContext) *Prowler {
 	return &Prowler{
 		ctx:       ctx,
-		News:      new(entity.News).From(bot.UserID, bot.Target),
+		News:      new(model.News).From(bot.UserID, bot.Target),
 		lastProwl: bot.WorkedAt,
 		blackMap:  bot.BlackMap(),
 	}
@@ -59,7 +58,7 @@ func (p *Prowler) Prowl() {
 	for _, i := range items {
 		wg.Go(func() {
 
-			page := new(entity.Page).Scrape(i.Link, p.ctx)
+			page := new(model.Page).Scrape(i.Link, p.ctx)
 			if page == nil {
 				return
 			}

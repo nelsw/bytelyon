@@ -54,5 +54,5 @@ func DeleteBot(userID ulid.ULID, target string, botType model.BotType) error {
 		return err
 	}
 
-	return DeleteBotResults(userID, bot.ID, botType)
+	return nil
 }

@@ -25,9 +25,6 @@ type Bot struct {
 	// and allocate data across hosts for scalability and availability.
 	UserID ulid.ULID
 
-	// ID is the unique identifier of the bot.
-	ID ulid.ULID
-
 	// Target is the sort (range) key.
 	// You can use a sort key as the second part of a table's primary key.
 	// The sort key allows you to sort or search among all items sharing the same partition key.
@@ -50,54 +47,6 @@ type Bot struct {
 
 	// Fingerprint is the browser state of the bot, containing cookies and origins.
 	Fingerprint *Fingerprint
-}
-
-func (b *Bot) BlackMap() map[string]bool {
-	m := make(map[string]bool)
-	for _, s := range b.BlackList {
-		m[s] = true
-	}
-	return m
-}
-
-func (b *Bot) Validate() error {
-	if b.Frequency < 0 {
-		return errors.New("frequency must be greater than 0")
-	} else if err := b.Type.Validate(); err != nil {
-		return fmt.Errorf("invalid bot type: %w", err)
-	}
-	return nil
-}
-
-func (b *Bot) StoragePath(n any, ext string) string {
-	return fmt.Sprintf("users/%s/bots/%s/%s/%s/%d.%s",
-		b.UserID,
-		b.Type,
-		b.Target,
-		b.ID,
-		n,
-		ext,
-	)
-}
-
-// IsReady returns true if the bot is ready to run.
-func (b *Bot) IsReady() bool {
-
-	// 0ns is what the web app sends to pause runs.
-	if b.Frequency == 0 {
-		return false
-	}
-
-	// 1ns is what the web app sends to run once ASAP.
-	if b.Frequency == 1 {
-		return true
-	}
-
-	// add the frequency to the time this bot was last worked
-	next := b.WorkedAt.Add(b.Frequency)
-
-	// if the next run is in the past, it's ready to run
-	return next.Before(time.Now().UTC())
 }
 
 func (b *Bot) Get() *dynamodb.GetItemInput {
@@ -130,7 +79,6 @@ func (b *Bot) Query() *dynamodb.QueryInput {
 func (b *Bot) MarshalDynamoDBAttributeValue() (types.AttributeValue, error) {
 
 	value := map[string]types.AttributeValue{
-		"id":        &types.AttributeValueMemberS{Value: b.ID.String()},
 		"userId":    &types.AttributeValueMemberS{Value: b.UserID.String()},
 		"target":    &types.AttributeValueMemberS{Value: b.Target},
 		"type":      &types.AttributeValueMemberS{Value: b.Type.String()},
@@ -164,10 +112,6 @@ func (b *Bot) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error
 	var m map[string]types.AttributeValue
 	if m = v.(*types.AttributeValueMemberM).Value; m == nil {
 		return errors.New("bot unmarshal value was nil")
-	}
-
-	if b.ID, err = ulid.Parse(m["id"].(*types.AttributeValueMemberS).Value); err != nil {
-		return fmt.Errorf("failed to parse ulid: %w", err)
 	}
 
 	if b.UserID, err = ulid.ParseStrict(m["userId"].(*types.AttributeValueMemberS).Value); err != nil {
@@ -204,7 +148,6 @@ func (b *Bot) MarshalJSON() ([]byte, error) {
 
 	m := map[string]any{
 		"userId":    b.UserID.String(),
-		"id":        b.ID.String(),
 		"target":    b.Target,
 		"type":      b.Type.String(),
 		"frequency": b.Frequency.Nanoseconds(),
@@ -237,12 +180,6 @@ func (b *Bot) UnmarshalJSON(data []byte) (err error) {
 	if s, ok := m["userId"]; ok && s != nil && s != "" {
 		if b.UserID, err = ulid.ParseStrict(s.(string)); err != nil {
 			return fmt.Errorf("failed to parse bot UserID: %w", err)
-		}
-	}
-
-	if s, ok := m["id"]; ok && s != nil && s != "" {
-		if b.ID, err = ulid.ParseStrict(s.(string)); err != nil {
-			return fmt.Errorf("failed to parse bot ID [%v]; err: %w", s, err)
 		}
 	}
 
@@ -290,26 +227,8 @@ func (b *Bot) String() string {
 	return string(byt)
 }
 
-func (b *Bot) NewBotResult(args ...any) *BotResult {
-
-	m := make(map[string]any)
-	for i := 0; i < len(args); i += 2 {
-		m[args[i].(string)] = args[i+1]
-	}
-
-	return &BotResult{
-		UserID: b.UserID,
-		BotID:  b.ID,
-		ID:     NewULID(),
-		Type:   b.Type,
-		Target: b.Target,
-		Data:   m,
-	}
-}
-
 func (b *Bot) MarshalZerologObject(evt *zerolog.Event) {
 	evt.Stringer("userId", b.UserID).
-		Stringer("id", b.ID).
 		Str("target", b.Target).
 		Stringer("type", b.Type).
 		Stringer("frequency", b.Frequency).
@@ -321,4 +240,41 @@ func (b *Bot) MarshalZerologObject(evt *zerolog.Event) {
 
 func (b *Bot) Key() string {
 	return fmt.Sprintf("users/%s/%s/%s.json", b.UserID, b.Type.Plural(), b.Target)
+}
+
+func (b *Bot) BlackMap() map[string]bool {
+	m := make(map[string]bool)
+	for _, s := range b.BlackList {
+		m[s] = true
+	}
+	return m
+}
+
+func (b *Bot) Validate() error {
+	if b.Frequency < 0 {
+		return errors.New("frequency must be greater than 0")
+	} else if err := b.Type.Validate(); err != nil {
+		return fmt.Errorf("invalid bot type: %w", err)
+	}
+	return nil
+}
+
+// IsReady returns true if the bot is ready to run.
+func (b *Bot) IsReady() bool {
+
+	// 0ns is what the web app sends to pause runs.
+	if b.Frequency == 0 {
+		return false
+	}
+
+	// 1ns is what the web app sends to run once ASAP.
+	if b.Frequency == 1 {
+		return true
+	}
+
+	// add the frequency to the time this bot was last worked
+	next := b.WorkedAt.Add(b.Frequency)
+
+	// if the next run is in the past, it's ready to run
+	return next.Before(time.Now().UTC())
 }

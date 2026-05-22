@@ -11,6 +11,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func Protcol(u string) string {
+	return "https://" + u
+}
+
 func Get(url string) ([]byte, error) {
 
 	var errs error

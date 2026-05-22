@@ -7,12 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/nelsw/bytelyon/pkg/aws"
-	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/rs/zerolog/log"
 )
@@ -23,30 +22,6 @@ func PutPrivateObject(key string, data []byte) error {
 
 func PutPublicImage(key string, data []byte) (string, error) {
 	return "https://bytelyon-public.s3.amazonaws.com/" + key, put(key, data, true)
-}
-
-func PutPrivateBotData(b *model.Bot, k string, d []byte) (string, error) {
-	return putBotData(b, k, d, false)
-}
-
-func PutPublicBotData(b *model.Bot, k string, d []byte) (string, error) {
-	return putBotData(b, k, d, true)
-}
-
-func putBotData(b *model.Bot, k string, d []byte, isPublic bool) (string, error) {
-
-	k = fmt.Sprintf(
-		"users/%s/bots/%s/%s/%s",
-		b.UserID,
-		b.Type,
-		strings.ReplaceAll(b.Target, " ", "-"),
-		k,
-	)
-
-	if isPublic {
-		return PutPublicImage(k, d)
-	}
-	return k, PutPrivateObject(k, d)
 }
 
 // put creates a new object or replaces an old object with a new object.
@@ -177,4 +152,45 @@ func DeletePublicImage(key string) error {
 
 	l.Debug().Send()
 	return nil
+}
+
+func ListDirectories(key string) ([]string, error) {
+	bucket := "bytelyon-private"
+	prefix := key
+
+	l := log.With().
+		Str("ƒ", "ListDirectories").
+		Str("bucket", bucket).
+		Str("key", key).
+		Logger()
+
+	l.Trace().Send()
+
+	out, err := aws.S3().ListObjectsV2(context.Background(), &s3.ListObjectsV2Input{
+		Bucket: &bucket,
+		Prefix: &prefix,
+	})
+	if err != nil {
+		l.Err(err).Send()
+		return nil, err
+	}
+	for _, obj := range out.Contents {
+		fmt.Println(*obj.Key)
+	}
+	return nil, nil
+}
+
+func GetPresignedURL(key string) (string, error) {
+	client := s3.NewPresignClient(aws.S3())
+
+	presignedUrl, err := client.PresignGetObject(context.Background(), &s3.GetObjectInput{
+		Bucket: util.Ptr("bytelyon-public"),
+		Key:    &key,
+	}, s3.WithPresignExpires(30*time.Minute))
+
+	if err != nil {
+		return "", err
+	}
+
+	return presignedUrl.URL, nil
 }

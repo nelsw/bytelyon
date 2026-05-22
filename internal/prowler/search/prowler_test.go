@@ -1,4 +1,4 @@
-package sitemap
+package search
 
 import (
 	"testing"
@@ -8,12 +8,12 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-func TestNewProwler(t *testing.T) {
+func TestProwler_Prowl(t *testing.T) {
 
 	logs.Init("debug")
 
 	cpw := pw.Run()
-	bro, _ := pw.NewBrowser(cpw, true)
+	bro, _ := pw.NewBrowser(cpw, false)
 	ctx, _ := pw.NewBrowserContext(bro, nil)
 
 	defer func() {
@@ -21,5 +21,5 @@ func TestNewProwler(t *testing.T) {
 		bro.Close()
 	}()
 
-	New(ulid.MustParse("01KM01JC9PS1R4X4FDJNFAR4AZ"), "firefibers.com", ctx).Prowl()
+	New(ulid.Zero, "ev fire blanket for sale", nil, ctx).Prowl()
 }

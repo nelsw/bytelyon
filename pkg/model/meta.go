@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/rs/zerolog/log"
 )
@@ -67,30 +66,6 @@ type Meta struct {
 	TwitterImageSrc    string `meta:"twitter:image:src" json:"twitterImageSrc,omitempty"`
 	TwitterSite        string `meta:"twitter:site" json:"twitterSite,omitempty"`
 	TwitterTitle       string `meta:"twitter:title" json:"twitterTitle,omitempty"`
-}
-
-func ParseMeta(content string) Meta {
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
-	if err != nil {
-		log.Err(err).Msg("failed to parse meta")
-		return Meta{}
-	}
-	m := map[string]string{}
-
-	var key, val string
-	doc.Find("meta").Each(func(i int, s *goquery.Selection) {
-		key, val = "", ""
-		if key = s.AttrOr("name", ""); key == "" {
-			if key = s.AttrOr("property", ""); key == "" {
-				return
-			}
-		}
-		if val = s.AttrOr("content", ""); val == "" {
-			return
-		}
-		m[key] = val
-	})
-	return MakeMeta(m)
 }
 
 func MakeMeta(m map[string]string) Meta {

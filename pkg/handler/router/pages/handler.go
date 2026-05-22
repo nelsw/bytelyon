@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/nelsw/bytelyon/pkg/api"
-	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/oklog/ulid/v2"
 )
 
 func Handler(r api.Request) api.Response {
@@ -17,9 +17,15 @@ func Handler(r api.Request) api.Response {
 }
 
 func handleGet(r api.Request) api.Response {
-	m, err := db.Query(&model.Page{URL: r.Query("url")})
+
+	id, err := ulid.Parse(r.Query("id"))
 	if err != nil {
 		return r.BAD(err)
 	}
-	return r.OK(m)
+
+	if e := model.FindPage(r.Query("url"), id); e != nil {
+		return r.OK(e)
+	}
+
+	return r.NC()
 }

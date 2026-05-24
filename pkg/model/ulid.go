@@ -12,7 +12,9 @@ func NewULID(args ...time.Time) ulid.ULID {
 	var t time.Time
 	if len(args) > 0 {
 		t = args[0]
-	} else {
+	}
+
+	if t.IsZero() {
 		t = time.Now()
 	}
 

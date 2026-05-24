@@ -25,7 +25,7 @@ func Handler(r Request) (Response, error) {
 		return helper.Handler(r), nil
 	case "/v1/news":
 		return news.Handler(r), nil
-	case "/v1/pages":
+	case "/v1/page":
 		return pages.Handler(r), nil
 	case "/v1/shopify":
 		return shopify.Handler(r), nil

@@ -1,4 +1,4 @@
-package rss
+package article
 
 import (
 	"bytes"
@@ -10,121 +10,11 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/nelsw/bytelyon/pkg/https"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/html"
 )
-
-var (
-	gStaticRegex = regexp.MustCompile(`/articles/(?P<encoded_url>[^?]+)`)
-)
-
-type Item struct {
-	Title       string    `json:"title"`
-	Link        string    `json:"link"`
-	Description string    `json:"description,omitempty"`
-	PublishedAt time.Time `json:"publishedAt"`
-	Source      string    `json:"source,omitempty"`
-}
-
-func Items(url string, after time.Time, exclude map[string]bool) []*Item {
-	var res []*Item
-
-	b, err := https.Get(url)
-	if err != nil {
-		log.Err(err).Str("url", url).Msg("Failed to get RSS feed")
-		return res
-	}
-
-	for _, item := range strings.Split(string(b), "</item>") {
-
-		_, str, ok := strings.Cut(item, "<item>")
-		if !ok {
-			continue
-		}
-
-		var i Item
-
-		/*
-			pubDate
-		*/
-		i.PublishedAt, _ = time.Parse(time.RFC1123, getBetween(str, "<pubDate>", "</pubDate>"))
-		if i.PublishedAt.IsZero() {
-			i.PublishedAt = time.Now()
-		} else if i.PublishedAt.Before(after) {
-			continue
-		}
-
-		/*
-			link
-		*/
-		i.Link = getBetween(str, "<link>", "</link>")
-		if strings.Contains(url, "news.google.com") {
-			i.Link = decodeGoogleURL(i.Link)
-		} else if strings.Contains(url, "bing.com") {
-			i.Link = decodeBingURL(i.Link)
-		}
-		if exclude[i.Link] {
-			continue
-		}
-
-		/*
-			description
-		*/
-		if !strings.Contains(url, "google.com") {
-			i.Description = getBetween(str, "<description>", "</description>")
-		}
-
-		/*
-			title
-		*/
-		i.Title = getBetween(str, "<title>", "</title>")
-
-		/*
-			source
-		*/
-		if strings.Contains(str, "<News:Source>") {
-			i.Source = getBetween(str, "<News:Source>", "</News:Source>")
-		} else {
-			i.Source = getBetween(str, `<source`, "</source>")
-			if _, r, k := strings.Cut(i.Source, `>`); k {
-				i.Source = r
-			}
-		}
-
-		res = append(res, &i)
-	}
-
-	return res
-}
-
-func getBetween(str, start, end string) string {
-	s := strings.Index(str, start)
-	if s == -1 {
-		return ""
-	}
-	s += len(start)
-	e := strings.Index(str[s:], end)
-	if e == -1 {
-		return ""
-	}
-	return str[s : s+e]
-}
-
-func decodeBingURL(s string) string {
-	s, _ = url.QueryUnescape(s)
-	_, r, rOk := strings.Cut(s, "url=")
-	if !rOk {
-		return s
-	}
-	l, _, lOk := strings.Cut(r, "&c=")
-	if !lOk {
-		return r
-	}
-	return l
-}
 
 func decodeGoogleURL(s string) string {
 
@@ -140,7 +30,7 @@ func decodeGoogleURL(s string) string {
 		return s
 	}
 
-	matches := gStaticRegex.FindStringSubmatch(s)
+	matches := regexp.MustCompile(`/articles/(?P<encoded_url>[^?]+)`).FindStringSubmatch(s)
 	if len(matches) < 2 {
 		log.Warn().Str("url", s).Msg("failed to match gstatic regex")
 		return s
@@ -152,7 +42,7 @@ func decodeGoogleURL(s string) string {
 		return s
 	}
 
-	log.Debug().Str("url", s).Str("out", out).Msg("decoded gstatic urls")
+	log.Debug().Str("out", out).Msg("decoded gstatic url")
 	return out
 }
 
@@ -246,4 +136,26 @@ func decodeParts(signature, timestamp, base64Str string) (string, error) {
 	}
 
 	return s, nil
+}
+
+func chomp(in, a, z string) (string, string) {
+
+	aIdx, zIdx := strings.Index(in, a), strings.Index(in, z)
+	if aIdx == -1 || zIdx == -1 {
+		return "", in
+	}
+
+	out := in[aIdx+len(a) : zIdx]
+
+	in = in[:aIdx] + in[zIdx+len(z):]
+
+	return out, in
+}
+
+func chomps(s, a, z string) (arr []string) {
+	var res string
+	for res, s = chomp(s, a, z); res != ""; res, s = chomp(s, a, z) {
+		arr = append(arr, res)
+	}
+	return
 }

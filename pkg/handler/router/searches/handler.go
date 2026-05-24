@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/nelsw/bytelyon/pkg/api"
-	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/entity"
 )
 
 func Handler(r api.Request) api.Response {
@@ -18,13 +18,13 @@ func Handler(r api.Request) api.Response {
 }
 
 func handleGet(r api.Request) api.Response {
-	if e := new(model.Search).Find(r.UserID(), r.Query("query")); e != nil {
+	if e := new(entity.Search).Find(r.UserID(), r.Query("query")); e != nil {
 		return r.OK(e)
 	}
 	return r.NC()
 }
 
 func handleDelete(r api.Request) api.Response {
-	new(model.Search).Delete(r.UserID(), r.Query("query"))
+	new(entity.Search).Delete(r.UserID(), r.Query("query"))
 	return r.NC()
 }

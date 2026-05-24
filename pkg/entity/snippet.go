@@ -1,6 +1,9 @@
-package model
+package entity
 
-import "github.com/oklog/ulid/v2"
+import (
+	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/oklog/ulid/v2"
+)
 
 type Snippet struct {
 	ID  ulid.ULID `json:"id"`
@@ -9,8 +12,8 @@ type Snippet struct {
 	Domain string `json:"domain"`
 	Path   string `json:"path"`
 
-	Title string `json:"title"`
-	Meta  Meta   `json:"meta"`
+	Title string     `json:"title"`
+	Meta  model.Meta `json:"meta"`
 
 	PageRank    int `json:"pageRank"`
 	SectionRank int `json:"sectionRank"`

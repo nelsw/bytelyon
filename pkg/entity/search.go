@@ -1,28 +1,39 @@
-package model
+package entity
 
 import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/s3"
 	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
 )
 
 type Search struct {
-	ID       ulid.ULID `json:"id"`
-	Query    string    `json:"query"`
-	Snippets []Snippet `json:"snippets"`
-	Serp     Serp      `json:"serp"`
-	UserID   ulid.ULID `json:"-"`
+	ID       ulid.ULID  `json:"id"`
+	Query    string     `json:"query"`
+	Snippets []Snippet  `json:"snippets"`
+	Serp     model.Serp `json:"serp"`
+
+	Exclude map[string]bool `json:"exclude"`
+
+	UserID ulid.ULID `json:"-"`
 }
 
-func (e *Search) key() string {
+func NewSearch(userID ulid.ULID, query string) *Search {
+	return &Search{
+		Query:  query,
+		UserID: userID,
+	}
+}
+
+func (e *Search) Key() string {
 	return fmt.Sprintf("users/%s/searches/%s.json", e.UserID, e.Query)
 }
 
 func (e *Search) Save() {
-	s3.PutPrivateObject(e.key(), util.JSON(e))
+	s3.PutPrivateObject(e.Key(), util.JSON(e))
 }
 
 func (e *Search) From(userID ulid.ULID, query string) *Search {
@@ -37,7 +48,7 @@ func (e *Search) Find(userID ulid.ULID, query string) *Search {
 	e.UserID = userID
 	e.Query = query
 
-	if out, err := s3.GetPrivateObject(e.key()); err != nil {
+	if out, err := s3.GetPrivateObject(e.Key()); err != nil {
 		return nil
 	} else if err = json.Unmarshal(out, e); err != nil {
 		return nil
@@ -48,13 +59,13 @@ func (e *Search) Find(userID ulid.ULID, query string) *Search {
 
 func (e *Search) Delete(userID ulid.ULID, query string) {
 	if e.Find(userID, query) != nil {
-		s3.DeletePrivateObject(e.key())
+		s3.DeletePrivateObject(e.Key())
 	}
 }
 
 func (e *Search) Create(userID ulid.ULID, query string) *Search {
 	x := &Search{
-		ID:     NewULID(),
+		ID:     model.NewULID(),
 		Query:  query,
 		UserID: userID,
 	}

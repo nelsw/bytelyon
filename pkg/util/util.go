@@ -4,37 +4,22 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"path"
-	"reflect"
 	"regexp"
 	"strings"
 
-	"github.com/rs/zerolog/log"
 	"golang.org/x/image/webp"
 )
 
 var (
 	fileExtRegex = regexp.MustCompile(`.(webp|jpg|jpeg|png)`)
 )
-
-func Safe[T any](t T, err error) T {
-	if err != nil {
-		log.Warn().Msgf("Suppressed: %v", err)
-	}
-	return t
-}
-
-func Ptr[T any](t T) *T { return &t }
-
-func Between[T int | float64](min, max T) T {
-	return T(rand.Intn(int(max)-int(min)) + int(min))
-}
 
 // Domain returns the domain name from a URL in lowercase.
 // Unlinke url.Parse, this ƒ does not require a protocol to determine a hostname.
@@ -87,13 +72,6 @@ func ToPng(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func PtrOrNil[T any](a T) *T {
-	if v := reflect.ValueOf(a); v.IsZero() || v.IsNil() {
-		return nil
-	}
-	return &a
-}
-
 func HasFileExtension(rawUrl string) bool {
 	u, err := url.Parse(rawUrl)
 	if err != nil {
@@ -103,29 +81,11 @@ func HasFileExtension(rawUrl string) bool {
 	return ext != ""
 }
 
-// Or returns the first argument that is not zero, or the final argument if all are zero.
-func Or[T any](ors ...T) T {
-	return OrFunc(func(or T) bool { return true }, ors...)
-}
-
-// OrFunc returns the first argument that is not zero and returns true from the given function;
-// else the final argument is returned.
-func OrFunc[T any](f func(or T) bool, ors ...T) T {
-	var or T
-	var v reflect.Value
-	for _, or = range ors {
-		if v = reflect.ValueOf(or); !v.IsZero() && f(or) {
-			return or
-		}
-	}
-	return or
-}
-
 // Host returns the host name from a URL in lowercase.
 // Unlinke url.Parse, this ƒ does not require a protocol to determine a hostname.
 func Host(s string) string {
 
-	s = RemoveProtocol(s)
+	s = strings.TrimPrefix(s, "https://")
 
 	// remove path
 	s = strings.Split(s, "/")[0]
@@ -147,18 +107,30 @@ func Host(s string) string {
 	return strings.ToLower(s)
 }
 
-// Path returns the path from a URL.
-func Path(url string) string {
-	_, r, _ := strings.Cut(url, Domain(url))
-	return r
-}
-
 func JSON(a any) []byte {
-	return Safe(json.MarshalIndent(a, "", "\t"))
+	return Safe(json.Marshal(a))
 }
 
-func RemoveProtocol(s string) string {
-	s = strings.TrimPrefix(s, "http://")
-	s = strings.TrimPrefix(s, "https://")
+func PrettyJSON(a any) string {
+	return string(Safe(json.MarshalIndent(a, "", "\t")))
+}
+
+func PrintlnPrettyJSON(a any) {
+	fmt.Println(PrettyJSON(a))
+}
+
+func Path(a ...any) string {
+	var arr []string
+	for _, e := range a {
+		arr = append(arr, fmt.Sprint(e))
+	}
+	return path.Join(arr...)
+}
+
+func Trunc(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	s = s[:n-3] + "..."
 	return s
 }

@@ -6,13 +6,25 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
+	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/rs/zerolog/log"
 )
 
-func Protcol(u string) string {
+func Of(u string) string {
 	return "https://" + u
+}
+
+func Trim(u string) string {
+	return strings.TrimPrefix(u, "https://")
+}
+
+// PRURL returns the protocol-relative form of a URL; aka PRL (protocol-relative link).
+// TLDR: this is just a fancy ƒ that trims https:// from a URL.
+func PRURL(u string) string {
+	return strings.TrimPrefix(u, "https://")
 }
 
 func Get(url string) ([]byte, error) {
@@ -40,19 +52,23 @@ func Get(url string) ([]byte, error) {
 
 func get(url string) ([]byte, int, error) {
 
-	log.Trace().Str("url", url).Msg("get")
+	l := log.With().
+		Str("ƒ", "get").
+		Str("url", util.Trunc(url, 30)).
+		Logger()
+
+	l.Trace().Send()
 
 	res, err := http.Get(url)
 	if err != nil {
-		log.Err(err).Str("url", url).Msg("failed to get")
+		l.Err(err).Send()
 		return nil, -1, err
 	}
 	defer res.Body.Close()
 
-	log.Debug().
-		Str("url", url).
+	l.Debug().
 		Str("status", res.Status).
-		Msg("got")
+		Send()
 
 	var b []byte
 	b, err = io.ReadAll(res.Body)

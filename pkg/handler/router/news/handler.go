@@ -4,26 +4,23 @@ import (
 	"net/http"
 
 	"github.com/nelsw/bytelyon/pkg/api"
-	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/em"
+	"github.com/nelsw/bytelyon/pkg/entity"
 )
 
 func Handler(r api.Request) api.Response {
+
+	e := entity.NewNews(r.UserID(), r.Query("topic"))
+	if err := em.Find(e); err != nil {
+		return r.BAD(err)
+	}
+
 	switch r.Method() {
 	case http.MethodGet:
-		return handleGet(r)
-	case http.MethodDelete:
-		return handleDelete(r)
-	}
-	return r.NI()
-}
-
-func handleGet(r api.Request) api.Response {
-	if e := new(model.News).Find(r.UserID(), r.Query("topic")); e != nil {
 		return r.OK(e)
+	case http.MethodDelete:
+		return r.OF(em.Delete(e))
 	}
-	return r.NC()
-}
 
-func handleDelete(r api.Request) api.Response {
-	return r.NC()
+	return r.NI()
 }

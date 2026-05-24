@@ -2,31 +2,25 @@ package search
 
 import (
 	"github.com/nelsw/bytelyon/internal/pw"
-	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/entity"
 	"github.com/nelsw/bytelyon/pkg/util/ptr"
-	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
 )
 
 type Prowler struct {
 
+	// Search is the prowler model
+	*entity.Search
+
 	// ctx is the context of the browser, which is used to run the browser and the page
 	ctx playwright.BrowserContext
-
-	*model.Search
-
-	blackMap map[string]bool
 }
 
-func New(userID ulid.ULID, query string, blackMap map[string]bool, ctx playwright.BrowserContext) *Prowler {
-	if blackMap == nil {
-		blackMap = make(map[string]bool)
-	}
+func New(e *entity.Search, ctx playwright.BrowserContext) *Prowler {
 	return &Prowler{
-		ctx:      ctx,
-		Search:   new(model.Search).From(userID, query),
-		blackMap: blackMap,
+		ctx:    ctx,
+		Search: e,
 	}
 }
 
@@ -41,7 +35,7 @@ func (p *Prowler) prowlSearchPage() {
 	}
 	defer searchPage.Close()
 
-	page := model.NewPage(searchPage)
+	page := entity.NewPage(searchPage)
 	page.Save()
 
 	p.Serp = page.SERP
@@ -49,7 +43,7 @@ func (p *Prowler) prowlSearchPage() {
 
 	for _, l := range pw.Locators(searchPage, "[data-dtld]") {
 		domain := pw.Attribute(l, "data-dtld")
-		if p.blackMap[domain] {
+		if p.Exclude[domain] {
 			log.Info().Str("domain", domain).Msg("skipping (blacklisted)")
 			return
 		}
@@ -58,6 +52,8 @@ func (p *Prowler) prowlSearchPage() {
 	}
 }
 
+// prowlResultPages scrapes the result page of a search query
+// todo - ScrollIntoViewIfNeeded
 func (p *Prowler) prowlResultPages(l playwright.Locator) {
 
 	var cb = func() error {
@@ -84,7 +80,7 @@ func (p *Prowler) prowlResultPages(l playwright.Locator) {
 		return
 	}
 
-	page := model.NewPage(resultPage)
+	page := entity.NewPage(resultPage)
 	page.Save()
 
 	p.Snippets = append(p.Snippets, page.MakeSnippet())

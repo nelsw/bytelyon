@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/nelsw/bytelyon/pkg/api"
-	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/entity"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -23,7 +23,7 @@ func handleGet(r api.Request) api.Response {
 		return r.BAD(err)
 	}
 
-	if e := model.FindPage(r.Query("url"), id); e != nil {
+	if e := entity.FindPage(r.Query("url"), id); e != nil {
 		return r.OK(e)
 	}
 

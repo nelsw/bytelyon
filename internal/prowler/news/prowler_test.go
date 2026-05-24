@@ -1,4 +1,4 @@
-package sitemap
+package news
 
 import (
 	"testing"
@@ -9,7 +9,7 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-func TestNewProwler(t *testing.T) {
+func TestProwler(t *testing.T) {
 
 	logs.Init("debug")
 
@@ -22,6 +22,7 @@ func TestNewProwler(t *testing.T) {
 		bro.Close()
 	}()
 
-	e := entity.NewSitemap(ulid.MustParse("01KM01JC9PS1R4X4FDJNFAR4AZ"), "firefibers.com")
+	e := entity.NewNews(ulid.MustParse("01KM01JC9PS1R4X4FDJNFAR4AZ"), "ai today")
 	New(e, ctx).Prowl()
+
 }

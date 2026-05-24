@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/nelsw/bytelyon/pkg/logs"
 	"github.com/nelsw/bytelyon/pkg/util"
@@ -18,6 +19,8 @@ import (
 var (
 	blockedRegex = regexp.MustCompile(`(google.com/sorry|captcha|unusual traffic)`)
 	hrefSchemes  = regexp.MustCompile(`^(mailto|tel|sms|fax|callto|geo):.*`)
+	notAlphaNum  = regexp.MustCompile(`[^a-zA-Z0-9]`)
+	alphaNum     = regexp.MustCompile(`^([a-zA-Z0-9]*)$`)
 
 	googleSearchInputSelectors = []string{
 		"input[name='q']",
@@ -68,7 +71,7 @@ func NewBrowser(c *playwright.Playwright, headless bool) (playwright.Browser, er
 			"--disable-backgrounding-occluded-windows",
 			"--disable-blink-features=AutomationControlled",
 			"--disable-breakpad",
-			"--disable-component-extensions-with-background-pages",
+			"--disable-component-extensions-with-background-page",
 			"--disable-dev-shm-usage",
 			"--disable-extensions",
 			"--disable-features=IsolateOrigins,site-per-process",
@@ -339,7 +342,27 @@ func Meta(page playwright.Page) map[string]string {
 		m[k] = v
 	}
 
-	return m
+	meta := make(map[string]string)
+	for k, v = range m {
+
+		if alphaNum.MatchString(k) {
+			meta[k] = v
+			continue
+		}
+
+		k = notAlphaNum.ReplaceAllString(k, " ")
+		var s string
+		for i, p := range strings.Split(k, " ") {
+			if i == 0 {
+				s = p
+			} else {
+				s += string(unicode.ToUpper(rune(p[0]))) + p[1:]
+			}
+		}
+		meta[s] = v
+	}
+
+	return meta
 }
 
 // Links returns absolute and relative links of a document by inspecting anchor tag properties.
@@ -489,4 +512,30 @@ func Attribute(l playwright.Locator, a string) string {
 		return ""
 	}
 	return strings.TrimSpace(s)
+}
+
+func Scrape(url string, ctx playwright.BrowserContext) (content string, screenshot []byte) {
+	l := log.With().
+		Str("ƒ", "scrape").
+		Str("url", url).
+		Logger()
+
+	l.Trace().Send()
+
+	page, err := NewPage(ctx)
+	if err != nil {
+		l.Warn().Msgf("scrape failed: %s", err.Error())
+		return
+	}
+
+	defer page.Close()
+
+	if err = Visit(page, url); err != nil {
+		l.Warn().Msgf("Visit failed: %s", err.Error())
+		return
+	}
+
+	l.Debug().Send()
+
+	return Content(page), Screenshot(page)
 }

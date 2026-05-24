@@ -29,6 +29,13 @@ func (r Request) NI() Response           { return r.Response(http.StatusNotImple
 func (r Request) NOPE() Response         { return r.Response(http.StatusForbidden) }
 func (r Request) OK(a any) Response      { return r.Response(http.StatusOK, a) }
 
+func (r Request) OF(a any) Response {
+	if err, ok := a.(error); ok {
+		return r.BAD(err)
+	}
+	return r.OK(a)
+}
+
 func (r Request) AuthOK(userID ulid.ULID, tkn string) AuthResponse {
 	return r.AuthResponse(true, userID.String(), tkn)
 }

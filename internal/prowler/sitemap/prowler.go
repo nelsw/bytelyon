@@ -5,7 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nelsw/bytelyon/pkg/https"
+	"github.com/nelsw/bytelyon/pkg/em"
+	"github.com/nelsw/bytelyon/pkg/entity"
 	"github.com/nelsw/bytelyon/pkg/model"
 	. "github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
@@ -17,7 +18,7 @@ import (
 type Prowler struct {
 
 	// Sitemap is the prowler model
-	*model.Sitemap
+	*entity.Sitemap
 
 	// depth is the maximum number of levels to crawl from the root URL.
 	depth int
@@ -36,18 +37,18 @@ type Prowler struct {
 }
 
 // New returns a new Prowler instance.
-func New(userID ulid.ULID, domain string, ctx playwright.BrowserContext) *Prowler {
+func New(e *entity.Sitemap, ctx playwright.BrowserContext) *Prowler {
 	return &Prowler{
 		depth:     5, // todo - make configurable
 		ctx:       ctx,
-		Sitemap:   new(model.Sitemap).From(userID, domain),
+		Sitemap:   e,
 		urls:      model.NewSyncMap[string, bool](),
 		capacitor: model.NewCapacitor(15),
 	}
 }
 
 func (p *Prowler) Prowl() {
-	p.wg.Go(func() { p.prowl(p.URL(), p.depth) })
+	p.wg.Go(func() { p.prowl("https://"+p.Domain, p.depth) })
 	p.wg.Wait()
 	log.Info().Msgf("prowled sitemap %s", p.Domain)
 }
@@ -66,47 +67,52 @@ func (p *Prowler) prowl(url string, depth int) {
 	}
 	defer p.capacitor.Dec()
 
-	page := new(model.Page).Scrape(url, p.ctx)
+	page := new(entity.Page).Scrape(url, p.ctx)
 	if page == nil {
 		return
 	}
 	page.Save()
 
-	p.Add(page)
-	p.Save()
+	p.Set(page.URL, append(p.GetOr(page.URL, []ulid.ULID{}), page.ID))
+	em.Save(p)
 
 	var urls []string
 	for _, link := range page.Links {
+
+		// if the link is an insecure URL
+		if strings.HasPrefix(link, "http://") {
+			continue
+		}
 
 		// if the link is empty or root
 		if link == "" || link == "/" {
 			continue
 		}
 
-		// if the link is relative to the root url
+		// if the link is relative to the root urls
 		if strings.HasPrefix(link, "/") {
-			urls = append(urls, p.URL()+link)
+			urls = append(urls, "https://"+p.Domain+link)
 			continue
 		}
 
-		// if the link is a url; check the host equals our domain
+		// if the link is a urls; check the host equals our domain
 		if host := Host(link); host != "" && host != p.Domain {
 			continue
 		}
 
 		// if the link is a secure URL
-		if strings.HasPrefix(link, p.URL()) {
+		if strings.HasPrefix(link, "https://"+p.Domain) {
 			urls = append(urls, link)
 			continue
 		}
 
 		// if the link is missing URL protocol
 		if strings.HasPrefix(link, p.Domain) {
-			urls = append(urls, https.Protcol(link))
+			urls = append(urls, "https://"+link)
 			continue
 		}
 
-		// else the link is relative to this url
+		// else the link is relative to this urls
 		if l, _, ok := strings.Cut(link, "/"); ok {
 			urls = append(urls, url+"/"+l+"/"+link)
 		} else {

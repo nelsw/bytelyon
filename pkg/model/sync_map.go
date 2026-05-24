@@ -39,6 +39,15 @@ func (m *SyncMap[K, V]) Get(k K) (V, bool) {
 	return m.Map.Get(k)
 }
 
+func (m *SyncMap[K, V]) GetOr(k K, or V) V {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	if v, ok := m.Map.Get(k); ok {
+		return v
+	}
+	return or
+}
+
 func (m *SyncMap[K, V]) Set(k K, v V) V {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()

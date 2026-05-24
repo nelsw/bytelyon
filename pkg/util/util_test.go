@@ -16,3 +16,9 @@ func Test_Supress_String(t *testing.T) {
 	b, _ := json.MarshalIndent(u, "", "\t")
 	fmt.Println(string(b))
 }
+
+func TestOr(t *testing.T) {
+	var a any
+	a = nil
+	fmt.Println(Or(a))
+}

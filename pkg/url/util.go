@@ -1,4 +1,4 @@
-package urls
+package url
 
 import (
 	"net/url"
@@ -29,9 +29,8 @@ func PR(url string) string {
 // Host returns the host name from a URL in lowercase.
 // Unlinke url.Parse, this ƒ does not require a protocol to determine a hostname.
 func Host(url string) string {
-	url = Clean(url)
 	// remove path
-	url = strings.Split(url, "/")[0]
+	url = strings.Split(PR(url), "/")[0]
 	// remove query
 	url = strings.Split(url, "?")[0]
 	// remove fragment

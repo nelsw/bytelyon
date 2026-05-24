@@ -13,8 +13,6 @@ import (
 )
 
 type Model struct {
-	Title string
-
 	Headings map[string][]string
 
 	Links []string
@@ -22,6 +20,8 @@ type Model struct {
 	Paragraphs []string
 
 	model.Meta
+
+	Title string
 }
 
 func New(content string) (m *Model) {

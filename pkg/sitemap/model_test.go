@@ -1,8 +1,7 @@
-package news
+package sitemap
 
 import (
 	"testing"
-	"time"
 
 	"github.com/nelsw/bytelyon/internal/pw"
 	"github.com/nelsw/bytelyon/pkg/logs"
@@ -11,7 +10,7 @@ import (
 
 func TestModel_Run(t *testing.T) {
 
-	logs.Init("trace")
+	logs.Init("warn")
 
 	cpw := pw.Run()
 	bro, _ := pw.NewBrowser(cpw, true)
@@ -22,7 +21,7 @@ func TestModel_Run(t *testing.T) {
 		bro.Close()
 	}()
 
-	m := New(ulid.Zero, "situation in iran")
-	m.Run(ctx, time.Now().Add(-6*time.Hour), nil)
+	m := New(ulid.Zero, "firefibers.com")
+	m.Run(ctx)
 
 }

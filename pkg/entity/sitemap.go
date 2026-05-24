@@ -9,9 +9,9 @@ import (
 )
 
 type Sitemap struct {
-	Domain string
-
 	*model.SyncMap[string, []ulid.ULID]
+
+	Domain string
 
 	UserID ulid.ULID
 }

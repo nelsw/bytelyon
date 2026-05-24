@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/pkg/https"
+	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/urls"
 	"github.com/rs/zerolog/log"
@@ -67,6 +68,7 @@ func FromGoogleNews(topic string, after time.Time, exclusions map[string]bool) (
 
 		link, item = chomp(item, "<link>", "</link>")
 		link = decodeGoogleURL(link)
+		link = urls.Clean(link)
 
 		title, item = chomp(item, "<title>", "</title>")
 		if parts := strings.Split(title, " - "); len(parts) > 1 {
@@ -88,7 +90,7 @@ func FromGoogleNews(topic string, after time.Time, exclusions map[string]bool) (
 		}
 
 		articles = append(articles, &Model{
-			ID:     model.NewULID(t),
+			ID:     id.New(t),
 			Image:  model.MakeImage("", ""),
 			Source: source,
 			Title:  title,
@@ -151,10 +153,11 @@ func FromBingNews(topic string, after time.Time, exclusions map[string]bool) (ar
 		title, item = chomp(item, "<title>", "</title>")
 		description, item = chomp(item, "<description>", "</description>")
 		source, item = chomp(item, "<News:Source>", "</News:Source>")
+
 		link, item = chomp(item, "<link>", "</link>")
 		link, _ = url.QueryUnescape(link)
-
 		link, _ = chomp(link, "url=", "&amp;c=")
+		link = urls.Clean(link)
 
 		var exclusionCount int
 		for exclusion := range exclusions {
@@ -175,7 +178,7 @@ func FromBingNews(topic string, after time.Time, exclusions map[string]bool) (ar
 
 		articles = append(articles, &Model{
 			Description: description,
-			ID:          model.NewULID(t),
+			ID:          id.New(t),
 			Image:       model.MakeImage(imageUrl, ""),
 			Source:      source,
 			Title:       title,
@@ -247,7 +250,7 @@ func FromBing(topic string, after time.Time, exclusions map[string]bool) (models
 
 		models = append(models, &Model{
 			Description: description,
-			ID:          model.NewULID(t),
+			ID:          id.New(t),
 			Image:       model.MakeImage("", ""),
 			Title:       title,
 			URL:         link,

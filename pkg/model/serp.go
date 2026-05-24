@@ -37,10 +37,6 @@ type Serp map[SerpSection][]SerpResult
 
 func MakeSerp(url, content string) Serp {
 
-	if !strings.HasPrefix(url, "https://www.google.com") {
-		return nil
-	}
-
 	serp := make(Serp)
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))

@@ -3,6 +3,7 @@ package news
 import (
 	"fmt"
 
+	"github.com/nelsw/bytelyon/pkg/article"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -17,6 +18,9 @@ type Model struct {
 
 	// UserID is the user ID of the user who is requesting the news.
 	UserID ulid.ULID `json:"-"`
+
+	// Articles is a list of articles that belong to the topic.
+	Articles article.Models `json:"articles,omitempty"`
 }
 
 func New(userID ulid.ULID, topic string) *Model {
@@ -24,6 +28,14 @@ func New(userID ulid.ULID, topic string) *Model {
 		Entries: make(map[string]ulid.ULID),
 		Topic:   topic,
 		UserID:  userID,
+	}
+}
+
+func (m *Model) Merge(other *Model) {
+	for k, v := range other.Entries {
+		if _, ok := m.Entries[k]; !ok {
+			m.Entries[k] = v
+		}
 	}
 }
 

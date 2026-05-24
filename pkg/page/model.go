@@ -14,8 +14,8 @@ import (
 )
 
 type Model struct {
+	Data []byte
 	id   ulid.ULID
-	data []byte
 	url  string
 }
 
@@ -32,11 +32,11 @@ func New(url string, data any, id ...ulid.ULID) *Model {
 
 	switch v := data.(type) {
 	case string:
-		m.data = []byte(v)
+		m.Data = []byte(v)
 	case []byte:
-		m.data = v
+		m.Data = v
 	default:
-		m.data = util.JSON(data)
+		m.Data = util.JSON(data)
 	}
 
 	return m
@@ -81,12 +81,12 @@ func (m *Model) save() error {
 
 	var base string
 	var isPublic bool
-	if t := http.DetectContentType(m.data); strings.HasPrefix(t, "text/html") {
+	if t := http.DetectContentType(m.Data); strings.HasPrefix(t, "text/html") {
 		base = "content.html"
 	} else if strings.HasPrefix(t, "image/") {
 		base = "screenshot.png"
 		isPublic = true
-	} else if json.Valid(m.data) {
+	} else if json.Valid(m.Data) {
 		base = "object.json"
 	} else {
 		base = "unknown.txt"
@@ -94,5 +94,5 @@ func (m *Model) save() error {
 
 	key := util.Path("pages", urls.PR(m.url), m.id, base)
 
-	return s3.Put(key, m.data, isPublic)
+	return s3.Put(key, m.Data, isPublic)
 }

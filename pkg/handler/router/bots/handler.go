@@ -10,7 +10,7 @@ import (
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/repo"
-	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/urls"
 	"github.com/rs/zerolog/log"
 )
 
@@ -30,22 +30,8 @@ func Handler(r Request) Response {
 	return r.NI()
 }
 
-// handleDelete deletes a bot or bot result from the database using the following routes:
-//
-//	bot: /bots?type=...&target=...
-//
-// result: /bots?type=...&target=...&id=...
 func handleDelete(r Request) Response {
-
-	var err error
-
-	if r.ID().IsZero() {
-		err = repo.DeleteBot(r.UserID(), r.Target(), r.BotType())
-	} else {
-		err = repo.DeleteBotResult(r.UserID(), r.BotID(), r.ID(), r.BotType())
-	}
-
-	if err != nil {
+	if err := repo.DeleteBot(r.UserID(), r.Target(), r.BotType()); err != nil {
 		return r.BAD(err)
 	}
 	return r.NC()
@@ -80,7 +66,7 @@ func handlePut(r Request) Response {
 	b.Target = strings.ToLower(b.Target)
 
 	if b.Type == model.SitemapBotType {
-		b.Target = util.Domain(b.Target)
+		b.Target = urls.Domain(b.Target)
 	}
 
 	if err := db.Put(b); err != nil {

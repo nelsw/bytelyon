@@ -46,13 +46,11 @@ func Find(userID ulid.ULID, query string) (map[ulid.ULID][]string, error) {
 	return m, nil
 }
 
-func Save(userID ulid.ULID, query string, id ulid.ULID, urls []string) error {
-
-	f, err := Find(userID, query)
-	if err != nil {
-		return err
+func Save(userID ulid.ULID, query string, m map[ulid.ULID][]string) error {
+	if f, err := Find(userID, query); err == nil {
+		for k, v := range f {
+			m[k] = v
+		}
 	}
-	f[id] = urls
-
-	return s3.Put(key(userID, query), util.JSON(f), false)
+	return s3.Put(key(userID, query), util.JSON(m), false)
 }

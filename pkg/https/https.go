@@ -6,26 +6,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/rs/zerolog/log"
 )
-
-func Of(u string) string {
-	return "https://" + u
-}
-
-func Trim(u string) string {
-	return strings.TrimPrefix(u, "https://")
-}
-
-// PRURL returns the protocol-relative form of a URL; aka PRL (protocol-relative link).
-// TLDR: this is just a fancy ƒ that trims https:// from a URL.
-func PRURL(u string) string {
-	return strings.TrimPrefix(u, "https://")
-}
 
 func Get(url string) ([]byte, error) {
 

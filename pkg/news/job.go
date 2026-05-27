@@ -54,7 +54,6 @@ func routine(ctx playwright.BrowserContext, m *model.SyncMap[string, *Headline],
 			ID:          h.ID,
 			Image:       doc.Meta.Image(),
 			Keywords:    doc.Meta.Keywords(),
-			Meta:        doc.Meta,
 			Source:      doc.Meta.Source(),
 			Title:       h.Title,
 			URL:         h.URL,
@@ -78,7 +77,7 @@ func fetch(topic string, exclude map[string]bool, after time.Time) (headlines []
 	q := strings.ReplaceAll(topic, " ", "+")
 
 	arr := []string{
-		//fmt.Sprintf("https://news.google.com/rss/search?q=%s&hl=en-US&gl=US&ceid=US:en", q),
+		fmt.Sprintf("https://news.google.com/rss/search?q=%s&hl=en-US&gl=US&ceid=US:en", q),
 		fmt.Sprintf("https://www.bing.com/news/search?format=rss&q=%s", q),
 		fmt.Sprintf("https://www.bing.com/search?format=rss&q=%s", q),
 	}

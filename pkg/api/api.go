@@ -19,8 +19,6 @@ type AuthResponse events.APIGatewayV2CustomAuthorizerSimpleResponse
 type Response events.APIGatewayV2HTTPResponse
 type Request events.APIGatewayV2HTTPRequest
 
-func (r Response) Log() { log.Log().EmbedObject(r).Msg("response") }
-
 func (r Request) Authorization() string  { return r.Headers["authorization"] }
 func (r Request) Log()                   { log.Log().EmbedObject(r).Msg("request") }
 func (r Request) Method() string         { return r.RequestContext.HTTP.Method }
@@ -30,15 +28,6 @@ func (r Request) NC() Response           { return r.Response(http.StatusNoConten
 func (r Request) NI() Response           { return r.Response(http.StatusNotImplemented) }
 func (r Request) NOPE() Response         { return r.Response(http.StatusForbidden) }
 func (r Request) OK(a any) Response      { return r.Response(http.StatusOK, a) }
-
-func (r Request) OF(a any) Response {
-	if a == nil {
-		return r.NC()
-	} else if err, ok := a.(error); ok {
-		return r.BAD(err)
-	}
-	return r.OK(a)
-}
 
 func (r Request) AuthOK(userID ulid.ULID, tkn string) AuthResponse {
 	return r.AuthResponse(true, userID.String(), tkn)
@@ -110,11 +99,6 @@ func (r Request) MarshalZerologObject(evt *zerolog.Event) {
 		Str("body", r.Body)
 }
 
-func (r Response) MarshalZerologObject(evt *zerolog.Event) {
-	evt.Int("code", r.StatusCode).
-		Str("body", r.Body)
-}
-
 func (r Request) BotType() model.BotType {
 	if err := model.BotType(r.Query("type")).Validate(); err != nil {
 		log.Warn().Err(err).Msg("invalid bot")
@@ -122,10 +106,6 @@ func (r Request) BotType() model.BotType {
 	}
 	return model.BotType(r.Query("type"))
 }
-
-func (r Request) Domain() string { return r.Query("domain") }
-func (r Request) Topic() string  { return r.Query("topic") }
-func (r Request) URL() string    { return r.Query("url") }
 
 func (r Request) Target() string {
 	if r.BotType() != model.SitemapBotType {

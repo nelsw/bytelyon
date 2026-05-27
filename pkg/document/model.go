@@ -8,7 +8,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/nelsw/bytelyon/pkg/meta"
-	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/urls"
 	"github.com/rs/zerolog/log"
 )
 
@@ -63,12 +63,12 @@ func New(content string) (m *Model) {
 		}
 
 		// is it a js link?
-		if strings.Contains(href, "javascript:") {
+		if strings.Contains(href, "javascript:") || strings.Contains(href, "about:blank") {
 			return
 		}
 
 		// is it a file link?
-		if util.HasFileExtension(href) {
+		if urls.HasFileExtension(href) {
 			return
 		}
 

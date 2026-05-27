@@ -2,7 +2,6 @@ package news
 
 import (
 	"github.com/nelsw/bytelyon/pkg/image"
-	"github.com/nelsw/bytelyon/pkg/meta"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -12,7 +11,6 @@ type Article struct {
 	ID          ulid.ULID   `json:"id"`
 	Image       image.Model `json:"image"`
 	Keywords    []string    `json:"keywords"`
-	Meta        meta.Model  `json:"meta"`
 	Source      string      `json:"source"`
 	Title       string      `json:"title"`
 	URL         string      `json:"url"`

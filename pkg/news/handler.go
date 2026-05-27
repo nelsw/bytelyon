@@ -19,20 +19,20 @@ func Handler(r api.Request) api.Response {
 }
 
 func HandleDelete(r api.Request) api.Response {
-	if r.URL() != "" {
-		m, err := Find(r.UserID(), r.Topic())
+	if r.Query("url") != "" {
+		m, err := Find(r.UserID(), r.Query("topic"))
 		if err != nil {
 			return r.NC()
 		}
-		if err = page.Delete(r.URL(), m[r.URL()].ID); err != nil {
+		if err = page.Delete(r.Query("url"), m[r.Query("url")].ID); err != nil {
 			return r.BAD(err)
 		}
-		delete(m, r.URL())
-		Save(r.UserID(), r.Topic(), m)
+		delete(m, r.Query("url"))
+		Save(r.UserID(), r.Query("topic"), m)
 		return r.NC()
 	}
 
-	if err := Delete(r.UserID(), r.Topic()); err != nil {
+	if err := Delete(r.UserID(), r.Query("topic")); err != nil {
 		return r.BAD(err)
 	}
 
@@ -40,14 +40,14 @@ func HandleDelete(r api.Request) api.Response {
 }
 
 func HandleGet(r api.Request) api.Response {
-	m, err := Find(r.UserID(), r.Topic())
+	m, err := Find(r.UserID(), r.Query("topic"))
 	if err != nil {
 		return r.NC()
 	}
 
-	if r.URL() != "" {
+	if r.Query("url") != "" {
 		var a Article
-		if a, err = page.FindObject[Article](r.URL(), m[r.URL()].ID); err != nil {
+		if a, err = page.FindObject[Article](r.Query("url"), m[r.Query("url")].ID); err != nil {
 			return r.NC()
 		}
 		return r.OK(a)

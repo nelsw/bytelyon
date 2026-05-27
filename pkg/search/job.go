@@ -22,12 +22,13 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, query string, exclude
 		return
 	}
 
-	urls := []string{srp.URL}
+	m := map[ulid.ULID][]string{
+		srp.ID: {srp.URL},
+	}
 
 	defer func() {
-		Save(userID, query, srp.ID, urls)
+		Save(userID, query, m)
 		page.Close()
-
 	}()
 
 	var p playwright.Page
@@ -43,7 +44,7 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, query string, exclude
 		if err = snip.Save(); err != nil {
 			log.Warn().Err(err).Msg("Failed to save snippet")
 		}
-		urls = append(urls, snip.URL)
+		m[srp.ID] = append(m[srp.ID], snip.URL)
 		p.Close()
 	}
 }

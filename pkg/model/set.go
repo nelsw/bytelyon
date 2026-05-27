@@ -19,9 +19,3 @@ func NewSet[K cmp.Ordered](vals ...K) *Set[K] {
 
 func (s *Set[K]) Add(k K)    { s.m.Set(k, true) }
 func (s *Set[K]) Slice() []K { return s.m.Keys() }
-
-func (s *Set[K]) Merge(other *Set[K]) {
-	for _, k := range other.Slice() {
-		s.m.Set(k, true)
-	}
-}

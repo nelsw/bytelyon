@@ -19,22 +19,22 @@ func Handler(r api.Request) api.Response {
 }
 
 func HandleDelete(r api.Request) api.Response {
-	if err := Delete(r.UserID(), r.Domain()); err != nil {
+	if err := Delete(r.UserID(), r.Query("domain")); err != nil {
 		return r.BAD(err)
 	}
 	return r.NC()
 }
 
 func HandleGet(r api.Request) api.Response {
-	if r.URL() == "" {
-		arr, err := Find(r.UserID(), r.Domain())
+	if r.Query("url") == "" {
+		arr, err := Find(r.UserID(), r.Query("domain"))
 		if err != nil {
 			return r.BAD(err)
 		}
 		return r.OK(arr)
 	}
 
-	out, err := page.FindObjects[snippet.Model](r.URL())
+	out, err := page.FindObjects[snippet.Model](r.Query("url"))
 	if err != nil {
 		return r.BAD(err)
 	}

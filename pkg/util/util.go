@@ -9,7 +9,6 @@ import (
 	"image/jpeg"
 	"image/png"
 	"net/http"
-	"net/url"
 	"path"
 	"regexp"
 	"strings"
@@ -20,21 +19,6 @@ import (
 var (
 	fileExtRegex = regexp.MustCompile(`.(webp|jpg|jpeg|png)`)
 )
-
-// Domain returns the domain name from a URL in lowercase.
-// Unlinke url.Parse, this ƒ does not require a protocol to determine a hostname.
-func Domain(s string) string {
-
-	s = Host(s)
-
-	// remove subdomains
-	for strings.Count(s, ".") > 1 {
-		ss := strings.Split(s, ".")
-		s = ss[len(ss)-2] + "." + ss[len(ss)-1]
-	}
-
-	return s
-}
 
 func Capitalize(s string) string {
 	return strings.ToUpper(s[0:1]) + s[1:]
@@ -70,41 +54,6 @@ func ToPng(b []byte) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
-}
-
-func HasFileExtension(rawUrl string) bool {
-	u, err := url.Parse(rawUrl)
-	if err != nil {
-		return false
-	}
-	ext := path.Ext(u.Path) // Returns ".jpg", ".pdf", etc.
-	return ext != ""
-}
-
-// Host returns the host name from a URL in lowercase.
-// Unlinke url.Parse, this ƒ does not require a protocol to determine a hostname.
-func Host(s string) string {
-
-	s = strings.TrimPrefix(s, "https://")
-
-	// remove path
-	s = strings.Split(s, "/")[0]
-
-	// remove query
-	s = strings.Split(s, "?")[0]
-
-	// remove fragment
-	s = strings.Split(s, "#")[0]
-
-	// remove port
-	s = strings.Split(s, ":")[0]
-
-	// if there is no period, it can't be a URL/URI
-	if !strings.Contains(s, ".") {
-		return ""
-	}
-
-	return strings.ToLower(s)
 }
 
 func JSON(a any) []byte {
@@ -143,26 +92,4 @@ func Trunc(s string, n int) string {
 	}
 	s = s[:n-3] + "..."
 	return s
-}
-
-func Chomp(in, a, z string) (string, string) {
-
-	aIdx, zIdx := strings.Index(in, a), strings.Index(in, z)
-	if aIdx == -1 || zIdx == -1 {
-		return "", in
-	}
-
-	out := in[aIdx+len(a) : zIdx]
-
-	in = in[:aIdx] + in[zIdx+len(z):]
-
-	return out, in
-}
-
-func Chomps(s, a, z string) (arr []string) {
-	var res string
-	for res, s = Chomp(s, a, z); res != ""; res, s = Chomp(s, a, z) {
-		arr = append(arr, res)
-	}
-	return
 }

@@ -4,15 +4,12 @@ import (
 	"maps"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/nelsw/bytelyon/pkg/image"
 	"github.com/nelsw/bytelyon/pkg/util"
 )
 
 type Model map[string]string
-
-func Make() Model { return make(Model) }
 
 func (m Model) Title() string {
 	return util.Or(
@@ -64,6 +61,7 @@ func (m Model) Keywords() []string {
 	opts := []string{
 		m["keywords"],
 		m["news_keywords"],
+		m["article:tag"],
 	}
 
 	kw := make(map[string]bool)
@@ -82,19 +80,4 @@ func (m Model) Keywords() []string {
 	}
 
 	return slices.Sorted(maps.Keys(kw))
-}
-
-func (m Model) PublishedTime() string {
-	return util.Or(
-		m["article:published_time"],
-		m["og:article:published_time"],
-		m["article:modified_time"],
-		m["og:article:modified_time"],
-	)
-}
-
-func (m Model) PublishedAt() time.Time {
-	var t time.Time
-	t, _ = time.Parse(time.RFC3339, m.PublishedTime())
-	return t
 }

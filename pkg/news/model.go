@@ -19,5 +19,5 @@ type Article struct {
 type Headline struct {
 	ID    ulid.ULID `json:"id"`
 	Title string    `json:"title"`
-	URL   string    `json:"url,omitempty"`
+	URL   string    `json:"url"`
 }

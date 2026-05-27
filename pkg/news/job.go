@@ -68,7 +68,6 @@ func routine(ctx playwright.BrowserContext, m *model.SyncMap[string, *Headline],
 			log.Warn().Err(err).Msg("failed to save article screenshot")
 			return
 		}
-		h.URL = ""
 		m.Set(h.URL, h)
 	}
 }

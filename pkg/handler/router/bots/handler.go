@@ -9,7 +9,10 @@ import (
 	. "github.com/nelsw/bytelyon/pkg/api"
 	"github.com/nelsw/bytelyon/pkg/db"
 	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/news"
 	"github.com/nelsw/bytelyon/pkg/repo"
+	"github.com/nelsw/bytelyon/pkg/search"
+	"github.com/nelsw/bytelyon/pkg/sitemap"
 	"github.com/nelsw/bytelyon/pkg/urls"
 	"github.com/rs/zerolog/log"
 )
@@ -31,6 +34,22 @@ func Handler(r Request) Response {
 }
 
 func handleDelete(r Request) Response {
+
+	switch r.BotType() {
+	case model.NewsBotType:
+		if err := news.Delete(r.UserID(), r.Target()); err != nil {
+			return r.BAD(err)
+		}
+	case model.SearchBotType:
+		if err := search.Delete(r.UserID(), r.Target()); err != nil {
+			return r.BAD(err)
+		}
+	case model.SitemapBotType:
+		if err := sitemap.Delete(r.UserID(), r.Target()); err != nil {
+			return r.BAD(err)
+		}
+	}
+
 	if err := repo.DeleteBot(r.UserID(), r.Target(), r.BotType()); err != nil {
 		return r.BAD(err)
 	}

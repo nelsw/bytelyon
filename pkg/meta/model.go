@@ -13,9 +13,9 @@ type Model map[string]string
 
 func (m Model) Title() string {
 	return util.Or(
-		m["title"],
-		m["og:title"],
 		m["twitter:title"],
+		m["og:title"],
+		m["title"],
 	)
 }
 
@@ -23,36 +23,36 @@ func (m Model) Image() image.Model { return image.Make(m.ImageSrc(), m.ImageAlt(
 
 func (m Model) ImageSrc() string {
 	return util.Or(
-		m["image"],
-		m["og:image"],
-		m["og:image:url"],
-		m["og:image:secure_url"],
-		m["twitter:image"],
 		m["twitter:image:src"],
+		m["twitter:image"],
+		m["og:image:secure_url"],
+		m["og:image:url"],
+		m["og:image"],
+		m["image"],
 	)
 }
 
 func (m Model) ImageAlt() string {
 	return util.Or(
-		m["og:image:alt"],
 		m["twitter:image:alt"],
+		m["og:image:alt"],
 	)
 }
 
 func (m Model) Source() string {
 	return util.Or(
-		m["og:site"],
-		m["og:site_name"],
 		m["twitter:site"],
+		m["og:site_name"],
+		m["og:site"],
 	)
 }
 
 func (m Model) Description() string {
 	return util.Or(
-		m["abstract"],
-		m["description"],
-		m["og:description"],
 		m["twitter:description"],
+		m["og:description"],
+		m["description"],
+		m["abstract"],
 	)
 }
 

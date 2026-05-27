@@ -19,23 +19,15 @@ func Handler(r api.Request) api.Response {
 }
 
 func HandleDelete(r api.Request) api.Response {
-	if r.Query("url") != "" {
-		m, err := Find(r.UserID(), r.Query("topic"))
-		if err != nil {
-			return r.NC()
-		}
-		if err = page.Delete(r.Query("url"), m[r.Query("url")].ID); err != nil {
-			return r.BAD(err)
-		}
-		delete(m, r.Query("url"))
-		Save(r.UserID(), r.Query("topic"), m)
+	m, err := Find(r.UserID(), r.Query("topic"))
+	if err != nil {
 		return r.NC()
 	}
-
-	if err := Delete(r.UserID(), r.Query("topic")); err != nil {
+	if err = page.Delete(r.Query("url"), m[r.Query("url")].ID); err != nil {
 		return r.BAD(err)
 	}
-
+	delete(m, r.Query("url"))
+	Save(r.UserID(), r.Query("topic"), m)
 	return r.NC()
 }
 

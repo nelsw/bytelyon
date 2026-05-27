@@ -39,8 +39,6 @@ func New(query, content string, screenshot []byte) *Model {
 		URL:        "google.com/search?q=" + strings.ReplaceAll(query, " ", "+"),
 	}
 
-	m.fillSponsoredData()
-
 	m.fillOrganicData()
 	if len(m.Organic) == 0 {
 		m.fillrOganicDataV2()
@@ -59,91 +57,9 @@ func New(query, content string, screenshot []byte) *Model {
 	return m
 }
 
-func (m *Model) fillSponsoredData() {
-	log.Info().Msg("Parsing sponsored results")
-	var ids []string
-	m.Doc.Find(`div`).Each(func(i int, sel *goquery.Selection) {
-		if _, ok := sel.Attr("data-merchant-id"); !ok {
-			return
-		}
-		if id, ok := sel.Attr("id"); ok && id[0] == '_' {
-			ids = append(ids, id)
-		}
-	})
-
-	var frags []string
-	for _, id := range ids {
-		if left := strings.Index(m.Content, id+`',`); left > 0 {
-			left += len(id) + 4
-			right := strings.Index(m.Content[left:], `);})();`)
-			frags = append(frags, m.Content[left:left+right])
-		}
-	}
-
-	for i := range frags {
-		frags[i] = strings.ReplaceAll(frags[i], "x26", "&")
-		frags[i] = strings.ReplaceAll(frags[i], "x27", "'")
-		frags[i] = strings.ReplaceAll(frags[i], "xb2", "²")
-		frags[i] = strings.ReplaceAll(frags[i], "x3d", "=")
-		frags[i] = strings.ReplaceAll(frags[i], "x22", "")
-		frags[i] = strings.ReplaceAll(frags[i], "x3c", "<")
-		frags[i] = strings.ReplaceAll(frags[i], "x3e", ">")
-		frags[i] = strings.ReplaceAll(frags[i], "&amp;", "&")
-		frags[i] = strings.ReplaceAll(frags[i], `\`, ``)
-	}
-
-	for pos, f := range frags {
-		var datum = map[string]any{
-			"position": pos,
-		}
-
-		d, err := html.Parse(strings.NewReader(f))
-		if err != nil {
-			log.Warn().Err(err).Msg("failed to parse sponsored html")
-			continue
-		}
-
-		gd := goquery.NewDocumentFromNode(d)
-
-		goquery.NewDocumentFromNode(d).Find(`span`).Each(func(i int, sel *goquery.Selection) {
-
-			t := strings.TrimSpace(sel.Text())
-			if len(t) == 0 || t[0] != '$' {
-				return
-			}
-
-			t = strings.ReplaceAll(t, ",", "")[1:]
-			if price, e := strconv.ParseFloat(t, 64); e == nil {
-				datum["price"] = price
-			}
-		})
-
-		gd.Find(`div`).Each(func(i int, sel *goquery.Selection) {
-
-			t := strings.TrimSpace(sel.Text())
-
-			if _, ok := sel.Attr("aria-label"); ok {
-				datum["source"] = t
-				return
-			}
-
-			if val, ok := sel.Attr("role"); ok && val == "heading" {
-				datum["title"] = t
-				return
-			}
-
-		})
-
-		gd.Find(`a`).Each(func(i int, sel *goquery.Selection) {
-			if _, k := datum["link"]; !k {
-				if val, ok := sel.Attr("href"); ok && strings.Contains(val, "https://") {
-					datum["link"] = val
-				}
-			}
-		})
-
-		m.Sponsored = append(m.Sponsored, datum)
-	}
+func (m *Model) AddSponsored(data map[string]any) {
+	data["position"] = len(m.Sponsored)
+	m.Sponsored = append(m.Sponsored, data)
 }
 
 func (m *Model) fillOrganicData() {
@@ -176,9 +92,7 @@ func (m *Model) fillOrganicData() {
 
 	for pos := 0; pos < len(vals); pos++ {
 
-		var d = map[string]any{
-			"position": pos,
-		}
+		var d = map[string]any{}
 
 		val := strings.ReplaceAll(vals[pos], "null,", "")
 		for i, v := range strings.Split(val, ",[") {
@@ -217,7 +131,7 @@ func (m *Model) fillOrganicData() {
 			m.Video = append(m.Video, d)
 		} else if strings.Contains(val, "NEWS_ARTICLE_RESULT") {
 			d["position"] = len(m.Article)
-			m.Asked = append(m.Asked, d)
+			m.Article = append(m.Article, d)
 		}
 	}
 }
@@ -344,7 +258,7 @@ func (m *Model) fillPeopleAlsoAskData() {
 		m.Asked = append(m.Asked, map[string]any{
 			"position": len(m.Asked),
 			"title":    sel.AttrOr("data-q", ""),
-			"tource":   "Google",
+			"source":   "Google",
 		})
 	})
 }

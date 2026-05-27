@@ -7,6 +7,7 @@ import (
 	"github.com/nelsw/bytelyon/internal/pw"
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/page"
 	"github.com/nelsw/bytelyon/pkg/snippet"
 	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
@@ -65,7 +66,9 @@ func work(
 	}
 
 	snip := snippet.New(id.New(), url, content, screenshot)
-	if err := snip.Save(); err != nil {
+	if err := page.SaveObject(snip.URL, snip.ID, snip); err != nil {
+		return
+	} else if err = page.SaveScreenshot(snip.URL, snip.ID, screenshot); err != nil {
 		return
 	}
 	urls.Set(url, true)

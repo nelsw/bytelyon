@@ -27,9 +27,9 @@ func Handler(r api.Request) (api.Response, error) {
 		return shopify.Handler(r), nil
 	case "/v1/news":
 		return news.Handler(r), nil
-	case "/v1/search":
+	case "/v1/searches":
 		return search.Handler(r), nil
-	case "/v1/sitemap":
+	case "/v1/sitemaps":
 		return sitemap.Handler(r), nil
 	}
 

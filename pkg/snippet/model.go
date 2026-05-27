@@ -7,7 +7,6 @@ import (
 	"github.com/nelsw/bytelyon/pkg/meta"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/urls"
-	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -29,8 +28,8 @@ func New(id ulid.ULID, url, content string, screenshot []byte) *Model {
 		Links:      doc.Links,
 		Meta:       doc.Meta,
 		Screenshot: screenshot,
-		Title:      util.Or(doc.Title, doc.Meta.Title()),
-		URL:        urls.PR(url),
+		Title:      doc.Meta.Title(),
+		URL:        url,
 	}
 }
 

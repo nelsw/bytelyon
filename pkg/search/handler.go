@@ -18,13 +18,6 @@ func Handler(r api.Request) api.Response {
 
 func HandleDelete(r api.Request) api.Response {
 
-	if r.ID().IsZero() {
-		if err := Delete(r.UserID(), r.Query("query")); err != nil {
-			return r.BAD(err)
-		}
-		return r.NC()
-	}
-
 	m, err := Find(r.UserID(), r.Query("query"))
 	if err != nil {
 		return r.BAD(err)
@@ -40,18 +33,17 @@ func HandleDelete(r api.Request) api.Response {
 
 func HandleGet(r api.Request) api.Response {
 
-	m, err := Find(r.UserID(), r.Query("query"))
+	if r.ID().IsZero() {
+		arr, err := FindIDs(r.UserID(), r.Query("query"))
+		if err != nil {
+			return r.BAD(err)
+		}
+		return r.OK(arr)
+	}
+
+	arr, err := FindSerp(r.UserID(), r.Query("query"), r.ID())
 	if err != nil {
 		return r.BAD(err)
 	}
-
-	if r.ID().IsZero() {
-		return r.OK(m)
-	}
-
-	val, ok := m[r.ID()]
-	if !ok {
-		return r.NC()
-	}
-	return r.OK(val)
+	return r.OK(arr)
 }

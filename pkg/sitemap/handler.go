@@ -12,17 +12,8 @@ func Handler(r api.Request) api.Response {
 	switch r.Method() {
 	case http.MethodGet:
 		return HandleGet(r)
-	case http.MethodDelete:
-		return HandleDelete(r)
 	}
 	return r.NI()
-}
-
-func HandleDelete(r api.Request) api.Response {
-	if err := Delete(r.UserID(), r.Query("domain")); err != nil {
-		return r.BAD(err)
-	}
-	return r.NC()
 }
 
 func HandleGet(r api.Request) api.Response {

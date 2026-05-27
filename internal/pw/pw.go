@@ -15,9 +15,6 @@ import (
 
 var (
 	blockedRegex = regexp.MustCompile(`(google.com/sorry|captcha|unusual traffic)`)
-	hrefSchemes  = regexp.MustCompile(`^(mailto|tel|sms|fax|callto|geo):.*`)
-	notAlphaNum  = regexp.MustCompile(`[^a-zA-Z0-9]`)
-	alphaNum     = regexp.MustCompile(`^([a-zA-Z0-9]*)$`)
 
 	googleSearchInputSelectors = []string{
 		"input[name='q']",
@@ -234,7 +231,10 @@ func NewTab(ctx playwright.BrowserContext, l playwright.Locator) (page playwrigh
 		log.Warn().Err(err).Msg("Client - Failed to ExpectPage")
 	} else if err = page.BringToFront(); err != nil {
 		log.Warn().Err(err).Msg("Client - Failed to BringToFront")
+	} else if err = ScrollToBottomThenTop(page); err != nil {
+		log.Warn().Err(err).Msg("Client - Failed to ScrollToBottomThenTop")
 	}
+
 	return
 }
 
@@ -249,13 +249,15 @@ func GoTo(page playwright.Page, url string) (playwright.Response, error) {
 // Visit navigates to the given URL, waits for the document to load,
 // and scrolls to the bottom of the page to ensure all content is visible.
 func Visit(page playwright.Page, url string) error {
-
 	if res, err := GoTo(page, url); err != nil {
 		return err
 	} else if !res.Ok() {
 		return fmt.Errorf("failed to visit %s: [%d] %s", url, res.Status(), res.StatusText())
 	}
+	return ScrollToBottomThenTop(page)
+}
 
+func ScrollToBottomThenTop(page playwright.Page) error {
 	_, err := page.Evaluate(`async () => {
   await new Promise((resolve) => {
     let totalHeight = 0;
@@ -272,7 +274,6 @@ func Visit(page playwright.Page, url string) error {
     }, 100);
   });
 }`)
-
 	return err
 }
 

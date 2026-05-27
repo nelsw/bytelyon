@@ -11,6 +11,10 @@ var Descending = func(a ulid.ULID, z ulid.ULID) int {
 	return z.Compare(a)
 }
 
+func Make(args ...time.Time) ulid.ULID {
+	return New(args...)
+}
+
 func New(args ...time.Time) ulid.ULID {
 
 	var t time.Time

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/meta"
 	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/rs/zerolog/log"
 )
@@ -19,7 +19,7 @@ type Model struct {
 
 	Paragraphs []string
 
-	model.Meta
+	Meta meta.Model
 
 	Title string
 }

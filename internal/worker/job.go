@@ -3,13 +3,11 @@ package worker
 import (
 	"time"
 
-	"github.com/nelsw/bytelyon/internal/prowler/news"
-	"github.com/nelsw/bytelyon/internal/prowler/search"
-	"github.com/nelsw/bytelyon/internal/prowler/sitemap"
 	"github.com/nelsw/bytelyon/pkg/db"
-	"github.com/nelsw/bytelyon/pkg/em"
-	"github.com/nelsw/bytelyon/pkg/entity"
 	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/news"
+	"github.com/nelsw/bytelyon/pkg/search"
+	"github.com/nelsw/bytelyon/pkg/sitemap"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
 )
@@ -63,54 +61,12 @@ func (j *Job) Work() {
 
 	switch j.bot.Type {
 	case model.SearchBotType:
-		j.workSearch()
+		search.Work(j.ctx, j.bot.UserID, j.bot.Target, j.bot.BlackMap())
 	case model.SitemapBotType:
-		j.workSitemap()
+		sitemap.Work(j.ctx, j.bot.UserID, j.bot.Target)
 	case model.NewsBotType:
-		j.workNews()
+		news.Work(j.ctx, j.bot.UserID, j.bot.Target, j.bot.BlackMap(), j.bot.WorkedAt)
 	default:
 		log.Warn().Msgf("bot type [%s] not supported", j.bot.Type)
 	}
-}
-
-func (j *Job) workNews() {
-
-	e := entity.NewNews(j.bot.UserID, j.bot.Target)
-
-	if err := em.FindOrCreate(e); err != nil {
-		log.Warn().Err(err).Msg("Failed to find or create sitemap")
-		return
-	}
-
-	for _, s := range j.bot.BlackList {
-		e.Exclude[s] = true
-	}
-
-	news.New(e, j.ctx).Prowl()
-}
-
-func (j *Job) workSearch() {
-
-	e := entity.NewSearch(j.bot.UserID, j.bot.Target)
-
-	if err := em.FindOrCreate(e); err != nil {
-		log.Warn().Err(err).Msg("Failed to find or create sitemap")
-		return
-	}
-
-	e.Exclude = j.bot.BlackMap()
-
-	search.New(e, j.ctx).Prowl()
-}
-
-func (j *Job) workSitemap() {
-
-	e := entity.NewSitemap(j.bot.UserID, j.bot.Target)
-
-	if err := em.FindOrCreate(e); err != nil {
-		log.Warn().Err(err).Msg("Failed to find or create sitemap")
-		return
-	}
-
-	sitemap.New(e, j.ctx).Prowl()
 }

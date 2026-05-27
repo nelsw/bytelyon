@@ -3,62 +3,61 @@ package news
 import (
 	"encoding/json"
 	"errors"
-	"sort"
+	"fmt"
 
-	"github.com/nelsw/bytelyon/pkg/article"
+	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/page"
 	"github.com/nelsw/bytelyon/pkg/s3"
 	"github.com/nelsw/bytelyon/pkg/util"
-	"github.com/rs/zerolog/log"
+	"github.com/oklog/ulid/v2"
 )
 
-func (m *Model) Delete() (err error) {
-
-	//for url, id := range m.Entries {
-	//	err = errors.Join(page.Delete(url, id))
-	//}
-
-	if err = errors.Join(s3.Delete(m.Key(), false)); err != nil {
-		log.Warn().Err(err).Msg("failed to delete news")
-	}
-
-	return
+func key(userID ulid.ULID, topic string) string {
+	return fmt.Sprintf("users/%s/news/%s.json", userID, topic)
 }
 
-func (m *Model) Find(eager ...bool) (ok bool) {
+func Delete(userID ulid.ULID, topic string) error {
 
-	out, err := s3.Get(m.Key(), false)
+	m, err := Find(userID, topic)
 	if err != nil {
-		log.Warn().Err(err).Msg("failed to find news")
-		return
+		return err
 	}
 
-	if err = json.Unmarshal(out, &m); err != nil {
-		log.Warn().Err(err).Msg("failed to unmarshal news")
-		return
+	for url, h := range m {
+		err = errors.Join(page.Delete(url, h.ID))
 	}
 
-	if len(eager) > 0 {
-		for url, id := range m.Entries {
-			if å, _ := article.Find(url, id); å != nil {
-				m.Articles = append(m.Articles, å)
-			}
-		}
-		sort.Sort(sort.Reverse(m.Articles))
-	}
-
-	return true
+	return errors.Join(s3.Delete(key(userID, topic), false))
 }
 
-func (m *Model) Save() {
+func Find(userID ulid.ULID, topic string) (map[string]*Headline, error) {
 
-	µ := New(m.UserID, m.Topic)
-	if µ.Find() {
-		µ.Merge(m)
-	} else {
-		µ = m
+	out, err := s3.Get(key(userID, topic), false)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := s3.Put(µ.Key(), util.JSON(µ), false); err != nil {
-		log.Warn().Err(err).Msg("failed to save news")
+	var m map[string]*Headline
+	if err = json.Unmarshal(out, &m); err != nil {
+		return nil, err
 	}
+
+	return m, nil
+}
+
+func FindOrNew(userID ulid.ULID, topic string) *model.SyncMap[string, *Headline] {
+	m, err := Find(userID, topic)
+	if err != nil {
+		m = make(map[string]*Headline)
+	}
+	return model.NewSyncMap[string, *Headline](m)
+}
+
+func Save(userID ulid.ULID, topic string, entries map[string]*Headline) error {
+	if m, err := Find(userID, topic); err == nil {
+		for k, v := range m {
+			entries[k] = v
+		}
+	}
+	return s3.Put(key(userID, topic), util.JSON(entries), false)
 }

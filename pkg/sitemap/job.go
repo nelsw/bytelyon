@@ -1,7 +1,6 @@
 package sitemap
 
 import (
-	"strings"
 	"sync"
 	"time"
 
@@ -9,113 +8,69 @@ import (
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/snippet"
-	"github.com/nelsw/bytelyon/pkg/url"
 	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
+	"github.com/rs/zerolog/log"
 )
 
-type job struct {
-	domain string
+func Work(ctx playwright.BrowserContext, userID ulid.ULID, domain string) {
 
-	// capacitor limits the number of concurrent requests to keep headed browser tabs from crashing.
-	capacitor *model.Capacitor
+	urls := model.NewSyncMap[string, bool]()
 
-	// BrowserContext is the context of the browser, which is used to scrape the browser and the page.
-	ctx playwright.BrowserContext
+	var wg sync.WaitGroup
 
-	// Visited is a map of snippet URLs to snippet IDs to prevent duplicate routines and data.
-	visisted *model.SyncMap[string, ulid.ULID]
+	wg.Go(func() {
+		work(
+			model.NewCapacitor(25),
+			ctx,
+			urls,
+			&wg,
+			domain,
+			"https://"+domain,
+			5,
+		)
+	})
+	wg.Wait()
 
-	// WaitGroup manages the job routines
-	wg sync.WaitGroup
+	if err := Save(userID, domain, urls); err != nil {
+		log.Warn().Err(err).Msg("failed to save sitemap")
+	}
 }
 
-func (m *Model) Run(ctx playwright.BrowserContext) {
-
-	j := &job{
-		domain:    m.Domain,
-		ctx:       ctx,
-		visisted:  model.NewSyncMap[string, ulid.ULID](),
-		capacitor: model.NewCapacitor(25),
-	}
-
-	j.wg.Go(func() { j.scrape("https://"+j.domain, 5) })
-	j.wg.Wait()
-
-	for k, v := range j.visisted.ToMap() {
-		m.Entries[k] = append(m.Entries[k], v)
-	}
-	m.Save()
-}
-
-func (j *job) scrape(u string, d int) {
+func work(
+	capacitor *model.Capacitor,
+	ctx playwright.BrowserContext,
+	urls *model.SyncMap[string, bool],
+	wg *sync.WaitGroup,
+	domain string,
+	url string,
+	depth int,
+) {
 
 	// check if we're at the depth limit or if we've already visited this URL
-	if d <= 0 || j.visisted.Has(u) {
+	if depth <= 0 || urls.Has(url) {
 		return
 	}
 
-	pid := id.New()
-	j.visisted.Set(u, pid)
+	urls.Set(url, false)
 
-	for !j.capacitor.Inc() {
+	for !capacitor.Inc() {
 		time.Sleep(500 * time.Millisecond)
 	}
-	defer j.capacitor.Dec()
+	defer capacitor.Dec()
 
-	content, screenshot := pw.Scrape(u, j.ctx)
-
-	snip := snippet.New(pid, u, content, screenshot)
-	snip.Create()
-
-	for _, a := range j.crawl(u, snip.Links) {
-		j.wg.Go(func() { j.scrape(a, d-1) })
-	}
-}
-
-func (j *job) crawl(u string, links []string) (arr []string) {
-	for _, link := range links {
-
-		// if the link is an insecure URL
-		if strings.HasPrefix(link, "http://") {
-			continue
-		}
-
-		// if the link is empty or root
-		if link == "" || link == "/" {
-			continue
-		}
-
-		// if the link is relative to the root urls
-		if strings.HasPrefix(link, "/") {
-			arr = append(arr, "https://"+j.domain+link)
-			continue
-		}
-
-		// if the link is a url; check the host equals our domain
-		if host := url.Host(link); host != "" && host != j.domain {
-			continue
-		}
-
-		// if the link is a secure URL
-		if strings.HasPrefix(link, "https://"+j.domain) {
-			arr = append(arr, link)
-			continue
-		}
-
-		// if the link is missing URL protocol
-		if strings.HasPrefix(link, j.domain) {
-			arr = append(arr, "https://"+link)
-			continue
-		}
-
-		// else the link is relative to this url
-		if l, _, ok := strings.Cut(link, "/"); ok {
-			arr = append(arr, u+"/"+l+"/"+link)
-		} else {
-			arr = append(arr, u+"/"+link)
-		}
+	content, screenshot := pw.Scrape(url, ctx)
+	if content == "" {
+		return
 	}
 
-	return
+	snip := snippet.New(id.New(), url, content, screenshot)
+	if err := snip.Save(); err != nil {
+		return
+	}
+	urls.Set(url, true)
+
+	for _, u := range snip.URLs() {
+		wg.Go(func() { work(capacitor, ctx, urls, wg, domain, u, depth-1) })
+	}
 }

@@ -1,4 +1,4 @@
-package article
+package news
 
 import (
 	"bytes"
@@ -16,7 +16,22 @@ import (
 	"golang.org/x/net/html"
 )
 
+func decodeBingNewsLink(s string) string {
+	s, _ = url.QueryUnescape(s)
+	parts := strings.Split(s, "url=")
+	if len(parts) < 2 {
+		return s
+	}
+	return strings.Split(parts[1], "&amp;c=")[0]
+}
+
 func decodeGoogleURL(s string) string {
+
+	matches := regexp.MustCompile(`/articles/(?P<encoded_url>[^?]+)`).FindStringSubmatch(s)
+	if len(matches) < 2 {
+		log.Warn().Str("url", s).Msg("failed to match gstatic regex")
+		return s
+	}
 
 	b, err := https.Get(s)
 	if err != nil {
@@ -27,12 +42,6 @@ func decodeGoogleURL(s string) string {
 	var doc *html.Node
 	if doc, err = html.Parse(bytes.NewReader(b)); err != nil {
 		log.Warn().Str("url", s).Msg("failed to parse gstatic html")
-		return s
-	}
-
-	matches := regexp.MustCompile(`/articles/(?P<encoded_url>[^?]+)`).FindStringSubmatch(s)
-	if len(matches) < 2 {
-		log.Warn().Str("url", s).Msg("failed to match gstatic regex")
 		return s
 	}
 

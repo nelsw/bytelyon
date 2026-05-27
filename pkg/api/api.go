@@ -19,6 +19,8 @@ type AuthResponse events.APIGatewayV2CustomAuthorizerSimpleResponse
 type Response events.APIGatewayV2HTTPResponse
 type Request events.APIGatewayV2HTTPRequest
 
+func (r Response) Log() { log.Log().EmbedObject(r).Msg("response") }
+
 func (r Request) Authorization() string  { return r.Headers["authorization"] }
 func (r Request) Log()                   { log.Log().EmbedObject(r).Msg("request") }
 func (r Request) Method() string         { return r.RequestContext.HTTP.Method }
@@ -30,7 +32,9 @@ func (r Request) NOPE() Response         { return r.Response(http.StatusForbidde
 func (r Request) OK(a any) Response      { return r.Response(http.StatusOK, a) }
 
 func (r Request) OF(a any) Response {
-	if err, ok := a.(error); ok {
+	if a == nil {
+		return r.NC()
+	} else if err, ok := a.(error); ok {
 		return r.BAD(err)
 	}
 	return r.OK(a)
@@ -76,18 +80,14 @@ func (r Request) Response(code int, a ...any) Response {
 		body = `{"message":"` + err.Error() + `"}`
 	} else {
 		var b []byte
-		if b, err = json.MarshalIndent(a[0], "", "\t"); err != nil {
+		if b, err = json.Marshal(a[0]); err != nil {
 			body = `{"message":"` + err.Error() + `"}`
 		} else {
 			body = string(b)
 		}
 	}
 
-	log.Log().
-		Dict("response", new(zerolog.Event).CreateDict().
-			Int("code", code).
-			Any("body", body)).
-		Msg("response")
+	log.Info().Msgf("response: code=[%d] body=[%s]", code, body)
 
 	return Response{
 		StatusCode: code,
@@ -110,6 +110,11 @@ func (r Request) MarshalZerologObject(evt *zerolog.Event) {
 		Str("body", r.Body)
 }
 
+func (r Response) MarshalZerologObject(evt *zerolog.Event) {
+	evt.Int("code", r.StatusCode).
+		Str("body", r.Body)
+}
+
 func (r Request) BotType() model.BotType {
 	if err := model.BotType(r.Query("type")).Validate(); err != nil {
 		log.Warn().Err(err).Msg("invalid bot")
@@ -118,9 +123,9 @@ func (r Request) BotType() model.BotType {
 	return model.BotType(r.Query("type"))
 }
 
-func (r Request) Domain() string {
-	return strings.ReplaceAll(r.Query("domain"), " ", ".")
-}
+func (r Request) Domain() string { return r.Query("domain") }
+func (r Request) Topic() string  { return r.Query("topic") }
+func (r Request) URL() string    { return r.Query("url") }
 
 func (r Request) Target() string {
 	if r.BotType() != model.SitemapBotType {

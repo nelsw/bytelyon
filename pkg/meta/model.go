@@ -1,4 +1,4 @@
-package model
+package meta
 
 import (
 	"maps"
@@ -6,12 +6,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nelsw/bytelyon/pkg/image"
 	"github.com/nelsw/bytelyon/pkg/util"
 )
 
-type Meta map[string]string
+type Model map[string]string
 
-func (m Meta) Title() string {
+func Make() Model { return make(Model) }
+
+func (m Model) Title() string {
 	return util.Or(
 		m["title"],
 		m["og:title"],
@@ -19,11 +22,9 @@ func (m Meta) Title() string {
 	)
 }
 
-func (m Meta) Image() Image {
-	return MakeImage(m.ImageSrc(), m.ImageAlt())
-}
+func (m Model) Image() image.Model { return image.Make(m.ImageSrc(), m.ImageAlt()) }
 
-func (m Meta) ImageSrc() string {
+func (m Model) ImageSrc() string {
 	return util.Or(
 		m["image"],
 		m["og:image"],
@@ -34,14 +35,14 @@ func (m Meta) ImageSrc() string {
 	)
 }
 
-func (m Meta) ImageAlt() string {
+func (m Model) ImageAlt() string {
 	return util.Or(
 		m["og:image:alt"],
 		m["twitter:image:alt"],
 	)
 }
 
-func (m Meta) Source() string {
+func (m Model) Source() string {
 	return util.Or(
 		m["og:site"],
 		m["og:site_name"],
@@ -49,7 +50,7 @@ func (m Meta) Source() string {
 	)
 }
 
-func (m Meta) Description() string {
+func (m Model) Description() string {
 	return util.Or(
 		m["abstract"],
 		m["description"],
@@ -58,7 +59,7 @@ func (m Meta) Description() string {
 	)
 }
 
-func (m Meta) Keywords() []string {
+func (m Model) Keywords() []string {
 
 	opts := []string{
 		m["keywords"],
@@ -83,7 +84,7 @@ func (m Meta) Keywords() []string {
 	return slices.Sorted(maps.Keys(kw))
 }
 
-func (m Meta) PublishedTime() string {
+func (m Model) PublishedTime() string {
 	return util.Or(
 		m["article:published_time"],
 		m["og:article:published_time"],
@@ -92,7 +93,7 @@ func (m Meta) PublishedTime() string {
 	)
 }
 
-func (m Meta) PublishedAt() time.Time {
+func (m Model) PublishedAt() time.Time {
 	var t time.Time
 	t, _ = time.Parse(time.RFC3339, m.PublishedTime())
 	return t

@@ -108,7 +108,17 @@ func Host(s string) string {
 }
 
 func JSON(a any) []byte {
-	return Safe(json.Marshal(a))
+	if a == nil {
+		return []byte(`{}`)
+	}
+	switch v := a.(type) {
+	case []byte:
+		return v
+	case string:
+		return []byte(v)
+	default:
+		return Safe(json.Marshal(a))
+	}
 }
 
 func PrettyJSON(a any) string {
@@ -133,4 +143,26 @@ func Trunc(s string, n int) string {
 	}
 	s = s[:n-3] + "..."
 	return s
+}
+
+func Chomp(in, a, z string) (string, string) {
+
+	aIdx, zIdx := strings.Index(in, a), strings.Index(in, z)
+	if aIdx == -1 || zIdx == -1 {
+		return "", in
+	}
+
+	out := in[aIdx+len(a) : zIdx]
+
+	in = in[:aIdx] + in[zIdx+len(z):]
+
+	return out, in
+}
+
+func Chomps(s, a, z string) (arr []string) {
+	var res string
+	for res, s = Chomp(s, a, z); res != ""; res, s = Chomp(s, a, z) {
+		arr = append(arr, res)
+	}
+	return
 }

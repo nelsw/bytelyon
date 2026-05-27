@@ -2,12 +2,9 @@ package pw
 
 import (
 	"fmt"
-	"maps"
 	"math/rand"
 	"regexp"
-	"slices"
 	"strings"
-	"unicode"
 
 	"github.com/nelsw/bytelyon/pkg/logs"
 	"github.com/nelsw/bytelyon/pkg/util"
@@ -220,6 +217,27 @@ func NewPage(ctx playwright.BrowserContext) (page playwright.Page, err error) {
 	return
 }
 
+func NewTab(ctx playwright.BrowserContext, l playwright.Locator) (page playwright.Page, err error) {
+	var cb = func() error {
+		return l.Click(playwright.LocatorClickOptions{
+			Force:     ptr.True,
+			Modifiers: []playwright.KeyboardModifier{"Meta"},
+			Timeout:   ptr.ZeroFloat64,
+		})
+	}
+
+	var opt = playwright.BrowserContextExpectPageOptions{
+		Predicate: func(p playwright.Page) bool { return true },
+	}
+
+	if page, err = ctx.ExpectPage(cb, opt); err != nil {
+		log.Warn().Err(err).Msg("Client - Failed to ExpectPage")
+	} else if err = page.BringToFront(); err != nil {
+		log.Warn().Err(err).Msg("Client - Failed to BringToFront")
+	}
+	return
+}
+
 // GoTo returns the main resource response.
 func GoTo(page playwright.Page, url string) (playwright.Response, error) {
 	return page.Goto(url, playwright.PageGotoOptions{
@@ -314,142 +332,6 @@ func Screenshot(page playwright.Page) []byte {
 	return b
 }
 
-// Title returns the document title or an empty string if the document has failed to load.
-func Title(page playwright.Page) string {
-	s, err := page.Title()
-	if err != nil {
-		log.Err(err).Msg("failed to get document title")
-		return ""
-	}
-	return s
-}
-
-// Meta returns a map of meta tags by inspecting meta tag properties.
-func Meta(page playwright.Page) map[string]string {
-
-	m := make(map[string]string)
-
-	var k, v string
-	for _, l := range Locators(page, "meta") {
-		if k = Attribute(l, "name"); k == "" {
-			if k = Attribute(l, "property"); k == "" {
-				continue
-			}
-		}
-		if v = Attribute(l, "content"); v == "" {
-			continue
-		}
-		m[k] = v
-	}
-
-	meta := make(map[string]string)
-	for k, v = range m {
-
-		if alphaNum.MatchString(k) {
-			meta[k] = v
-			continue
-		}
-
-		k = notAlphaNum.ReplaceAllString(k, " ")
-		var s string
-		for i, p := range strings.Split(k, " ") {
-			if i == 0 {
-				s = p
-			} else {
-				s += string(unicode.ToUpper(rune(p[0]))) + p[1:]
-			}
-		}
-		meta[s] = v
-	}
-
-	return meta
-}
-
-// Links returns absolute and relative links of a document by inspecting anchor tag properties.
-// - ✅ (absolute) https://ByteLyon.com/dashboard
-// - ✅ (relative) /dashboard
-// - ❌ (fragment) #contact
-// - ❌ (download) foo.pdf
-// - ❌ (schemes) mailto:foo@bar.com
-// - ❌ (js) javascript:void(0);
-func Links(page playwright.Page) []string {
-	var m = make(map[string]bool)
-
-	for _, a := range Locators(page, "a") {
-
-		// does it have a hypertext reference?
-		href, err := a.GetAttribute("href")
-		if err != nil {
-			continue
-		}
-
-		// trim whitespace (yes, technically it's possible)
-		if href = strings.TrimSpace(href); href == "" {
-			continue
-		}
-
-		// is it a js link?
-		if strings.Contains(href, "javascript:") {
-			continue
-		}
-
-		// is it a file link?
-		if util.HasFileExtension(href) {
-			continue
-		}
-
-		// is it a fragment?
-		if strings.HasPrefix(href, "#") {
-			continue
-		}
-
-		// is it a browser function?
-		if hrefSchemes.MatchString(href) {
-			continue
-		}
-
-		m[href] = true
-	}
-
-	return slices.Collect(maps.Keys(m))
-}
-
-// Paragraphs returns a list of unique paragraphs in the document.
-func Paragraphs(page playwright.Page) (paragraphs []string) {
-
-	uniqueParagraphs := make(map[string]int)
-	for i, p := range Locators(page, "p") {
-		//if txt := textContent(p); txt != "" && !parser.Skip(txt) {
-		//	uniqueParagraphs[txt] = i
-		//}
-		if txt := textContent(p); txt != "" {
-			uniqueParagraphs[txt] = i
-		}
-	}
-
-	orderedParagraphs := make(map[int]string)
-	for k, v := range uniqueParagraphs {
-		orderedParagraphs[v] = k
-	}
-
-	for _, k := range slices.Sorted(maps.Keys(orderedParagraphs)) {
-		paragraphs = append(paragraphs, orderedParagraphs[k])
-	}
-
-	return
-}
-
-// Headings returns a map of headings by their level.
-func Headings(page playwright.Page) (headings map[string][]string) {
-	headings = make(map[string][]string)
-	for _, h := range []string{"h1", "h2", "h3", "h4", "h5", "h6"} {
-		for _, l := range Locators(page, h) {
-			headings[h] = append(headings[h], textContent(l))
-		}
-	}
-	return
-}
-
 func SearchGoogle(q string, ctx playwright.BrowserContext) (page playwright.Page, err error) {
 	if page, err = NewPage(ctx); err != nil {
 		return
@@ -494,15 +376,6 @@ func Locators(page playwright.Page, s string) []playwright.Locator {
 	}
 	log.Trace().Int("count", len(arr)).Msgf("found %d locators for selector: %s", len(arr), s)
 	return arr
-}
-
-func textContent(l playwright.Locator) string {
-	s, err := l.TextContent()
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to get text content")
-		return ""
-	}
-	return strings.TrimSpace(s)
 }
 
 func Attribute(l playwright.Locator, a string) string {

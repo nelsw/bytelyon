@@ -14,9 +14,19 @@ func NewZerolog() *zerolog.Logger {
 }
 
 func MakeZerolog(args ...string) zerolog.Logger {
+	if len(args) == 0 {
+		s := os.Getenv("LOG_LEVEL")
+		if s == "" {
+			s = "info"
+		}
+		args = append(args)
+	}
 	l := log.Output(zerolog.ConsoleWriter{
 		Out: os.Stdout,
 		FormatLevel: func(a any) string {
+			if a == nil {
+				a = "info"
+			}
 			switch l := strings.ToUpper(a.(string)[:3]); l {
 			case "TRA":
 				return Cyan + l + Default

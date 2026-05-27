@@ -9,6 +9,7 @@ import (
 	"time"
 
 	. "github.com/nelsw/bytelyon/pkg/api"
+	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/service/images"
 	"github.com/nelsw/bytelyon/pkg/shopify"
@@ -58,7 +59,7 @@ func handlePost(r Request) Response {
 	}
 
 	// assign a new ID
-	p.ID = model.NewULID()
+	p.ID = id.New()
 
 	// define the handle
 	p.Handle = strings.ToLower(strings.ReplaceAll(p.Title, " ", "-"))

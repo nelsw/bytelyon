@@ -8,9 +8,9 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-func TestModel_Run(t *testing.T) {
+func TestWork(t *testing.T) {
 
-	logs.Init("warn")
+	logs.Init("debug")
 
 	cpw := pw.Run()
 	bro, _ := pw.NewBrowser(cpw, true)
@@ -21,7 +21,5 @@ func TestModel_Run(t *testing.T) {
 		bro.Close()
 	}()
 
-	m := New(ulid.Zero, "firefibers.com")
-	m.Run(ctx)
-
+	Work(ctx, ulid.MustParse("01KM010XK0HY8HWWFPJTZGRF0F"), "firefibers.com")
 }

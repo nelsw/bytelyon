@@ -1,17 +1,16 @@
-package sitemap
+package search
 
 import (
 	"testing"
 
 	"github.com/nelsw/bytelyon/internal/pw"
-	"github.com/nelsw/bytelyon/pkg/entity"
 	"github.com/nelsw/bytelyon/pkg/logs"
 	"github.com/oklog/ulid/v2"
 )
 
-func TestNewProwler(t *testing.T) {
+func TestModel_Run(t *testing.T) {
 
-	logs.Init("debug")
+	logs.Init("trace")
 
 	cpw := pw.Run()
 	bro, _ := pw.NewBrowser(cpw, true)
@@ -22,6 +21,5 @@ func TestNewProwler(t *testing.T) {
 		bro.Close()
 	}()
 
-	e := entity.NewSitemap(ulid.MustParse("01KM01JC9PS1R4X4FDJNFAR4AZ"), "firefibers.com")
-	New(e, ctx).Prowl()
+	Work(ctx, ulid.MustParse("01KM010XK0HY8HWWFPJTZGRF0F"), "ev fire blanket for sale", map[string]bool{})
 }

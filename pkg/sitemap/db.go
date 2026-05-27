@@ -2,54 +2,50 @@ package sitemap
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 
+	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/s3"
 	"github.com/nelsw/bytelyon/pkg/util"
-	"github.com/rs/zerolog/log"
+	"github.com/oklog/ulid/v2"
 )
 
-func (m *Model) Delete() (err error) {
-
-	//for url, ids := range m.Entries {
-	//	for _, id := range ids {
-	//		err = errors.Join(page.Delete(url, id))
-	//	}
-	//}
-
-	if err = errors.Join(s3.Delete(m.Key(), false)); err != nil {
-		log.Warn().Err(err).Msg("failed to delete sitemap")
-	}
-
-	return
+func key(userID ulid.ULID, domain string) string {
+	return fmt.Sprintf("users/%s/sitemap/%s.json", userID, domain)
 }
 
-func (m *Model) Find() (ok bool) {
+func Delete(userID ulid.ULID, domain string) error {
+	return s3.Delete(key(userID, domain), false)
+}
 
-	out, err := s3.Get(m.Key(), false)
+func Find(userID ulid.ULID, domain string) ([]string, error) {
+
+	out, err := s3.Get(key(userID, domain), false)
 	if err != nil {
-		log.Warn().Err(err).Msg("failed to find sitemap")
-		return
+		return nil, err
 	}
 
-	if err = json.Unmarshal(out, &m); err != nil {
-		log.Warn().Err(err).Msg("failed to unmarshal sitemap")
-		return
+	var arr []string
+	if err = json.Unmarshal(out, &arr); err != nil {
+		return nil, err
 	}
 
-	return true
+	return arr, nil
 }
 
-func (m *Model) Save() {
+func Save(userID ulid.ULID, domain string, urls *model.SyncMap[string, bool]) error {
 
-	µ := New(m.UserID, m.Domain)
-	if µ.Find() {
-		µ.Merge(m)
-	} else {
-		µ = m
+	set := model.NewSet[string]()
+	for k, v := range urls.Map {
+		if v {
+			set.Add(k)
+		}
 	}
 
-	if err := s3.Put(µ.Key(), util.JSON(µ), false); err != nil {
-		log.Warn().Err(err).Msg("failed to save sitemap")
+	if arr, err := Find(userID, domain); err == nil {
+		for _, url := range arr {
+			set.Add(url)
+		}
 	}
+	return s3.Put(key(userID, domain), util.JSON(set.Slice()), false)
 }

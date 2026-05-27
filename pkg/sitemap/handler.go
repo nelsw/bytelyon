@@ -4,21 +4,39 @@ import (
 	"net/http"
 
 	"github.com/nelsw/bytelyon/pkg/api"
+	"github.com/nelsw/bytelyon/pkg/page"
+	"github.com/nelsw/bytelyon/pkg/snippet"
 )
 
 func Handler(r api.Request) api.Response {
-
-	µ := New(r.UserID(), r.Query("domain"))
-	if !µ.Find() {
-		return r.NC()
-	}
-
 	switch r.Method() {
 	case http.MethodGet:
-		return r.OK(µ)
+		return HandleGet(r)
 	case http.MethodDelete:
-		return r.OF(µ.Delete())
+		return HandleDelete(r)
+	}
+	return r.NI()
+}
+
+func HandleDelete(r api.Request) api.Response {
+	if err := Delete(r.UserID(), r.Domain()); err != nil {
+		return r.BAD(err)
+	}
+	return r.NC()
+}
+
+func HandleGet(r api.Request) api.Response {
+	if r.URL() == "" {
+		arr, err := Find(r.UserID(), r.Domain())
+		if err != nil {
+			return r.BAD(err)
+		}
+		return r.OK(arr)
 	}
 
-	return r.NI()
+	out, err := page.FindObjects[snippet.Model](r.URL())
+	if err != nil {
+		return r.BAD(err)
+	}
+	return r.OK(out)
 }

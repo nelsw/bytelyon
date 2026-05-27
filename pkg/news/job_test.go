@@ -2,14 +2,14 @@ package news
 
 import (
 	"testing"
+	"time"
 
 	"github.com/nelsw/bytelyon/internal/pw"
-	"github.com/nelsw/bytelyon/pkg/entity"
 	"github.com/nelsw/bytelyon/pkg/logs"
 	"github.com/oklog/ulid/v2"
 )
 
-func TestProwler(t *testing.T) {
+func TestWork(t *testing.T) {
 
 	logs.Init("debug")
 
@@ -22,7 +22,11 @@ func TestProwler(t *testing.T) {
 		bro.Close()
 	}()
 
-	e := entity.NewNews(ulid.MustParse("01KM01JC9PS1R4X4FDJNFAR4AZ"), "ai today")
-	New(e, ctx).Prowl()
-
+	Work(
+		ctx,
+		ulid.MustParse("01KM010XK0HY8HWWFPJTZGRF0F"),
+		"ev fire",
+		map[string]bool{},
+		time.Now().Add(-24*7*time.Hour),
+	)
 }

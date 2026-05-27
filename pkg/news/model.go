@@ -1,44 +1,25 @@
 package news
 
 import (
-	"fmt"
-
-	"github.com/nelsw/bytelyon/pkg/article"
+	"github.com/nelsw/bytelyon/pkg/image"
+	"github.com/nelsw/bytelyon/pkg/meta"
 	"github.com/oklog/ulid/v2"
 )
 
-// Model contains topical news articles that belong to a user.
-type Model struct {
-
-	// Entries is a map of article URLs to model.Page keys.
-	Entries map[string]ulid.ULID `json:"entries"`
-
-	// Topic is the news topic, defined by the model.Bot target.
-	Topic string `json:"-"`
-
-	// UserID is the user ID of the user who is requesting the news.
-	UserID ulid.ULID `json:"-"`
-
-	// Articles is a list of articles that belong to the topic.
-	Articles article.Models `json:"articles,omitempty"`
+type Article struct {
+	Body        []string    `json:"body"`
+	Description string      `json:"description"`
+	ID          ulid.ULID   `json:"id"`
+	Image       image.Model `json:"image"`
+	Keywords    []string    `json:"keywords"`
+	Meta        meta.Model  `json:"meta"`
+	Source      string      `json:"source"`
+	Title       string      `json:"title"`
+	URL         string      `json:"url"`
 }
 
-func New(userID ulid.ULID, topic string) *Model {
-	return &Model{
-		Entries: make(map[string]ulid.ULID),
-		Topic:   topic,
-		UserID:  userID,
-	}
-}
-
-func (m *Model) Merge(other *Model) {
-	for k, v := range other.Entries {
-		if _, ok := m.Entries[k]; !ok {
-			m.Entries[k] = v
-		}
-	}
-}
-
-func (m *Model) Key() string {
-	return fmt.Sprintf("users/%s/news/%s.json", m.UserID, m.Topic)
+type Headline struct {
+	ID    ulid.ULID `json:"id"`
+	Title string    `json:"title"`
+	URL   string    `json:"url,omitempty"`
 }

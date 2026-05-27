@@ -2,7 +2,6 @@ package search
 
 import (
 	"github.com/nelsw/bytelyon/internal/pw"
-	"github.com/nelsw/bytelyon/pkg/document"
 	"github.com/nelsw/bytelyon/pkg/page"
 	"github.com/nelsw/bytelyon/pkg/serp"
 	"github.com/oklog/ulid/v2"
@@ -17,48 +16,30 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, query string, exclude
 		return
 	}
 
-	srp := serp.New(query, pw.Content(g), pw.Screenshot(g))
-	if err = page.SaveObject(srp.URL, srp.ID, srp); err != nil {
-		log.Warn().Err(err).Msg("Failed to save serp object")
-		return
-	}
-	if err = page.SaveContent(srp.URL, srp.ID, srp.Content); err != nil {
-		log.Warn().Err(err).Msg("Failed to save serp content")
-		return
-	}
-	if err = page.SaveScreenshot(srp.URL, srp.ID, srp.Screenshot); err != nil {
-		log.Warn().Err(err).Msg("Failed to save serp screenshot")
+	var m *serp.Model
+	if m, err = serp.Create(query, pw.Content(g), pw.Screenshot(g)); err != nil {
 		return
 	}
 
+	Update(userID, query, m.ID)
+
 	defer func() {
-		Save(userID, query, map[ulid.ULID]string{
-			srp.ID: srp.URL,
-		})
+		serp.Update(m)
 		g.Close()
 	}()
 
 	var p playwright.Page
 	for _, l := range pw.Locators(g, "[data-dtld]") {
-
 		if domain := pw.Attribute(l, "data-dtld"); exclude[domain] {
 			continue
-		} else if p, err = pw.NewTab(ctx, l); err != nil || p == nil {
+		} else if p, err = pw.NewTab(ctx, l); err != nil || p == nil || p.URL() == "about:blank" {
 			continue
 		}
-
-		if err = page.SaveScreenshot(p.URL(), srp.ID, pw.Screenshot(p)); err != nil {
+		content, screenshot := pw.Content(p), pw.Screenshot(p)
+		m.AddSponsored(p.URL(), content)
+		serp.Update(m)
+		if err = page.SaveScreenshot(p.URL(), m.ID, screenshot); err != nil {
 			log.Warn().Err(err).Msg("Failed to save screenshot")
-		}
-		doc := document.New(pw.Content(p))
-		srp.AddSponsored(map[string]any{
-			"link":    p.URL(),
-			"title":   doc.Meta.Title(),
-			"snippet": doc.Meta.Description(),
-			"source":  doc.Meta.Source(),
-		})
-		if err = page.SaveObject(srp.URL, srp.ID, srp); err != nil {
-			log.Warn().Err(err).Msg("Failed to save serp object")
 		}
 		p.Close()
 	}

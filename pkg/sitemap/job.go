@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/internal/pw"
-	"github.com/nelsw/bytelyon/pkg/id"
+	"github.com/nelsw/bytelyon/pkg/document"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/page"
 	"github.com/nelsw/bytelyon/pkg/snippet"
@@ -65,7 +65,9 @@ func work(
 		return
 	}
 
-	snip := snippet.New(id.New(), url, content, screenshot)
+	doc := document.New(url, content)
+
+	snip := snippet.New(url, doc.Title(), doc.Meta)
 	if err := page.SaveObject(snip.URL, snip.ID, snip); err != nil {
 		return
 	} else if err = page.SaveScreenshot(snip.URL, snip.ID, screenshot); err != nil {
@@ -73,7 +75,7 @@ func work(
 	}
 	urls.Set(url, true)
 
-	for _, u := range snip.URLs() {
+	for _, u := range doc.URLs() {
 		wg.Go(func() { work(capacitor, ctx, urls, wg, domain, u, depth-1) })
 	}
 }

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 
-	"github.com/nelsw/bytelyon/pkg/page"
 	"github.com/nelsw/bytelyon/pkg/s3"
 	"github.com/nelsw/bytelyon/pkg/serp"
 	"github.com/nelsw/bytelyon/pkg/util"
@@ -19,62 +19,58 @@ func key(userID ulid.ULID, query string) string {
 
 func Delete(userID ulid.ULID, query string) error {
 
-	m, err := Find(userID, query)
-	if err != nil {
-		return err
+	arr, err := Find(userID, query)
+	if err == nil {
+		for _, id := range arr {
+			err = errors.Join(err, serp.Delete(query, id))
+		}
 	}
 
-	for id, url := range m {
-		err = errors.Join(page.Delete(url, id))
-	}
-
-	return errors.Join(s3.Delete(key(userID, query), false))
+	return errors.Join(err, s3.Delete(key(userID, query), false))
 }
 
-func Find(userID ulid.ULID, query string) (map[ulid.ULID]string, error) {
-
-	out, err := s3.Get(key(userID, query), false)
-	if err != nil {
-		return nil, err
+func Find(userID ulid.ULID, query string) (arr []ulid.ULID, err error) {
+	var out []byte
+	if out, err = s3.Get(key(userID, query), false); err != nil {
+		return
+	} else if err = json.Unmarshal(out, &arr); err != nil {
+		return
 	}
-
-	var m map[ulid.ULID]string
-	if err = json.Unmarshal(out, &m); err != nil {
-		return nil, err
-	}
-
-	return m, nil
-}
-
-func FindIDs(userID ulid.ULID, query string) ([]ulid.ULID, error) {
-	m, err := Find(userID, query)
-	if err != nil {
-		return nil, err
-	}
-	var ids []ulid.ULID
-	for id := range m {
-		ids = append(ids, id)
-	}
-	slices.SortFunc(ids, func(a, b ulid.ULID) int {
-		return b.Compare(a)
-	})
-	return ids, nil
+	slices.SortFunc(arr, func(a, b ulid.ULID) int { return b.Compare(a) })
+	return
 }
 
 func FindSerp(userID ulid.ULID, query string, id ulid.ULID) (*serp.Model, error) {
-	m, err := Find(userID, query)
+	arr, err := Find(userID, query)
 	if err != nil {
 		return nil, err
 	}
 
-	url, ok := m[id]
-	if !ok {
-		return nil, nil
+	for _, a := range arr {
+		if a.Compare(id) == 0 {
+			return serp.Find(query, a)
+		}
 	}
 
-	return page.FindObject[*serp.Model](url, id)
+	return nil, nil
 }
 
-func Save(userID ulid.ULID, query string, m map[ulid.ULID]string) error {
-	return s3.Put(key(userID, query), util.JSON(m), false)
+func Save(userID ulid.ULID, query string, arr []ulid.ULID) error {
+	return s3.Put(key(userID, query), util.JSON(arr), false)
+}
+
+func Update(userID ulid.ULID, query string, id ulid.ULID) error {
+
+	arr, _ := Find(userID, query)
+	if len(arr) == 0 {
+		return Save(userID, query, []ulid.ULID{id})
+	}
+
+	m := map[ulid.ULID]bool{id: true}
+	for _, a := range arr {
+		m[a] = true
+	}
+	arr = slices.Collect(maps.Keys(m))
+	slices.SortFunc(arr, func(a, b ulid.ULID) int { return b.Compare(a) })
+	return Save(userID, query, arr)
 }

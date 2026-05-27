@@ -59,7 +59,7 @@ func handlePost(r Request) Response {
 	}
 
 	// assign a new ID
-	p.ID = id.New()
+	p.ID = id.NewULID()
 
 	// define the handle
 	p.Handle = strings.ToLower(strings.ReplaceAll(p.Title, " ", "-"))

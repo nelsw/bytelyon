@@ -18,33 +18,18 @@ func Delete(userID ulid.ULID, domain string) error {
 	return s3.Delete(key(userID, domain), false)
 }
 
-func Find(userID ulid.ULID, domain string) ([]string, error) {
-
-	out, err := s3.Get(key(userID, domain), false)
-	if err != nil {
-		return nil, err
+func Find(userID ulid.ULID, domain string) (arr []string) {
+	if out, err := s3.Get(key(userID, domain), false); err == nil {
+		err = json.Unmarshal(out, &arr)
 	}
-
-	var arr []string
-	if err = json.Unmarshal(out, &arr); err != nil {
-		return nil, err
-	}
-
-	return arr, nil
+	return
 }
 
 func Save(userID ulid.ULID, domain string, urls *model.SyncMap[string, bool]) error {
-
-	set := model.NewSet[string]()
+	set := model.NewSet[string](Find(userID, domain)...)
 	for k, v := range urls.Map {
 		if v {
 			set.Add(k)
-		}
-	}
-
-	if arr, err := Find(userID, domain); err == nil {
-		for _, url := range arr {
-			set.Add(url)
 		}
 	}
 	return s3.Put(key(userID, domain), util.JSON(set.Slice()), false)

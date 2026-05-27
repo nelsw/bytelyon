@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/nelsw/bytelyon/pkg/document"
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
@@ -32,7 +33,7 @@ type Model struct {
 func New(query, content string, screenshot []byte) *Model {
 
 	m := &Model{
-		ID:         id.New(),
+		ID:         id.NewULID(),
 		Doc:        util.Safe(goquery.NewDocumentFromReader(strings.NewReader(content))),
 		Content:    content,
 		Screenshot: screenshot,
@@ -57,9 +58,15 @@ func New(query, content string, screenshot []byte) *Model {
 	return m
 }
 
-func (m *Model) AddSponsored(data map[string]any) {
-	data["position"] = len(m.Sponsored)
-	m.Sponsored = append(m.Sponsored, data)
+func (m *Model) AddSponsored(url, content string) {
+	doc := document.New(url, content)
+	m.Sponsored = append(m.Sponsored, map[string]any{
+		"link":     url,
+		"position": len(m.Sponsored),
+		"snippet":  doc.Meta.Description(),
+		"source":   doc.Meta.Source(),
+		"title":    doc.Title(),
+	})
 }
 
 func (m *Model) fillOrganicData() {

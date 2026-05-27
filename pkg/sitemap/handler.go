@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/nelsw/bytelyon/pkg/api"
-	"github.com/nelsw/bytelyon/pkg/page"
 	"github.com/nelsw/bytelyon/pkg/snippet"
 )
 
@@ -18,16 +17,7 @@ func Handler(r api.Request) api.Response {
 
 func HandleGet(r api.Request) api.Response {
 	if r.Query("url") == "" {
-		arr, err := Find(r.UserID(), r.Query("domain"))
-		if err != nil {
-			return r.BAD(err)
-		}
-		return r.OK(arr)
+		return r.OK(Find(r.UserID(), r.Query("domain")))
 	}
-
-	out, err := page.FindObjects[snippet.Model](r.Query("url"))
-	if err != nil {
-		return r.BAD(err)
-	}
-	return r.OK(out)
+	return r.OK(snippet.Find(r.Query("url")))
 }

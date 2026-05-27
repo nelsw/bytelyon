@@ -2,6 +2,7 @@ package search
 
 import (
 	"net/http"
+	"slices"
 
 	"github.com/nelsw/bytelyon/pkg/api"
 )
@@ -18,14 +19,26 @@ func Handler(r api.Request) api.Response {
 
 func HandleDelete(r api.Request) api.Response {
 
-	m, err := Find(r.UserID(), r.Query("query"))
+	arr, err := Find(r.UserID(), r.Query("query"))
 	if err != nil {
 		return r.BAD(err)
 	}
 
-	delete(m, r.ID())
+	idx := -1
+	for i, a := range arr {
+		if a.Compare(r.ID()) == 0 {
+			idx = i
+			break
+		}
+	}
 
-	if err = Save(r.UserID(), r.Query("query"), m); err != nil {
+	if idx < 0 {
+		return r.NC()
+	}
+
+	slices.Delete(arr, idx, idx+1)
+
+	if err = Save(r.UserID(), r.Query("query"), arr); err != nil {
 		return r.BAD(err)
 	}
 	return r.NC()
@@ -34,7 +47,7 @@ func HandleDelete(r api.Request) api.Response {
 func HandleGet(r api.Request) api.Response {
 
 	if r.ID().IsZero() {
-		arr, err := FindIDs(r.UserID(), r.Query("query"))
+		arr, err := Find(r.UserID(), r.Query("query"))
 		if err != nil {
 			return r.BAD(err)
 		}

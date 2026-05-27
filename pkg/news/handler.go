@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/nelsw/bytelyon/pkg/api"
+	"github.com/nelsw/bytelyon/pkg/article"
 	"github.com/nelsw/bytelyon/pkg/page"
 )
 
@@ -19,39 +20,42 @@ func Handler(r api.Request) api.Response {
 }
 
 func HandleDelete(r api.Request) api.Response {
-	m, err := Find(r.UserID(), r.Query("topic"))
-	if err != nil {
-		return r.NC()
+
+	arr := Find(r.UserID(), r.Query("topic"))
+	idx := -1
+	for i, a := range arr {
+		if a.URL == r.Query("url") {
+			idx = i
+			break
+		}
 	}
-	if err = page.Delete(r.Query("url"), m[r.Query("url")].ID); err != nil {
-		return r.BAD(err)
+
+	if idx >= 0 {
+		headline := arr[idx]
+		if err := page.Delete(headline.URL, headline.ID); err != nil {
+			return r.BAD(err)
+		}
+		slices.Delete(arr, idx, idx+1)
+		Save(r.UserID(), r.Query("topic"), arr)
 	}
-	delete(m, r.Query("url"))
-	Save(r.UserID(), r.Query("topic"), m)
+
 	return r.NC()
 }
 
 func HandleGet(r api.Request) api.Response {
-	m, err := Find(r.UserID(), r.Query("topic"))
-	if err != nil {
-		return r.NC()
+	arr := Find(r.UserID(), r.Query("topic"))
+	if r.Query("url") == "" {
+		return r.OK(arr)
 	}
 
-	if r.Query("url") != "" {
-		var a Article
-		if a, err = page.FindObject[Article](r.Query("url"), m[r.Query("url")].ID); err != nil {
-			return r.NC()
+	for _, h := range arr {
+		if h.URL != r.Query("url") {
+			continue
 		}
-		return r.OK(a)
+		if a, err := article.Find(h.URL, h.ID); err == nil {
+			return r.OK(a)
+		}
+		break
 	}
-
-	var arr []*Headline
-	for k, v := range m {
-		v.URL = k
-		arr = append(arr, v)
-	}
-	slices.SortFunc(arr, func(a, b *Headline) int {
-		return b.ID.Compare(a.ID)
-	})
-	return r.OK(arr)
+	return r.NC()
 }

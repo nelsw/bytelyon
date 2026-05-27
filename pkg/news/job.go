@@ -7,11 +7,10 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/internal/pw"
-	"github.com/nelsw/bytelyon/pkg/document"
+	"github.com/nelsw/bytelyon/pkg/article"
 	"github.com/nelsw/bytelyon/pkg/https"
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/model"
-	"github.com/nelsw/bytelyon/pkg/page"
 	"github.com/nelsw/bytelyon/pkg/urls"
 	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
@@ -25,7 +24,10 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, topic string, exclude
 		return
 	}
 
-	m := FindOrNew(userID, topic)
+	m := model.NewSyncMap[string, *Model]()
+	for _, h := range Find(userID, topic) {
+		m.Set(h.URL, h)
+	}
 
 	var wg sync.WaitGroup
 	for _, h := range headlines {
@@ -33,10 +35,10 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, topic string, exclude
 	}
 	wg.Wait()
 
-	Save(userID, topic, m.Map)
+	Save(userID, topic, m.Values())
 }
 
-func routine(ctx playwright.BrowserContext, m *model.SyncMap[string, *Headline], h *Headline) func() {
+func routine(ctx playwright.BrowserContext, m *model.SyncMap[string, *Model], h *Model) func() {
 	return func() {
 		if m.Has(h.URL) {
 			return
@@ -46,33 +48,16 @@ func routine(ctx playwright.BrowserContext, m *model.SyncMap[string, *Headline],
 		if content == "" {
 			return
 		}
-		doc := document.New(content)
 
-		a := &Article{
-			Body:        doc.Paragraphs,
-			Description: doc.Meta.Description(),
-			ID:          h.ID,
-			Image:       doc.Meta.Image(),
-			Keywords:    doc.Meta.Keywords(),
-			Source:      doc.Meta.Source(),
-			Title:       h.Title,
-			URL:         h.URL,
-		}
-
-		if err := page.SaveObject(a.URL, a.ID, a); err != nil {
-			log.Warn().Err(err).Msg("failed to save article object")
-			return
-		}
-
-		if err := page.SaveScreenshot(a.URL, a.ID, screenshot); err != nil {
-			log.Warn().Err(err).Msg("failed to save article screenshot")
+		if err := article.Create(h.URL, h.Title, h.ID, content, screenshot); err != nil {
+			log.Err(err).Send()
 			return
 		}
 		m.Set(h.URL, h)
 	}
 }
 
-func fetch(topic string, exclude map[string]bool, after time.Time) (headlines []*Headline) {
+func fetch(topic string, exclude map[string]bool, after time.Time) (headlines []*Model) {
 	q := strings.ReplaceAll(topic, " ", "+")
 
 	arr := []string{
@@ -115,8 +100,8 @@ func fetch(topic string, exclude map[string]bool, after time.Time) (headlines []
 				link = decodeGoogleURL(link)
 			}
 
-			headlines = append(headlines, &Headline{
-				id.New(ts),
+			headlines = append(headlines, &Model{
+				id.NewULID(ts),
 				title,
 				urls.Clean(link),
 			})

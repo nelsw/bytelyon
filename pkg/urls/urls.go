@@ -16,20 +16,14 @@ func Clean(url string) string {
 	return strings.TrimSuffix(url, "/")
 }
 
-// PR returns the protocol-relative form of a URL; aka PRL (protocol-relative link).
-// TLDR: this is just a fancy ƒ that trims https:// from a URL.
-func PR(url string) string {
-	// remove insecure protocol
-	url = strings.TrimPrefix(Clean(url), "http://")
-	// remove secure protocol
-	return strings.TrimPrefix(url, "https://")
-}
-
 // Host returns the host name from a URL in lowercase.
 // Unlinke url.Parse, this ƒ does not require a protocol to determine a hostname.
 func Host(url string) string {
+	// remove protocols
+	url = strings.TrimPrefix(Clean(url), "http://")
+	url = strings.TrimPrefix(url, "https://")
 	// remove path
-	url = strings.Split(PR(url), "/")[0]
+	url = strings.Split(url, "/")[0]
 	// remove query
 	url = strings.Split(url, "?")[0]
 	// remove fragment

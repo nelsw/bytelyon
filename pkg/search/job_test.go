@@ -13,7 +13,7 @@ func TestModel_Run(t *testing.T) {
 	logs.Init("trace")
 
 	cpw := pw.Run()
-	bro, _ := pw.NewBrowser(cpw, true)
+	bro, _ := pw.NewBrowser(cpw, false)
 	ctx, _ := pw.NewBrowserContext(bro, nil)
 
 	defer func() {

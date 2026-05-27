@@ -5,14 +5,14 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/s3"
-	"github.com/nelsw/bytelyon/pkg/urls"
 	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
 )
 
-func key(url string, id ulid.ULID, name string) string {
-	return util.Path("pages", urls.PR(url), id, name)
+func key(url string, ulid ulid.ULID, name string) string {
+	return util.Path("pages", id.NewUUID(url), ulid, name)
 }
 
 func save(url string, id ulid.ULID, data []byte, name string) error {
@@ -29,22 +29,21 @@ func Delete(url string, id ulid.ULID) error {
 
 func FindObjects[T any](url string) (out []T, err error) {
 
-	prefix := util.Path("pages", urls.PR(url))
+	prefix := util.Path("pages", id.NewUUID(url))
 
 	var keys []string
 	if keys, err = s3.ListDirectories(prefix); err != nil {
 		return nil, err
 	}
 
-	var id ulid.ULID
 	var t T
 	for _, k := range keys {
 		s := strings.TrimPrefix(k, prefix+"/")
 		s = strings.TrimSuffix(s, "/object.json")
-		if id, _ = ulid.Parse(s); id.IsZero() {
+		if id.ParseULID(s).IsZero() {
 			continue
 		}
-		if t, err = FindObject[T](url, id); err == nil {
+		if t, err = FindObject[T](url, id.ParseULID(s)); err == nil {
 			out = append(out, t)
 		}
 	}

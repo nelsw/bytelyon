@@ -21,5 +21,5 @@ func TestModel_Run(t *testing.T) {
 		bro.Close()
 	}()
 
-	Work(ctx, ulid.MustParse("01KM010XK0HY8HWWFPJTZGRF0F"), "ev fire blanket for sale", map[string]bool{})
+	Work(ctx, ulid.MustParse("01KM010XK0HY8HWWFPJTZGRF0F"), "ev fire blankets for sale", map[string]bool{})
 }

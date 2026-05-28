@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/nelsw/bytelyon/pkg/page"
 	"github.com/nelsw/bytelyon/pkg/s3"
@@ -23,14 +22,13 @@ func Delete(userID ulid.ULID, topic string) (err error) {
 	return errors.Join(err, s3.Delete(key(userID, topic), false))
 }
 
-func Find(userID ulid.ULID, topic string) (arr []*Model) {
+func Find(userID ulid.ULID, topic string) (arr []Model) {
 	if out, err := s3.Get(key(userID, topic), false); err == nil {
 		err = json.Unmarshal(out, &arr)
 	}
 	return
 }
 
-func Save(userID ulid.ULID, topic string, arr []*Model) error {
-	slices.SortFunc(arr, func(a, b *Model) int { return b.ID.Compare(a.ID) })
+func Save(userID ulid.ULID, topic string, arr []Model) error {
 	return s3.Put(key(userID, topic), util.JSON(arr), false)
 }

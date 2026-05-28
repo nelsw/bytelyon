@@ -25,7 +25,7 @@ func TestWork(t *testing.T) {
 	Work(
 		ctx,
 		ulid.MustParse("01KM010XK0HY8HWWFPJTZGRF0F"),
-		"ev fire",
+		"ev fire in florida",
 		map[string]bool{},
 		time.Now().Add(-24*7*time.Hour),
 	)

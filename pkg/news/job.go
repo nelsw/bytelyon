@@ -2,6 +2,7 @@ package news
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -24,7 +25,7 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, topic string, exclude
 		return
 	}
 
-	m := model.NewSyncMap[string, *Model]()
+	m := model.NewSyncMap[string, Model]()
 	for _, h := range Find(userID, topic) {
 		m.Set(h.URL, h)
 	}
@@ -35,10 +36,13 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, topic string, exclude
 	}
 	wg.Wait()
 
-	Save(userID, topic, m.Values())
+	arr := m.Values()
+	slices.SortFunc(arr, func(a, b Model) int { return b.ID.Compare(a.ID) })
+
+	Save(userID, topic, arr)
 }
 
-func routine(ctx playwright.BrowserContext, m *model.SyncMap[string, *Model], h *Model) func() {
+func routine(ctx playwright.BrowserContext, m *model.SyncMap[string, Model], h Model) func() {
 	return func() {
 		if m.Has(h.URL) {
 			return
@@ -57,7 +61,7 @@ func routine(ctx playwright.BrowserContext, m *model.SyncMap[string, *Model], h 
 	}
 }
 
-func fetch(topic string, exclude map[string]bool, after time.Time) (headlines []*Model) {
+func fetch(topic string, exclude map[string]bool, after time.Time) (headlines []Model) {
 	q := strings.ReplaceAll(topic, " ", "+")
 
 	arr := []string{
@@ -100,7 +104,7 @@ func fetch(topic string, exclude map[string]bool, after time.Time) (headlines []
 				link = decodeGoogleURL(link)
 			}
 
-			headlines = append(headlines, &Model{
+			headlines = append(headlines, Model{
 				id.NewULID(ts),
 				title,
 				urls.Clean(link),

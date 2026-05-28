@@ -21,5 +21,5 @@ func TestWork(t *testing.T) {
 		bro.Close()
 	}()
 
-	Work(ctx, ulid.MustParse("01KM010XK0HY8HWWFPJTZGRF0F"), "firefibers.com")
+	Work(ctx, ulid.MustParse("01KM010XK0HY8HWWFPJTZGRF0F"), "li-fire.com")
 }

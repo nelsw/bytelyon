@@ -35,8 +35,7 @@ func HandleDelete(r api.Request) api.Response {
 		if err := page.Delete(headline.URL, headline.ID); err != nil {
 			return r.BAD(err)
 		}
-		slices.Delete(arr, idx, idx+1)
-		Save(r.UserID(), r.Query("topic"), arr)
+		Save(r.UserID(), r.Query("topic"), slices.Delete(arr, idx, idx+1))
 	}
 
 	return r.NC()

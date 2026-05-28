@@ -10,8 +10,8 @@ import (
 
 	. "github.com/nelsw/bytelyon/pkg/api"
 	"github.com/nelsw/bytelyon/pkg/id"
+	"github.com/nelsw/bytelyon/pkg/image"
 	"github.com/nelsw/bytelyon/pkg/model"
-	"github.com/nelsw/bytelyon/pkg/service/images"
 	"github.com/nelsw/bytelyon/pkg/shopify"
 	"github.com/nelsw/bytelyon/pkg/store"
 	"github.com/oklog/ulid/v2"
@@ -21,15 +21,14 @@ import (
 var handleRegex = regexp.MustCompile("[^a-zA-Z0-9\\-]+")
 
 type Post struct {
-	ID          ulid.ULID `json:"id"`
-	Handle      string    `json:"handle"`
-	Title       string    `json:"title,omitempty"`
-	Body        string    `json:"body,omitempty"`
-	Summary     string    `json:"summary,omitempty"`
-	Tags        []string  `json:"tags,omitempty"`
-	ImgSrc      string    `json:"imgSrc,omitempty"`
-	ImgAlt      string    `json:"imgAlt,omitempty"`
-	PublishedAt time.Time `json:"publishedAt"`
+	Body        string       `json:"body"`
+	Handle      string       `json:"handle"`
+	ID          ulid.ULID    `json:"id"`
+	Image       *image.Model `json:"image"`
+	PublishedAt time.Time    `json:"publishedAt"`
+	Summary     string       `json:"summary"`
+	Tags        []string     `json:"tags"`
+	Title       string       `json:"title"`
 }
 
 func Handler(r Request) Response {
@@ -70,17 +69,10 @@ func handlePost(r Request) Response {
 	p.Handle += "-" + p.ID.String()
 
 	// convert the image url to a public url of type .png
-	if p.ImgSrc != "" {
-		if url, err := images.ToPublicURL(p.ImgSrc); err != nil {
-			log.Warn().Err(err).Msgf("Failed to convert url to public url")
-			p.ImgSrc = ""
-			p.ImgAlt = ""
-		} else {
-			p.ImgSrc = url
-		}
-		if p.ImgAlt == "" {
-			p.ImgAlt = p.Title + " image"
-		}
+	if p.Image == nil || !p.Image.ConvertToPNG() {
+		p.Image = new(image.Model)
+	} else if p.Image.URL != "" && p.Image.ALT == "" {
+		p.Image.ALT = p.Title + " image"
 	}
 
 	tkn, err := shopify.AccessToken()
@@ -98,8 +90,7 @@ func handlePost(r Request) Response {
 		p.Handle,
 		p.Body,
 		p.Summary,
-		p.ImgSrc,
-		p.ImgAlt,
+		p.Image,
 		p.PublishedAt,
 		p.Tags,
 	)

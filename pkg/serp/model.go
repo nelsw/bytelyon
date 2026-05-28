@@ -22,7 +22,7 @@ type Model struct {
 	Article   []any `json:"article"`
 	Asked     []any `json:"people_also_ask"`
 	Searched  []any `json:"people_also_search_for"`
-
+	// todo - Popular products
 	ID         ulid.ULID         `json:"-"`
 	Doc        *goquery.Document `json:"-"`
 	Content    string            `json:"-"`
@@ -58,6 +58,7 @@ func New(query, content string, screenshot []byte) *Model {
 	return m
 }
 
+// todo - prevent duplicates
 func (m *Model) AddSponsored(url, content string) {
 	doc := document.New(url, content)
 	m.Sponsored = append(m.Sponsored, map[string]any{

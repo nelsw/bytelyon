@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/pkg/https"
+	"github.com/nelsw/bytelyon/pkg/image"
 )
 
 type ErrorResponse struct {
@@ -266,7 +267,8 @@ type createArticleResponse struct {
 }
 
 func PostArticle(
-	token, store, blogId, title, author, handle, body, summary, imgSrc, imgAlt string,
+	token, store, blogId, title, author, handle, body, summary string,
+	img *image.Model,
 	publishedAt time.Time,
 	tags []string,
 ) ([]byte, error) {
@@ -298,10 +300,7 @@ func PostArticle(
 			"isPublished": true,
 			"publishDate": publishedAt,
 			"tags":        tags,
-			"image": map[string]string{
-				"altText": imgAlt,
-				"url":     imgSrc,
-			},
+			"image":       img,
 		},
 	})
 

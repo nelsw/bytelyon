@@ -19,7 +19,7 @@ func (m Model) Title() string {
 	)
 }
 
-func (m Model) Image() image.Model { return image.Make(m.ImageSrc(), m.ImageAlt()) }
+func (m Model) Image() *image.Model { return image.New(m.ImageSrc(), m.ImageAlt()) }
 
 func (m Model) ImageSrc() string {
 	return util.Or(

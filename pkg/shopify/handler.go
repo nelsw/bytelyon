@@ -12,7 +12,6 @@ import (
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/image"
 	"github.com/nelsw/bytelyon/pkg/model"
-	"github.com/nelsw/bytelyon/pkg/shopify"
 	"github.com/nelsw/bytelyon/pkg/store"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
@@ -75,13 +74,13 @@ func handlePost(r Request) Response {
 		p.Image.ALT = p.Title + " image"
 	}
 
-	tkn, err := shopify.AccessToken()
+	tkn, err := AccessToken()
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get Shopify access token")
 		return r.BAD(err)
 	}
 
-	_, err = shopify.PostArticle(
+	_, err = PostArticle(
 		tkn,
 		os.Getenv("SHOPIFY_STORE"),
 		"gid://shopify/Blog/82899828795",
@@ -105,7 +104,7 @@ func handlePost(r Request) Response {
 
 func handleGet(r Request) Response {
 
-	orderDB, err := store.New[string, shopify.Order]("orders.json")
+	orderDB, err := store.New[string, Order]("orders.json")
 	if err != nil {
 		return r.BAD(err)
 	}

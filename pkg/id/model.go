@@ -5,11 +5,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
 )
 
-func NewUUID(url string) uuid.UUID {
-	return uuid.NewSHA1(uuid.NameSpaceURL, []byte(url))
+func NewUUID(s ...string) uuid.UUID {
+	if len(s) > 0 {
+		return uuid.NewSHA1(uuid.NameSpaceURL, []byte(s[0]))
+	}
+	return util.Safe(uuid.NewV7())
 }
 
 func NewULID(args ...time.Time) ulid.ULID {

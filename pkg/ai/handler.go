@@ -4,12 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/nelsw/bytelyon/pkg/ai"
 	"github.com/nelsw/bytelyon/pkg/api"
 	"github.com/rs/zerolog/log"
 )
 
-type Prompt struct {
+type prompt struct {
 	System  string `json:"system"`
 	Message string `json:"message"`
 	HTML    bool   `json:"html"`
@@ -27,13 +26,13 @@ func Handler(r api.Request) api.Response {
 }
 
 func handlePost(r api.Request) api.Response {
-	var p Prompt
+	var p prompt
 	if err := json.Unmarshal([]byte(r.Body), &p); err != nil {
 		log.Err(err).Msg("failed to unmarshal prompt")
 		return r.BAD(err)
 	}
 
-	txt, err := ai.Prompt(p.System, p.Message, p.HTML)
+	txt, err := Prompt(p.System, p.Message, p.HTML)
 	if err != nil {
 		return r.BAD(err)
 	}

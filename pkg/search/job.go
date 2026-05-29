@@ -1,8 +1,8 @@
 package search
 
 import (
-	"github.com/nelsw/bytelyon/internal/pw"
 	"github.com/nelsw/bytelyon/pkg/page"
+	"github.com/nelsw/bytelyon/pkg/pw"
 	"github.com/nelsw/bytelyon/pkg/serp"
 	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"

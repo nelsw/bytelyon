@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nelsw/bytelyon/internal/pw"
 	"github.com/nelsw/bytelyon/pkg/article"
 	"github.com/nelsw/bytelyon/pkg/https"
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/model"
+	"github.com/nelsw/bytelyon/pkg/pw"
 	"github.com/nelsw/bytelyon/pkg/urls"
 	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"

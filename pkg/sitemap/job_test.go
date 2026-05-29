@@ -3,8 +3,8 @@ package sitemap
 import (
 	"testing"
 
-	"github.com/nelsw/bytelyon/internal/pw"
 	"github.com/nelsw/bytelyon/pkg/logs"
+	"github.com/nelsw/bytelyon/pkg/pw"
 	"github.com/oklog/ulid/v2"
 )
 

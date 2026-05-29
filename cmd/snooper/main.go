@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/nelsw/bytelyon/internal/snooper"
 	"github.com/nelsw/bytelyon/pkg/logs"
+	"github.com/nelsw/bytelyon/pkg/snooper"
 	"github.com/rs/zerolog/log"
 )
 

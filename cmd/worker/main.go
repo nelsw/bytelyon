@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/nelsw/bytelyon/internal/pw"
-	"github.com/nelsw/bytelyon/internal/worker"
 	"github.com/nelsw/bytelyon/pkg/aws"
 	"github.com/nelsw/bytelyon/pkg/logs"
+	"github.com/nelsw/bytelyon/pkg/pw"
+	"github.com/nelsw/bytelyon/pkg/worker"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )

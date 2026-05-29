@@ -145,29 +145,19 @@ func (b *Bot) UnmarshalDynamoDBAttributeValue(v types.AttributeValue) (err error
 }
 
 func (b *Bot) MarshalJSON() ([]byte, error) {
-
-	m := map[string]any{
-		"userId":    b.UserID.String(),
-		"target":    b.Target,
-		"type":      b.Type.String(),
-		"frequency": b.Frequency.Nanoseconds(),
+	if b.BlackList == nil {
+		b.BlackList = []string{}
 	}
-
-	if !b.WorkedAt.IsZero() {
-		m["workedAt"] = b.WorkedAt.Format(time.RFC3339)
-	}
-
-	if len(b.BlackList) > 0 {
-		m["blackList"] = b.BlackList
-	}
-
-	m["headless"] = b.Headless
-
-	if b.Type == SearchBotType {
-		m["fingerprint"] = b.Fingerprint
-	}
-
-	return json.Marshal(m)
+	return json.Marshal(map[string]any{
+		"userId":      b.UserID.String(),
+		"target":      b.Target,
+		"type":        b.Type.String(),
+		"frequency":   b.Frequency.Nanoseconds(),
+		"workedAt":    b.WorkedAt.Format(time.RFC3339),
+		"blackList":   b.BlackList,
+		"headless":    b.Headless,
+		"fingerprint": b.Fingerprint,
+	})
 }
 
 func (b *Bot) UnmarshalJSON(data []byte) (err error) {

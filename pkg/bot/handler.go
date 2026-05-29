@@ -3,24 +3,12 @@ package bot
 import (
 	"encoding/json"
 	"net/http"
-	"sort"
-	"strings"
 
 	. "github.com/nelsw/bytelyon/pkg/api"
-	"github.com/nelsw/bytelyon/pkg/db"
-	"github.com/nelsw/bytelyon/pkg/model"
-	"github.com/nelsw/bytelyon/pkg/news"
-	"github.com/nelsw/bytelyon/pkg/repo"
-	"github.com/nelsw/bytelyon/pkg/search"
-	"github.com/nelsw/bytelyon/pkg/sitemap"
-	"github.com/nelsw/bytelyon/pkg/urls"
 	"github.com/rs/zerolog/log"
 )
 
 func Handler(r Request) Response {
-
-	r.Log()
-
 	switch r.Method() {
 	case http.MethodDelete:
 		return handleDelete(r)
@@ -29,70 +17,30 @@ func Handler(r Request) Response {
 	case http.MethodPut:
 		return handlePut(r)
 	}
-
 	return r.NI()
 }
 
 func handleDelete(r Request) Response {
-
-	switch r.BotType() {
-	case model.NewsBotType:
-		if err := news.Delete(r.UserID(), r.Target()); err != nil {
-			return r.BAD(err)
-		}
-	case model.SearchBotType:
-		if err := search.Delete(r.UserID(), r.Target()); err != nil {
-			return r.BAD(err)
-		}
-	case model.SitemapBotType:
-		if err := sitemap.Delete(r.UserID(), r.Target()); err != nil {
-			return r.BAD(err)
-		}
-	}
-
-	if err := repo.DeleteBot(r.UserID(), r.Target(), r.BotType()); err != nil {
+	if err := Delete(r.UserID(), r.Query("target"), r.Query("type")); err != nil {
 		return r.BAD(err)
 	}
 	return r.NC()
 }
 
-// handleGet queries the database for bots.
-func handleGet(r Request) Response {
-	bots := repo.FindBotsByType(r.UserID(), r.BotType())
-	sort.Slice(bots, func(i, j int) bool {
-		return strings.Compare(bots[i].Target, bots[j].Target) == -1
-	})
-	return r.OK(bots)
-}
+func handleGet(r Request) Response { return r.OK(Find(r.UserID(), r.Query("type"))) }
 
-// handlePut creates or updates a bot in the database for the given body.
 func handlePut(r Request) Response {
 
-	var b = new(model.Bot)
-	if err := json.Unmarshal([]byte(r.Body), b); err != nil {
+	var m = new(Model)
+	if err := json.Unmarshal([]byte(r.Body), m); err != nil {
 		log.Err(err).Msg("failed to unmarshal bot")
 		return r.BAD(err)
 	}
-	log.Debug().Object("bot", b).Msg("bot unmarshalled")
 
-	if err := b.Validate(); err != nil {
-		log.Err(err).Msg("failed to validate bot")
+	if err := Save(r.UserID(), m); err != nil {
+		log.Err(err).Msg("failed to save bot")
 		return r.BAD(err)
 	}
-	log.Debug().Object("bot", b).Msg("bot validated")
 
-	b.UserID = r.UserID()
-	b.Target = strings.ToLower(b.Target)
-
-	if b.Type == model.SitemapBotType {
-		b.Target = urls.Domain(b.Target)
-	}
-
-	if err := db.Put(b); err != nil {
-		log.Err(err).Msg("failed to put bot")
-		return r.BAD(err)
-	}
-	log.Debug().Object("bot", b).Msg("bot put")
-
-	return r.OK(b)
+	return r.OK(m)
 }

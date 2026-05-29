@@ -11,12 +11,10 @@ import (
 )
 
 func key(userID ulid.ULID, domain string) string {
-	return fmt.Sprintf("users/%s/sitemap/%s.json", userID, domain)
+	return fmt.Sprintf("users/%s/sitemap/%s/result.json", userID, domain)
 }
 
-func Delete(userID ulid.ULID, domain string) error {
-	return s3.Delete(key(userID, domain), false)
-}
+func Delete(userID ulid.ULID, domain string) error { return s3.Delete(key(userID, domain), false) }
 
 func Find(userID ulid.ULID, domain string) (arr []string) {
 	if out, err := s3.Get(key(userID, domain), false); err == nil {
@@ -26,11 +24,8 @@ func Find(userID ulid.ULID, domain string) (arr []string) {
 }
 
 func Save(userID ulid.ULID, domain string, urls *model.SyncMap[string, bool]) error {
-	set := model.NewSet[string](Find(userID, domain)...)
-	for k, v := range urls.Map {
-		if v {
-			set.Add(k)
-		}
+	for _, url := range Find(userID, domain) {
+		urls.Set(url, true)
 	}
-	return s3.Put(key(userID, domain), util.JSON(set.Slice()), false)
+	return s3.Put(key(userID, domain), util.JSON(urls.Values()), false)
 }

@@ -50,7 +50,7 @@ func New(url, content string) *Model {
 }
 
 func (m *Model) Links() []string {
-	x := model.NewSet[string]()
+	x := model.MakeSet[string]()
 	m.doc.Find("a").Each(func(i int, s *goquery.Selection) {
 
 		href := strings.TrimSpace(s.AttrOr("href", ""))
@@ -116,7 +116,7 @@ func (m *Model) Paragraphs() []string {
 }
 
 func (m *Model) URLs() []string {
-	set := model.NewSet[string]()
+	set := model.MakeSet[string]()
 	for _, link := range m.Links() {
 		// if the link is an insecure URL
 		if strings.HasPrefix(link, "http://") {

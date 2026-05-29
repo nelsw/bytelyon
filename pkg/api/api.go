@@ -4,16 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"regexp"
-	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
-
-var isMember = regexp.MustCompile(`^(01KMXGBJJE2GMCA1A9EXDGF4AJ|01KM010XK0HY8HWWFPJTZGRF0F)$`)
 
 type AuthResponse events.APIGatewayV2CustomAuthorizerSimpleResponse
 type Response events.APIGatewayV2HTTPResponse
@@ -43,7 +39,6 @@ func (r Request) AuthResponse(ok bool, s ...string) AuthResponse {
 
 	ctx := make(map[string]any)
 	if !ok {
-		ctx["error"] = s[0]
 		ctx["message"] = s[0]
 	} else {
 		ctx["userId"] = s[0]
@@ -99,51 +94,17 @@ func (r Request) MarshalZerologObject(evt *zerolog.Event) {
 		Str("body", r.Body)
 }
 
-func (r Request) BotType() model.BotType {
-	if err := model.BotType(r.Query("type")).Validate(); err != nil {
-		log.Warn().Err(err).Msg("invalid bot")
-		return ""
-	}
-	return model.BotType(r.Query("type"))
-}
-
-func (r Request) Target() string {
-	if r.BotType() != model.SitemapBotType {
-		return r.Query("target")
-	}
-	return strings.ReplaceAll(r.Query("target"), " ", ".")
-}
-
-func (r Request) UserID() ulid.ULID {
-	return r.id(r.RequestContext.Authorizer.Lambda["userId"])
-}
-
-func (r Request) BotID() ulid.ULID {
-	return r.id(r.Query("botId"))
-}
-
-func (r Request) ID() ulid.ULID {
-	return r.id(r.Query("id"))
-}
-
 func (r Request) IsGuest() bool {
-	return isMember.MatchString(r.UserID().String()) == false
+	return !regexp.
+		MustCompile(`^(01KMXGBJJE2GMCA1A9EXDGF4AJ|01KM010XK0HY8HWWFPJTZGRF0F)$`).
+		MatchString(r.UserID().String())
 }
 
-func (r Request) id(a any) ulid.ULID {
-
-	s, ok := a.(string)
-	if !ok {
-		return ulid.Zero
-	} else if s == "" {
-		return ulid.Zero
+func (r Request) ID() ulid.ULID     { return r.id(r.Query("id")) }
+func (r Request) UserID() ulid.ULID { return r.id(r.RequestContext.Authorizer.Lambda["userId"]) }
+func (r Request) id(a any) (id ulid.ULID) {
+	if s, ok := a.(string); ok {
+		id, _ = ulid.Parse(s)
 	}
-
-	id, err := ulid.Parse(s)
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to parse id for " + s)
-		return ulid.Zero
-	}
-
 	return id
 }

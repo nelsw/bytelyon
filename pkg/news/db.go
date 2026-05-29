@@ -12,7 +12,7 @@ import (
 )
 
 func key(userID ulid.ULID, topic string) string {
-	return fmt.Sprintf("users/%s/news/%s.json", userID, topic)
+	return fmt.Sprintf("users/%s/news/%s/result.json", userID, topic)
 }
 
 func Delete(userID ulid.ULID, topic string) (err error) {

@@ -14,7 +14,7 @@ import (
 )
 
 func key(userID ulid.ULID, query string) string {
-	return fmt.Sprintf("users/%s/search/%s.json", userID, query)
+	return fmt.Sprintf("users/%s/search/%s/result.json", userID, query)
 }
 
 func Delete(userID ulid.ULID, query string) error {

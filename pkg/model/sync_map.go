@@ -21,12 +21,6 @@ func NewSyncMap[K cmp.Ordered, V any](m ...map[K]V) *SyncMap[K, V] {
 	}
 }
 
-func (m *SyncMap[K, V]) ToMap() Map[K, V] {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	return m.Map
-}
-
 func (m *SyncMap[K, V]) Has(k K) bool {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -39,19 +33,10 @@ func (m *SyncMap[K, V]) Get(k K) (V, bool) {
 	return m.Map.Get(k)
 }
 
-func (m *SyncMap[K, V]) GetOr(k K, or V) V {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	if v, ok := m.Map.Get(k); ok {
-		return v
-	}
-	return or
-}
-
 func (m *SyncMap[K, V]) Set(k K, v V) V {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	return m.Map.Set(k, v)
+	return m.Map.Put(k, v)
 }
 
 func (m *SyncMap[K, V]) Delete(k K) {
@@ -70,10 +55,4 @@ func (m *SyncMap[K, V]) Values() []V {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	return m.Map.Values()
-}
-
-func (m *SyncMap[K, V]) Len() int {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	return len(m.Map)
 }

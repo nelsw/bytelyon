@@ -4,18 +4,15 @@ import (
 	"cmp"
 )
 
-type Set[K cmp.Ordered] struct {
-	m Map[K, bool]
-}
+type Set[K cmp.Ordered] Map[K, bool]
 
-func NewSet[K cmp.Ordered](vals ...K) *Set[K] {
-	var s = new(Set[K])
-	s.m = MakeMap[K, bool]()
+func MakeSet[K cmp.Ordered](vals ...K) Set[K] {
+	m := MakeMap[K, bool]()
 	for _, v := range vals {
-		s.m.Set(v, true)
+		m.Put(v, true)
 	}
-	return s
+	return Set[K](m)
 }
 
-func (s *Set[K]) Add(k K)    { s.m.Set(k, true) }
-func (s *Set[K]) Slice() []K { return s.m.Keys() }
+func (s Set[K]) Add(k K)    { Map[K, bool](s).Put(k, true) }
+func (s Set[K]) Slice() []K { return Map[K, bool](s).Keys() }

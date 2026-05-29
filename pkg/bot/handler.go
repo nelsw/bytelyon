@@ -21,7 +21,7 @@ func Handler(r Request) Response {
 }
 
 func handleDelete(r Request) Response {
-	if err := Delete(r.UserID(), r.Query("target"), r.Query("type")); err != nil {
+	if err := Delete(r.UserID(), r.Query("type"), r.Query("target")); err != nil {
 		return r.BAD(err)
 	}
 	return r.NC()

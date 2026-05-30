@@ -4,12 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
-	"strings"
 )
-
-func Capitalize(s string) string {
-	return strings.ToUpper(s[0:1]) + s[1:]
-}
 
 func JSON(a any) []byte {
 	if a == nil {

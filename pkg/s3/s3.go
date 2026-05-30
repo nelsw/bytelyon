@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/nelsw/bytelyon/pkg/aws"
-	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/util/ptr"
 	"github.com/rs/zerolog/log"
 )
 
@@ -56,7 +56,7 @@ func Put(key string, data []byte, isPublic bool) error {
 
 	if isPublic {
 		in.ACL = types.ObjectCannedACLPublicRead
-		in.ContentType = util.Ptr(http.DetectContentType(data))
+		in.ContentType = ptr.Of(http.DetectContentType(data))
 	}
 
 	if _, err := aws.S3().PutObject(context.Background(), in); err != nil {
@@ -262,7 +262,7 @@ func GetPresignedURL(key string) (string, error) {
 	client := s3.NewPresignClient(aws.S3())
 
 	presignedUrl, err := client.PresignGetObject(context.Background(), &s3.GetObjectInput{
-		Bucket: util.Ptr("bytelyon-public"),
+		Bucket: ptr.Of("bytelyon-public"),
 		Key:    &key,
 	}, s3.WithPresignExpires(30*time.Minute))
 

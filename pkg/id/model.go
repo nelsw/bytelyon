@@ -46,3 +46,11 @@ func ParseULID(id string) ulid.ULID {
 	}
 	return ID
 }
+
+func ParseUUID(id string) uuid.UUID {
+	ID, err := uuid.Parse(id)
+	if err != nil {
+		return uuid.Nil
+	}
+	return ID
+}

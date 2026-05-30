@@ -27,5 +27,5 @@ func Save(userID ulid.ULID, domain string, urls *model.SyncMap[string, bool]) er
 	for _, url := range Find(userID, domain) {
 		urls.Set(url, true)
 	}
-	return s3.Put(key(userID, domain), util.JSON(urls.Values()), false)
+	return s3.Put(key(userID, domain), util.JSON(urls.Keys()), false)
 }

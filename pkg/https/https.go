@@ -51,7 +51,7 @@ func get(url string) ([]byte, int, error) {
 	}
 	defer res.Body.Close()
 
-	l.Debug().
+	l.Trace().
 		Str("status", res.Status).
 		Send()
 

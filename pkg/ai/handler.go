@@ -18,7 +18,7 @@ func Handler(r api.Request) api.Response {
 	if r.IsGuest() {
 		return r.NOPE()
 	}
-	switch r.Method() {
+	switch r.RequestContext.HTTP.Method {
 	case http.MethodPost:
 		return handlePost(r)
 	}

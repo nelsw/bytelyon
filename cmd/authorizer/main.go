@@ -2,91 +2,74 @@ package main
 
 import (
 	"errors"
-	"strings"
+	"os"
+	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/nelsw/bytelyon/pkg/api"
-	"github.com/nelsw/bytelyon/pkg/db"
-	"github.com/nelsw/bytelyon/pkg/model"
-	"github.com/oklog/ulid/v2"
+	"github.com/nelsw/bytelyon/pkg/id"
+	"github.com/nelsw/bytelyon/pkg/user"
 	"github.com/rs/zerolog/log"
 )
 
-var ErrInvalidAuthType = errors.New("invalid authorizer type; must be 'Bearer' or 'Basic'")
+var jwtKey = []byte(os.Getenv("JWT_SECRET"))
 
 func Handler(r api.Request) (any, error) {
-
 	r.Log()
-
-	tokenType, token, ok := strings.Cut(r.Authorization(), " ")
-
-	if !ok {
-		return r.AuthErr(ErrInvalidAuthType), nil
+	if typ, tkn := r.Authorization(); typ == "Bearer" {
+		return handleBearerAuth(r, tkn)
+	} else if typ == "Basic" {
+		return handleBasicAuth(r)
 	}
-
-	if tokenType == "Bearer" {
-		userID, err := model.ParseJWT(token)
-		if err != nil {
-			log.Err(err).Msg("JWT parse failed!")
-			return r.AuthErr(err), nil
-		}
-		log.Debug().Msg("JWT parsed")
-		return r.AuthOK(userID, token), nil
-	}
-
-	var userID ulid.ULID
-	if creds, err := model.ParseCredentials(token); err != nil {
-		log.Debug().Err(err).Msg("credentials invalid")
-		return r.AuthErr(err), nil
-	} else if err = creds.ValidateUsername(); err != nil {
-		log.Debug().Err(err).Msg("username invalid")
-		return r.AuthErr(err), nil
-	} else if err = creds.ValidatePassword(); err != nil {
-		log.Debug().Err(err).Msg("password invalid")
-		return r.AuthErr(err), nil
-	} else if userID, err = authenticate(creds.Username, creds.Password); err != nil {
-		log.Warn().Err(err).Msg("authentication failed!")
-		return r.AuthErr(err), nil
-	} else if token, err = model.NewJWT(userID); err != nil {
-		log.Err(err).Msg("JWT creation failed!")
-		return r.AuthErr(err), nil
-	}
-
-	log.Debug().Msg("authentication successful")
-
-	if r.Query("action") == "login" {
-		return r.OK(map[string]any{
-			"token":  token,
-			"userId": userID.String(),
-		}), nil
-	}
-
-	return r.AuthOK(userID, token), nil
+	return r.Auth(errors.New("invalid authorizer type; must be 'Bearer' or 'Basic'")), nil
 }
 
-func authenticate(username, password string) (userID ulid.ULID, err error) {
+func handleBasicAuth(r api.Request) (any, error) {
 
-	var email *model.Email
-	if email, err = db.Get(&model.Email{Address: username}); err != nil {
-		log.Warn().Err(err).Msg("email not found")
-		return
+	var u *user.Model
+	if e, p, err := r.Basic(); err != nil {
+		return nil, err
+	} else if u, err = user.Login(e, p); err != nil {
+		return nil, err
 	}
-	log.Debug().Str("email", email.Address).Msg("found email")
 
-	var pass *model.Password
-	if pass, err = db.Get(&model.Password{UserID: email.UserID}); err != nil {
-		log.Warn().Err(err).Msg("password not found")
-		return
+	tkn, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.RegisteredClaims{
+		Issuer:    "ByteLyon API",
+		ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(time.Minute * 30)),
+		NotBefore: jwt.NewNumericDate(time.Now().UTC()),
+		IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
+		ID:        u.ID.String(),
+	}).SignedString(jwtKey)
+
+	if err != nil {
+		return nil, err
 	}
-	log.Debug().Msg("found password")
 
-	if err = pass.Compare(password); err != nil {
-		log.Warn().Err(err).Msg("password incorrect")
-		return
+	// todo - is this necessary?
+	if r.Query("action") == "login" {
+		return r.OK(map[string]any{"token": tkn}), nil
 	}
-	log.Debug().Msg("password correct")
 
-	return email.UserID, nil
+	return r.Auth(tkn), nil
+}
+
+func handleBearerAuth(r api.Request, t string) (api.AuthResponse, error) {
+
+	tkn, err := jwt.ParseWithClaims(t, &jwt.RegisteredClaims{}, func(*jwt.Token) (any, error) { return jwtKey, nil })
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to parse jwt")
+		return r.Auth(err), nil
+	}
+
+	if !tkn.Valid || id.ParseULID(tkn.Claims.(*jwt.RegisteredClaims).ID).IsZero() {
+		err = errors.New("invalid JWT token (either expired or unprocessable")
+		log.Warn().Err(err).Send()
+		return r.Auth(err), nil
+	}
+
+	log.Debug().Msg("jwt valid")
+	return r.Auth(t), nil
 }
 
 func main() { lambda.Start(Handler) }

@@ -32,13 +32,11 @@ type Post struct {
 
 func Handler(r Request) Response {
 
-	r.Log()
-
 	if r.IsGuest() {
 		return r.NOPE()
 	}
 
-	switch r.Method() {
+	switch r.RequestContext.HTTP.Method {
 	case http.MethodPost:
 		return handlePost(r)
 	case http.MethodGet:

@@ -13,19 +13,20 @@ import (
 	"github.com/nelsw/bytelyon/pkg/urls"
 	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
+	"github.com/rs/zerolog/log"
 )
 
-func key(uid ulid.ULID, typ string, tgt string) string {
+func key(uid ulid.ULID, typ Type, tgt string) string {
 	return fmt.Sprintf("users/%s/%s/%s/config.json", uid, typ, tgt)
 }
 
-func Delete(uid ulid.ULID, typ string, tgt string) (err error) {
+func Delete(uid ulid.ULID, typ Type, tgt string) (err error) {
 	switch typ {
-	case "news":
+	case News:
 		err = news.Delete(uid, tgt)
-	case "search":
+	case Search:
 		err = search.Delete(uid, tgt)
-	case "sitemap":
+	case Sitemap:
 		err = sitemap.Delete(uid, tgt)
 	default:
 		err = typeErr(typ)
@@ -36,15 +37,23 @@ func Delete(uid ulid.ULID, typ string, tgt string) (err error) {
 	return s3.Delete(key(uid, typ, tgt), false)
 }
 
-func Find(uid ulid.ULID, typ string) (mm Models) {
+func Find(uid ulid.ULID, typ Type) Models {
 
-	arr, _ := s3.ListDirectories(util.Path("users", uid, typ))
+	var mm Models
 
+	arr, _ := s3.ListDirectories(util.Path("users", uid, typ) + "/")
 	for _, k := range arr {
-		if strings.HasSuffix(k, "/result.json") {
+
+		if !strings.HasSuffix(k, "/config.json") {
 			continue
 		}
-		b, _ := s3.Get(k, false)
+
+		b, err := s3.Get(k, false)
+		if err != nil {
+			log.Warn().Err(err).Str("key", k).Msg("failed to get config")
+			continue
+		}
+
 		var m Model
 		_ = json.Unmarshal(b, &m)
 		mm = append(mm, &m)
@@ -52,7 +61,7 @@ func Find(uid ulid.ULID, typ string) (mm Models) {
 
 	sort.Sort(mm)
 
-	return
+	return mm
 }
 
 func Save(uid ulid.ULID, m *Model) error {

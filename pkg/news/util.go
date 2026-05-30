@@ -51,7 +51,7 @@ func decodeGoogleURL(s string) string {
 		return s
 	}
 
-	log.Debug().Str("out", out).Msg("decoded gstatic url")
+	log.Trace().Str("out", out).Msg("decoded gstatic url")
 	return out
 }
 

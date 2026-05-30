@@ -8,7 +8,7 @@ import (
 )
 
 func Handler(r api.Request) api.Response {
-	switch r.Method() {
+	switch r.RequestContext.HTTP.Method {
 	case http.MethodGet:
 		return HandleGet(r)
 	case http.MethodDelete:

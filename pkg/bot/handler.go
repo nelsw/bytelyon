@@ -9,7 +9,7 @@ import (
 )
 
 func Handler(r Request) Response {
-	switch r.Method() {
+	switch r.RequestContext.HTTP.Method {
 	case http.MethodDelete:
 		return handleDelete(r)
 	case http.MethodGet:
@@ -21,13 +21,13 @@ func Handler(r Request) Response {
 }
 
 func handleDelete(r Request) Response {
-	if err := Delete(r.UserID(), r.Query("type"), r.Query("target")); err != nil {
+	if err := Delete(r.UserID(), Type(r.Query("type")), r.Query("target")); err != nil {
 		return r.BAD(err)
 	}
 	return r.NC()
 }
 
-func handleGet(r Request) Response { return r.OK(Find(r.UserID(), r.Query("type"))) }
+func handleGet(r Request) Response { return r.OK(Find(r.UserID(), Type(r.Query("type")))) }
 
 func handlePut(r Request) Response {
 

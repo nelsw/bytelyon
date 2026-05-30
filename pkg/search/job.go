@@ -33,6 +33,9 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, query string, exclude
 		if domain := pw.Attribute(l, "data-dtld"); exclude[domain] {
 			continue
 		} else if p, err = pw.NewTab(ctx, l); err != nil || p == nil || p.URL() == "about:blank" {
+			if p != nil {
+				p.Close()
+			}
 			continue
 		}
 		content, screenshot := pw.Content(p), pw.Screenshot(p)

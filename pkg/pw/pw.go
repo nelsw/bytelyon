@@ -7,15 +7,13 @@ import (
 	"strings"
 
 	"github.com/nelsw/bytelyon/pkg/logs"
-	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/nelsw/bytelyon/pkg/util/ptr"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
 )
 
 var (
-	blockedRegex = regexp.MustCompile(`(google.com/sorry|captcha|unusual traffic)`)
-
+	blockedRegex               = regexp.MustCompile(`(google.com/sorry|captcha|unusual traffic)`)
 	googleSearchInputSelectors = []string{
 		"input[name='q']",
 		"input[title='Search']",
@@ -27,6 +25,10 @@ var (
 	}
 	installed = false
 )
+
+func delay() *float64 {
+	return ptr.Of(float64(rand.Intn(1000) + 200))
+}
 
 // Install gets drivers from the document and installs them to the machine running ByteLyon
 func Install() {
@@ -113,20 +115,23 @@ func NewBrowserContext(bro playwright.Browser, state *playwright.StorageState) (
 		return ptr.Of(agents[rand.Intn(len(agents))])
 	}
 
-	storageState := &playwright.OptionalStorageState{Origins: state.Origins}
-	for _, c := range state.Cookies {
-		storageState.Cookies = append(storageState.Cookies, playwright.OptionalCookie{
-			Name:         c.Name,
-			Value:        c.Value,
-			URL:          nil,
-			Domain:       ptr.OrNil(c.Domain),
-			Path:         ptr.OrNil(c.Path),
-			Expires:      ptr.OrNil(c.Expires),
-			HttpOnly:     ptr.OrNil(c.HttpOnly),
-			Secure:       ptr.OrNil(c.Secure),
-			SameSite:     c.SameSite,
-			PartitionKey: c.PartitionKey,
-		})
+	storageState := &playwright.OptionalStorageState{}
+	if state != nil {
+		storageState.Origins = state.Origins
+		for _, c := range state.Cookies {
+			storageState.Cookies = append(storageState.Cookies, playwright.OptionalCookie{
+				Name:         c.Name,
+				Value:        c.Value,
+				URL:          nil,
+				Domain:       ptr.OrNil(c.Domain),
+				Path:         ptr.OrNil(c.Path),
+				Expires:      ptr.OrNil(c.Expires),
+				HttpOnly:     ptr.OrNil(c.HttpOnly),
+				Secure:       ptr.OrNil(c.Secure),
+				SameSite:     c.SameSite,
+				PartitionKey: c.PartitionKey,
+			})
+		}
 	}
 
 	ctx, err := bro.NewContext(playwright.BrowserNewContextOptions{
@@ -206,14 +211,14 @@ func IsRequestBlocked(res playwright.Response) bool {
 // Type fills text to type into a focused element.
 func Type(page playwright.Page, s string) error {
 	return page.Keyboard().Type(s, playwright.KeyboardTypeOptions{
-		Delay: ptr.Of(util.Between(500.0, 1000.0)),
+		Delay: delay(),
 	})
 }
 
 // Press executes a keyboard event on a document.
 func Press(page playwright.Page, s string) error {
 	return page.Keyboard().Press(s, playwright.KeyboardPressOptions{
-		Delay: ptr.Of(util.Between(200, 500.0)),
+		Delay: delay(),
 	})
 }
 
@@ -309,7 +314,7 @@ func Click(page playwright.Page, selectors ...string) (err error) {
 			continue
 		}
 
-		if err = locator.Click(playwright.LocatorClickOptions{Delay: ptr.Of(util.Between(200, 500.0))}); err != nil {
+		if err = locator.Click(playwright.LocatorClickOptions{Delay: delay()}); err != nil {
 			continue
 		}
 

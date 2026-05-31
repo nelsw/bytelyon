@@ -2,16 +2,17 @@ package shopify
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
 	. "github.com/nelsw/bytelyon/pkg/api"
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/image"
-	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/store"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
@@ -109,7 +110,7 @@ func handleGet(r Request) Response {
 	orderDB.Close()
 
 	var orders []any
-	customers := model.MakeMap[string, any]()
+	customers := map[string]any{}
 	for _, order := range orderDB.Values() {
 		orders = append(orders, order.Row())
 		c := order.Customer
@@ -124,9 +125,12 @@ func handleGet(r Request) Response {
 			customers[c.ID] = c.Row()
 		}
 	}
-
+	v := make([]any, 0, len(customers))
+	for _, c := range slices.Sorted(maps.Keys(customers)) {
+		v = append(v, customers[c])
+	}
 	return r.OK(map[string]any{
-		"customers": customers.Values(),
+		"customers": v,
 		"orders":    orders,
 	})
 }

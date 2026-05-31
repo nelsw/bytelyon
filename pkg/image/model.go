@@ -16,18 +16,9 @@ import (
 	"golang.org/x/image/webp"
 )
 
-type Models []Model
-
 type Model struct {
 	URL string `json:"url"`
 	ALT string `json:"altText"`
-}
-
-func New(url, alt string) *Model {
-	return &Model{
-		URL: url,
-		ALT: alt,
-	}
 }
 
 func (m *Model) IsPNG() bool { return filepath.Ext(m.URL) == ".png" }

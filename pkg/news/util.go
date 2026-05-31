@@ -16,6 +16,8 @@ import (
 	"golang.org/x/net/html"
 )
 
+var googleRegex = regexp.MustCompile(`/articles/(?P<encoded_url>[^?]+)`)
+
 func decodeBingNewsLink(s string) string {
 	s, _ = url.QueryUnescape(s)
 	parts := strings.Split(s, "url=")
@@ -27,7 +29,7 @@ func decodeBingNewsLink(s string) string {
 
 func decodeGoogleURL(s string) string {
 
-	matches := regexp.MustCompile(`/articles/(?P<encoded_url>[^?]+)`).FindStringSubmatch(s)
+	matches := googleRegex.FindStringSubmatch(s)
 	if len(matches) < 2 {
 		log.Warn().Str("url", s).Msg("failed to match gstatic regex")
 		return s

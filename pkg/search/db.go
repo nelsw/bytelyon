@@ -1,7 +1,6 @@
 package search
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -9,7 +8,7 @@ import (
 
 	"github.com/nelsw/bytelyon/pkg/s3"
 	"github.com/nelsw/bytelyon/pkg/serp"
-	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/util/json"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -33,9 +32,8 @@ func Find(userID ulid.ULID, query string) (arr []ulid.ULID, err error) {
 	var out []byte
 	if out, err = s3.Get(key(userID, query), false); err != nil {
 		return
-	} else if err = json.Unmarshal(out, &arr); err != nil {
-		return
 	}
+	arr = json.To[[]ulid.ULID](out)
 	slices.SortFunc(arr, func(a, b ulid.ULID) int { return b.Compare(a) })
 	return
 }
@@ -56,7 +54,7 @@ func FindSerp(userID ulid.ULID, query string, id ulid.ULID) (*serp.Model, error)
 }
 
 func Save(userID ulid.ULID, query string, arr []ulid.ULID) error {
-	return s3.Put(key(userID, query), util.JSON(arr), false)
+	return s3.Put(key(userID, query), json.Of(arr), false)
 }
 
 func Update(userID ulid.ULID, query string, id ulid.ULID) error {

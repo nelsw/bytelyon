@@ -11,8 +11,7 @@ import (
 	"github.com/nelsw/bytelyon/pkg/page"
 	"github.com/nelsw/bytelyon/pkg/pw"
 	"github.com/nelsw/bytelyon/pkg/snippet"
-	"github.com/nelsw/bytelyon/pkg/urls"
-	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/util/urls"
 	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
@@ -26,7 +25,7 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, domain string) {
 
 	wg.Go(func() {
 		work(
-			model.NewCapacitor(25),
+			model.NewCounter(25),
 			ctx,
 			m,
 			&wg,
@@ -37,13 +36,13 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, domain string) {
 	})
 	wg.Wait()
 
-	if err := Save(userID, domain, m); err != nil {
+	if err := Save(userID, domain, m.Clone()); err != nil {
 		log.Warn().Err(err).Msg("failed to save sitemap")
 	}
 }
 
 func work(
-	capacitor *model.Capacitor,
+	capacitor *model.Counter,
 	ctx playwright.BrowserContext,
 	urls *model.SyncMap[string, bool],
 	wg *sync.WaitGroup,
@@ -57,7 +56,7 @@ func work(
 		return
 	}
 
-	urls.Set(url, false)
+	urls.Put(url, true)
 
 	for !capacitor.Inc() {
 		time.Sleep(500 * time.Millisecond)
@@ -77,7 +76,6 @@ func work(
 	} else if err = page.SaveScreenshot(snip.URL, snip.ID, screenshot); err != nil {
 		return
 	}
-	urls.Set(url, true)
 
 	for _, href := range doc.HREFs() {
 		if u, ok := pageLink(domain, href); ok {
@@ -93,10 +91,11 @@ func pageLink(domain, href string) (string, bool) {
 
 	// if the href is ...
 	if path.Ext(href) != "" || // file
+		href == "" || href == "/" || // root
 		urls.Domain(href) != domain || // outbound
-		util.Eq(href, "", "/") || // root
 		urls.IsBrowserFunction(href) || // browser function
-		util.HasPrefix(href, "#", "http://") { // fragment or insecure
+		strings.HasPrefix(href, "#") || // fragment
+		strings.HasPrefix(href, "http://") { // insecure
 		return "", false
 	}
 

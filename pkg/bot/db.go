@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -10,8 +9,8 @@ import (
 	"github.com/nelsw/bytelyon/pkg/s3"
 	"github.com/nelsw/bytelyon/pkg/search"
 	"github.com/nelsw/bytelyon/pkg/sitemap"
-	"github.com/nelsw/bytelyon/pkg/urls"
-	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/util/json"
+	"github.com/nelsw/bytelyon/pkg/util/urls"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
@@ -40,8 +39,8 @@ func Delete(uid ulid.ULID, typ Type, tgt string) (err error) {
 func Find(uid ulid.ULID, typ Type) Models {
 
 	var mm Models
-
-	arr, _ := s3.ListDirectories(util.Path("users", uid, typ) + "/")
+	prefix := fmt.Sprintf("users/%s/%s/", uid, typ)
+	arr, _ := s3.ListDirectories(prefix)
 	for _, k := range arr {
 
 		if !strings.HasSuffix(k, "/config.json") {
@@ -54,9 +53,7 @@ func Find(uid ulid.ULID, typ Type) Models {
 			continue
 		}
 
-		var m Model
-		_ = json.Unmarshal(b, &m)
-		mm = append(mm, &m)
+		mm = append(mm, json.To[*Model](b))
 	}
 
 	sort.Sort(mm)
@@ -76,5 +73,5 @@ func Save(uid ulid.ULID, m *Model) error {
 		m.Target = strings.ToLower(m.Target)
 	}
 
-	return s3.Put(key(uid, m.Type, m.Target), util.JSON(m), false)
+	return s3.Put(key(uid, m.Type, m.Target), json.Of(m), false)
 }

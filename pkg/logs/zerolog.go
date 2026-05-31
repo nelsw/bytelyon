@@ -52,7 +52,9 @@ func MakeZerolog(args ...string) zerolog.Logger {
 			"target",
 			"size",
 			"table",
-			"ip", "method", "authorization", "path", "query", "body",
+			"domain",
+			"ip", "method", "authorization", "path", "query",
+			"body",
 		},
 	})
 

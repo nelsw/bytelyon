@@ -1,12 +1,12 @@
 package sitemap
 
 import (
-	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 
-	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/s3"
-	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/util/json"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -18,14 +18,15 @@ func Delete(userID ulid.ULID, domain string) error { return s3.Delete(key(userID
 
 func Find(userID ulid.ULID, domain string) (arr []string) {
 	if out, err := s3.Get(key(userID, domain), false); err == nil {
-		err = json.Unmarshal(out, &arr)
+		arr = json.To[[]string](out)
 	}
 	return
 }
 
-func Save(userID ulid.ULID, domain string, urls *model.SyncMap[string, bool]) error {
+func Save(userID ulid.ULID, domain string, m map[string]bool) error {
 	for _, url := range Find(userID, domain) {
-		urls.Set(url, true)
+		m[url] = true
 	}
-	return s3.Put(key(userID, domain), util.JSON(urls.Keys()), false)
+	arr := slices.Sorted(maps.Keys(m))
+	return s3.Put(key(userID, domain), json.Of(arr), false)
 }

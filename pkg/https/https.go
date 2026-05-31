@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/util/urls"
 	"github.com/rs/zerolog/log"
 )
 
@@ -35,16 +35,29 @@ func Get(url string) ([]byte, error) {
 	return nil, errs
 }
 
-func get(url string) ([]byte, int, error) {
+func PostForm(u string, v url.Values) ([]byte, error) {
+	return post(u, []byte(v.Encode()), map[string]string{
+		"Content-Type": "application/x-www-form-urlencoded",
+	})
+}
+
+func PostJSON(u string, b []byte, h map[string]string) ([]byte, error) {
+	h["Content-Type"] = "application/json"
+	return post(u, b, h)
+}
+
+func get(u string) ([]byte, int, error) {
 
 	l := log.With().
 		Str("ƒ", "get").
-		Str("url", util.Trunc(url, 30)).
+		Str("domain", urls.Domain(u)).
+		Str("path", urls.Path(u)).
+		Str("query", urls.Query(u)).
 		Logger()
 
 	l.Trace().Send()
 
-	res, err := http.Get(url)
+	res, err := http.Get(u)
 	if err != nil {
 		l.Err(err).Send()
 		return nil, -1, err
@@ -59,17 +72,6 @@ func get(url string) ([]byte, int, error) {
 	b, err = io.ReadAll(res.Body)
 
 	return b, res.StatusCode, err
-}
-
-func PostForm(u string, v url.Values) ([]byte, error) {
-	return post(u, []byte(v.Encode()), map[string]string{
-		"Content-Type": "application/x-www-form-urlencoded",
-	})
-}
-
-func PostJSON(u string, b []byte, h map[string]string) ([]byte, error) {
-	h["Content-Type"] = "application/json"
-	return post(u, b, h)
 }
 
 func post(u string, b []byte, h map[string]string) ([]byte, error) {

@@ -1,12 +1,11 @@
 package user
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/s3"
-	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/util/json"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -28,15 +27,14 @@ func Find(a any) (m *Model, err error) {
 	var out []byte
 	if out, err = s3.Get(key(uid), false); err != nil {
 		return
-	} else if err = json.Unmarshal(out, &m); err != nil {
-		return
 	}
 
+	m = json.To[*Model](out)
 	m.ID = uid
 
 	return
 }
 
 func Save(m *Model) error {
-	return s3.Put(key(m.ID), util.JSON(m), false)
+	return s3.Put(key(m.ID), json.Of(m), false)
 }

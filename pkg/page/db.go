@@ -1,18 +1,18 @@
 package page
 
 import (
-	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/s3"
-	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/util/json"
 	"github.com/oklog/ulid/v2"
 )
 
 func key(url string, ulid ulid.ULID, name string) string {
-	return util.Path("pages", id.NewUUID(url), ulid, name)
+	return fmt.Sprintf("pages/%s/%s/%s", id.NewUUID(url), ulid, name)
 }
 
 func save(url string, id ulid.ULID, data []byte, name string) error {
@@ -29,8 +29,7 @@ func Delete(url string, id ulid.ULID) error {
 
 func FindObjects[T any](url string) (out []T, err error) {
 
-	prefix := util.Path("pages", id.NewUUID(url))
-
+	prefix := fmt.Sprintf("pages/%s/", id.NewUUID(url))
 	var keys []string
 	if keys, err = s3.ListDirectories(prefix); err != nil {
 		return nil, err
@@ -38,7 +37,7 @@ func FindObjects[T any](url string) (out []T, err error) {
 
 	var t T
 	for _, k := range keys {
-		s := strings.TrimPrefix(k, prefix+"/")
+		s := strings.TrimPrefix(k, prefix)
 		s = strings.TrimSuffix(s, "/object.json")
 		if id.ParseULID(s).IsZero() {
 			continue
@@ -53,13 +52,13 @@ func FindObjects[T any](url string) (out []T, err error) {
 func FindObject[T any](url string, id ulid.ULID) (t T, err error) {
 	var out []byte
 	if out, err = s3.Get(key(url, id, "object.json"), false); err == nil {
-		err = json.Unmarshal(out, &t)
+		t = json.To[T](out)
 	}
 	return
 }
 
 func SaveObject(url string, id ulid.ULID, a any) error {
-	return save(url, id, util.JSON(a), "object.json")
+	return save(url, id, json.Of(a), "object.json")
 }
 
 func SaveScreenshot(url string, id ulid.ULID, b []byte) error {

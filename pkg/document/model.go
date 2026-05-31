@@ -7,7 +7,6 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/nelsw/bytelyon/pkg/image"
-	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/rs/zerolog/log"
 )
 
@@ -41,13 +40,20 @@ func New(content string) *Model {
 	return m
 }
 
+func (m *Model) meta(keys ...string) string {
+	for _, k := range keys {
+		if v, ok := m.Meta[k]; ok {
+			return v
+		}
+	}
+	return ""
+}
+
 func (m *Model) Title() string {
-	return util.Or(
-		m.Meta["twitter:title"],
-		m.Meta["og:title"],
-		m.Meta["title"],
-		m.Find("title").Text(),
-	)
+	if v := m.meta("twitter:title", "og:title", "title"); v != "" {
+		return v
+	}
+	return m.Find("title").Text()
 }
 
 func (m *Model) Headings() map[string][]string {
@@ -90,36 +96,17 @@ func (m *Model) Paragraphs() []string {
 
 func (m *Model) Image() *image.Model {
 	return &image.Model{
-		URL: util.Or(
-			m.Meta["twitter:image:src"],
-			m.Meta["twitter:image"],
-			m.Meta["og:image:secure_url"],
-			m.Meta["og:image:url"],
-			m.Meta["og:image"],
-			m.Meta["image"],
-		),
-		ALT: util.Or(
-			m.Meta["twitter:image:alt"],
-			m.Meta["og:image:alt"],
-		),
+		URL: m.meta("twitter:image:src", "twitter:image", "og:image:secure_url", "og:image:url", "og:image", "image"),
+		ALT: m.meta("twitter:image:alt", "og:image:alt"),
 	}
 }
 
 func (m *Model) Source() string {
-	return util.Or(
-		m.Meta["twitter:site"],
-		m.Meta["og:site_name"],
-		m.Meta["og:site"],
-	)
+	return m.meta("twitter:site", "og:site_name", "og:site")
 }
 
 func (m *Model) Description() string {
-	return util.Or(
-		m.Meta["twitter:description"],
-		m.Meta["og:description"],
-		m.Meta["description"],
-		m.Meta["abstract"],
-	)
+	return m.meta("twitter:description", "og:description", "description", "abstract")
 }
 
 func (m *Model) Keywords() []string {

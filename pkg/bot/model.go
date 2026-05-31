@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"encoding/json"
 	"fmt"
 	"maps"
 	"regexp"
@@ -12,6 +11,7 @@ import (
 	"github.com/nelsw/bytelyon/pkg/news"
 	"github.com/nelsw/bytelyon/pkg/search"
 	"github.com/nelsw/bytelyon/pkg/sitemap"
+	"github.com/nelsw/bytelyon/pkg/util/json"
 	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
@@ -21,7 +21,8 @@ var (
 	typeErr = func(t any) error {
 		return fmt.Errorf("invalid bot type; need [search, news, sitemap]; got: [%s]", t)
 	}
-	Types = []Type{News, Search, Sitemap}
+	typeRegex = regexp.MustCompile(`^(search|news|sitemap)$`)
+	Types     = []Type{News, Search, Sitemap}
 )
 
 type Type string
@@ -70,7 +71,7 @@ type Model struct {
 
 func (m *Model) UnmarshalJSON(b []byte) (err error) {
 
-	var alias struct {
+	alias := json.To[struct {
 		Blacklist   []string                 `json:"blacklist"`
 		Headless    bool                     `json:"headless"`
 		Fingerprint *playwright.StorageState `json:"fingerprint"`
@@ -79,15 +80,7 @@ func (m *Model) UnmarshalJSON(b []byte) (err error) {
 		Type        Type                     `json:"type"`
 		RanAt       string                   `json:"ranAt"`
 		UserID      ulid.ULID                `json:"userId"`
-	}
-
-	if err = json.Unmarshal(b, &alias); err != nil {
-		return
-	}
-
-	if alias.Fingerprint == nil {
-		alias.Fingerprint = &playwright.StorageState{}
-	}
+	}](b)
 
 	m.Blacklist = make(map[string]bool)
 	for _, k := range alias.Blacklist {
@@ -102,19 +95,23 @@ func (m *Model) UnmarshalJSON(b []byte) (err error) {
 	return
 }
 
-func (m *Model) MarshalJSON() ([]byte, error) {
-	if m.Fingerprint == nil {
-		m.Fingerprint = &playwright.StorageState{}
+func (m *Model) MarshalJSON() (b []byte, err error) {
+	var blacklist []string
+	if len(m.Blacklist) > 0 {
+		blacklist = slices.Sorted(maps.Keys(m.Blacklist))
+	} else {
+		blacklist = make([]string, 0)
 	}
-	return json.Marshal(map[string]any{
-		"blacklist":   slices.Collect(maps.Keys(m.Blacklist)),
-		"fingerprint": m.Fingerprint,
-		"frequency":   m.Frequency.Nanoseconds(),
-		"headless":    m.Headless,
-		"ranAt":       m.RanAt.Format(time.RFC3339),
-		"target":      m.Target,
-		"type":        m.Type,
-	})
+	b = json.Of(
+		"blacklist", blacklist,
+		"fingerprint", m.Fingerprint,
+		"frequency", m.Frequency.Nanoseconds(),
+		"headless", m.Headless,
+		"ranAt", m.RanAt.Format(time.RFC3339),
+		"target", m.Target,
+		"type", m.Type,
+	)
+	return
 }
 
 // IsReady returns true if the frequency is positive and the next run is in the past.
@@ -171,7 +168,7 @@ func (m *Model) Run(
 }
 
 func (m *Model) Validate() error {
-	if s := string(m.Type); !regexp.MustCompile(`^(search|news|sitemap)$`).MatchString(s) {
+	if s := string(m.Type); !typeRegex.MatchString(s) {
 		return typeErr(s)
 	}
 	return nil

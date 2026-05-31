@@ -35,22 +35,22 @@ func NewUUID(s ...string) uuid.UUID {
 	if len(s) > 0 {
 		return uuid.NewSHA1(uuid.NameSpaceURL, []byte(s[0]))
 	}
-	i, _ := uuid.NewV7()
-	return i
+	id, _ := uuid.NewV7()
+	return id
 }
 
-func ParseULID(id string) ulid.ULID {
-	ID, err := ulid.Parse(id)
+func ParseULID(s string) ulid.ULID {
+	id, err := ulid.Parse(s)
 	if err != nil {
 		return ulid.Zero
 	}
-	return ID
+	return id
 }
 
-func ParseUUID(id string) uuid.UUID {
-	ID, err := uuid.Parse(id)
+func ParseUUID(s string) uuid.UUID {
+	id, err := uuid.Parse(s)
 	if err != nil {
 		return uuid.Nil
 	}
-	return ID
+	return id
 }

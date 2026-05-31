@@ -48,6 +48,16 @@ func Domain(url string) string {
 	return url
 }
 
+func Query(url string) (s string) {
+	_, s, _ = strings.Cut(url, "?")
+	return
+}
+
+func Path(url string) (s string) {
+	_, s, _ = strings.Cut(url, "/")
+	return
+}
+
 func IsBrowserFunction(s string) bool {
 	return browserFunction.MatchString(s)
 }

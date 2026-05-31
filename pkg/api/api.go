@@ -18,6 +18,13 @@ type AuthResponse events.APIGatewayV2CustomAuthorizerSimpleResponse
 type Response events.APIGatewayV2HTTPResponse
 type Request events.APIGatewayV2HTTPRequest
 
+var headers = map[string]string{
+	"Access-Control-Allow-Origin":  "*",
+	"Access-Control-Allow-Headers": "authorization, content-type,",
+	"Access-Control-Allow-Methods": "*",
+	"Content-BotType":              "application/json",
+}
+
 func (r Request) Basic() (string, string, error) {
 
 	_, tkn := r.Authorization()
@@ -51,6 +58,7 @@ func (r Request) response(code int, a ...any) Response {
 	} else {
 		var b []byte
 		if b, err = json.Marshal(a[0]); err != nil {
+			code = http.StatusInternalServerError
 			body = `{"message":"` + err.Error() + `"}`
 		} else {
 			body = string(b)
@@ -62,12 +70,7 @@ func (r Request) response(code int, a ...any) Response {
 	return Response{
 		StatusCode: code,
 		Body:       body,
-		Headers: map[string]string{
-			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Headers": "authorization, content-type,",
-			"Access-Control-Allow-Methods": "*",
-			"Content-BotType":              "application/json",
-		},
+		Headers:    headers,
 	}
 }
 
@@ -98,8 +101,7 @@ func (r Request) Auth(a any) (res AuthResponse) {
 }
 
 func (r Request) MarshalZerologObject(evt *zerolog.Event) {
-	evt.Str("ip", r.RequestContext.HTTP.SourceIP).
-		Str("method", r.RequestContext.HTTP.Method).
+	evt.Str("method", r.RequestContext.HTTP.Method).
 		Str("authorization", r.Headers["authorization"]).
 		Str("path", r.RawPath).
 		Any("query", r.QueryStringParameters).

@@ -45,6 +45,7 @@ func MakeZerolog(args ...string) zerolog.Logger {
 			}
 		},
 		FieldsOrder: []string{
+			"request", "response",
 			"ƒ",
 			"ready",
 			"userId", "botId", "id",
@@ -53,8 +54,10 @@ func MakeZerolog(args ...string) zerolog.Logger {
 			"size",
 			"table",
 			"domain",
-			"ip", "method", "authorization", "path", "query",
+			"method", "authorization", "path", "query",
+			"code",
 			"body",
+			"isAuthorized", "context",
 		},
 	})
 

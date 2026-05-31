@@ -21,9 +21,9 @@ func save(url string, id ulid.ULID, data []byte, name string) error {
 
 func Delete(url string, id ulid.ULID) error {
 	var err error
-	err = errors.Join(s3.Delete(key(url, id, "object.json"), false))
-	err = errors.Join(s3.Delete(key(url, id, "screenshot.png"), true))
-	err = errors.Join(s3.Delete(key(url, id, "content.html"), false))
+	err = errors.Join(err, s3.Delete(key(url, id, "object.json"), false))
+	err = errors.Join(err, s3.Delete(key(url, id, "screenshot.png"), true))
+	err = errors.Join(err, s3.Delete(key(url, id, "content.html"), false))
 	return err
 }
 

@@ -105,7 +105,10 @@ func GetPrivateObject(key string) ([]byte, error) {
 		l.Err(err).Send()
 		return nil, err
 	}
-	out.Body.Close()
+
+	if err = out.Body.Close(); err != nil {
+		l.Err(err).Send()
+	}
 
 	l.Debug().Send()
 
@@ -144,7 +147,10 @@ func Get(key string, isPublic bool) ([]byte, error) {
 		l.Err(err).Send()
 		return nil, err
 	}
-	out.Body.Close()
+
+	if err = out.Body.Close(); err != nil {
+		l.Err(err).Send()
+	}
 
 	l.Debug().Send()
 
@@ -281,18 +287,4 @@ func GetPresignedURL(key string) (string, error) {
 	}
 
 	return presignedUrl.URL, nil
-}
-
-func DeleteDirectory(prefix string) error {
-
-	keys, err := ListDirectories(prefix)
-	if err != nil {
-		return err
-	}
-
-	for _, k := range keys {
-		DeletePrivateObject(k)
-	}
-
-	return nil
 }

@@ -62,7 +62,11 @@ func get(u string) ([]byte, int, error) {
 		l.Err(err).Send()
 		return nil, -1, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		if closeErr := res.Body.Close(); closeErr != nil {
+			l.Err(closeErr).Send()
+		}
+	}()
 
 	l.Trace().
 		Str("status", res.Status).

@@ -155,17 +155,17 @@ func (m *Model) fillrOganicDataV2() {
 
 	for _, e = range e.EachIter() {
 
-		l, r, k := strings.Cut(e.AttrOr("href", ""), "&url=")
-		if !k {
+		_, u, ok := strings.Cut(e.AttrOr("href", ""), "&url=")
+		if !ok {
 			continue
 		}
 
-		URL := r
+		URL := u
 		if i := strings.LastIndex(URL, "/"); i > 0 {
 			URL = URL[:i]
 		}
 
-		for ok := true; ok; _, ok = e.Attr("class") {
+		for ok = true; ok; _, ok = e.Attr("class") {
 			e = e.Parent()
 		}
 
@@ -187,13 +187,11 @@ func (m *Model) fillrOganicDataV2() {
 
 			for _, chunk := range strings.Split(chump, "<") {
 
-				l, r, k = strings.Cut(chunk, ">")
-
 				var money string
-				if !k {
-					money = l
-				} else {
+				if l, r, k := strings.Cut(chunk, ">"); k {
 					money = r
+				} else {
+					money = l
 				}
 
 				if money == "" || money == "More results" {

@@ -39,7 +39,9 @@ func (w *Worker) work() {
 		panic(err)
 	}
 	defer func() {
-		orderDB.Close()
+		if closeErr := orderDB.Close(); closeErr != nil {
+			log.Error().Err(closeErr).Msg("failed to close orderDB")
+		}
 	}()
 
 	var orders shopify.Orders

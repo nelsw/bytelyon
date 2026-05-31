@@ -40,7 +40,9 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, topic string, exclude
 	arr := slices.Collect(maps.Values(m.Clone()))
 	slices.SortFunc(arr, func(a, b Model) int { return b.ID.Compare(a.ID) })
 
-	Save(userID, topic, arr)
+	if err := Save(userID, topic, arr); err != nil {
+		log.Err(err).Send()
+	}
 }
 
 func routine(ctx playwright.BrowserContext, m *model.SyncMap[string, Model], h Model) func() {
@@ -98,7 +100,7 @@ func fetch(topic string, exclude map[string]bool, after time.Time) (headlines []
 				}
 			}
 
-			link, item = chomp(item, "<link>", "</link>")
+			link, _ = chomp(item, "<link>", "</link>")
 			if strings.HasPrefix(link, "http://www.bing.com/news") {
 				link = decodeBingNewsLink(link)
 			} else if strings.HasPrefix(link, "https://news.google.com/rss/articles/") {

@@ -21,10 +21,15 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, query string, exclude
 		return
 	}
 
-	Update(userID, query, m.ID)
+	if err = Update(userID, query, m.ID); err != nil {
+		log.Warn().Err(err).Msg("Failed to save search object")
+		return
+	}
 
 	defer func() {
-		g.Close()
+		if closeErr := g.Close(); closeErr != nil {
+			log.Warn().Err(closeErr).Msg("Failed to close page")
+		}
 	}()
 
 	var p playwright.Page
@@ -33,16 +38,22 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, query string, exclude
 			continue
 		} else if p, err = pw.NewTab(ctx, l); err != nil || p == nil || p.URL() == "about:blank" {
 			if p != nil {
-				p.Close()
+				if err = p.Close(); err != nil {
+					log.Warn().Err(err).Msg("Failed to close page")
+				}
 			}
 			continue
 		}
 		content, screenshot := pw.Content(p), pw.Screenshot(p)
 		m.AddSponsored(p.URL(), content)
-		serp.Update(query, m)
+		if err = serp.Update(query, m); err != nil {
+			log.Warn().Err(err).Msg("Failed to save serp object")
+		}
 		if err = page.SaveScreenshot(p.URL(), m.ID, screenshot); err != nil {
 			log.Warn().Err(err).Msg("Failed to save screenshot")
 		}
-		p.Close()
+		if err = p.Close(); err != nil {
+			log.Warn().Err(err).Msg("Failed to close page")
+		}
 	}
 }

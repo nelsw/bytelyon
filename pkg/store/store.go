@@ -109,7 +109,7 @@ func (db *DB[K, V]) Commit() error {
 		return nil
 	}
 
-	if b, err := json.Marshal(db.table); err != nil {
+	if b, err := json.Marshal(db.table.Clone()); err != nil {
 		return err
 	} else if err = s3.PutPrivateObject(db.key, b); err != nil {
 		return err

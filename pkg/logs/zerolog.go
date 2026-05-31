@@ -19,7 +19,7 @@ func MakeZerolog(args ...string) zerolog.Logger {
 		if s == "" {
 			s = "info"
 		}
-		args = append(args)
+		args = append(args, s)
 	}
 	l := log.Output(zerolog.ConsoleWriter{
 		Out: os.Stdout,

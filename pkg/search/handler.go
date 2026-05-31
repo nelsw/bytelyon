@@ -36,7 +36,7 @@ func HandleDelete(r api.Request) api.Response {
 		return r.NC()
 	}
 
-	slices.Delete(arr, idx, idx+1)
+	arr = slices.Delete(arr, idx, idx+1)
 
 	if err = Save(r.UserID(), r.Query("query"), arr); err != nil {
 		return r.BAD(err)

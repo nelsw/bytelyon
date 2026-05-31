@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/nelsw/bytelyon/pkg/api"
+	"github.com/nelsw/bytelyon/pkg/api"
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/image"
 	"github.com/nelsw/bytelyon/pkg/store"
@@ -18,7 +18,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var handleRegex = regexp.MustCompile("[^a-zA-Z0-9\\-]+")
+var handleRegex = regexp.MustCompile(`[^a-zA-Z0-9\\-]+`)
 
 type Post struct {
 	Body        string       `json:"body"`
@@ -31,7 +31,7 @@ type Post struct {
 	Title       string       `json:"title"`
 }
 
-func Handler(r Request) Response {
+func Handler(r api.Request) api.Response {
 
 	if r.IsGuest() {
 		return r.NOPE()
@@ -47,7 +47,7 @@ func Handler(r Request) Response {
 	return r.NI()
 }
 
-func handlePost(r Request) Response {
+func handlePost(r api.Request) api.Response {
 
 	var p = new(Post)
 	if err := json.Unmarshal([]byte(r.Body), p); err != nil {
@@ -101,13 +101,17 @@ func handlePost(r Request) Response {
 	return r.OK(map[string]any{"link": "https://firefibers.com/blogs/news/" + p.Handle})
 }
 
-func handleGet(r Request) Response {
+func handleGet(r api.Request) api.Response {
 
 	orderDB, err := store.New[string, Order]("orders.json")
 	if err != nil {
 		return r.BAD(err)
 	}
-	orderDB.Close()
+	defer func() {
+		if closeErr := orderDB.Close(); closeErr != nil {
+			log.Error().Err(closeErr).Msg("failed to close orderDB")
+		}
+	}()
 
 	var orders []any
 	customers := map[string]any{}

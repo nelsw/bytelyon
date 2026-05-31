@@ -365,7 +365,7 @@ func SearchGoogle(q string, ctx playwright.BrowserContext) (page playwright.Page
 	}
 
 	if IsRequestBlocked(resp) || IsPageBlocked(page) {
-		if WaitForLoadState(page); IsRequestBlocked(resp) || IsPageBlocked(page) {
+		if err = WaitForLoadState(page); err != nil || IsRequestBlocked(resp) || IsPageBlocked(page) {
 			return
 		}
 	}
@@ -423,7 +423,11 @@ func Scrape(url string, ctx playwright.BrowserContext) (content string, screensh
 		return
 	}
 
-	defer page.Close()
+	defer func() {
+		if closeErr := page.Close(); closeErr != nil {
+			l.Warn().Err(closeErr).Msg("failed to close page")
+		}
+	}()
 
 	if err = Visit(page, url); err != nil {
 		l.Warn().Msgf("Visit failed: %s", err.Error())

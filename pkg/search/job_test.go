@@ -17,8 +17,15 @@ func TestModel_Run(t *testing.T) {
 	ctx, _ := pw.NewBrowserContext(bro, nil)
 
 	defer func() {
-		ctx.Close()
-		bro.Close()
+		if err := ctx.Close(); err != nil {
+			t.Error(err)
+		}
+		if err := bro.Close(); err != nil {
+			t.Error(err)
+		}
+		if err := cpw.Stop(); err != nil {
+			t.Error(err)
+		}
 	}()
 
 	Work(ctx, ulid.MustParse("01KM010XK0HY8HWWFPJTZGRF0F"), "ev fire blankets for sale", map[string]bool{})

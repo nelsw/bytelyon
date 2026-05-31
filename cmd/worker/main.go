@@ -49,7 +49,9 @@ func main() {
 				time.Sleep(time.Second * 10)
 			}
 		}
-		pwc.Stop()
+		if err := pwc.Stop(); err != nil {
+			log.Err(err).Send()
+		}
 	}()
 	<-quit
 	fmt.Println()

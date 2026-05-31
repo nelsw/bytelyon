@@ -18,7 +18,7 @@ func Run(
 	var err error
 
 	for _, t := range bot.Types {
-		for _, b := range bot.Find(uid, t) {
+		for _, b := range bot.FindAll(uid, t) {
 
 			l := log.With().
 				Any("type", t).

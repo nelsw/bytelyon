@@ -71,7 +71,7 @@ func (m *Model) UnmarshalJSON(b []byte) error {
 	alias, err := json.Deserialize[struct {
 		Blacklist   []string                 `json:"blacklist"`
 		Headless    bool                     `json:"headless"`
-		Fingerprint *playwright.StorageState `json:"fingerprint"`
+		Fingerprint *playwright.StorageState `json:"fingerprint,omitempty"`
 		Frequency   int64                    `json:"frequency"`
 		Target      string                   `json:"target"`
 		Type        Type                     `json:"type"`
@@ -161,7 +161,7 @@ func (m *Model) Run(
 	}
 
 	// save bot
-	if err := Save(uid, m); err != nil {
+	if err := save(uid, m); err != nil {
 		log.Warn().Err(err).Msg("failed to Save Search Bot")
 	}
 }

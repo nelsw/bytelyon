@@ -12,7 +12,7 @@ import (
 
 func TestHandler_Get_URLs(t *testing.T) {
 	logs.Init("debug")
-	req := api.Request{
+	req := api.HTTPRequest{
 		QueryStringParameters: map[string]string{
 			"domain": "firefibers.com",
 		},
@@ -35,7 +35,7 @@ func TestHandler_Get_URLs(t *testing.T) {
 
 func TestHandler_Get_Snippet(t *testing.T) {
 	logs.Init("debug")
-	req := api.Request{
+	req := api.HTTPRequest{
 		QueryStringParameters: map[string]string{
 			"domain": "firefibers.com",
 			"url":    "https://firefibers.com",

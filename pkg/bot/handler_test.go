@@ -12,7 +12,7 @@ import (
 
 func TestHandler_Get_News(t *testing.T) {
 	logs.Init("debug")
-	req := api.Request{
+	req := api.HTTPRequest{
 		QueryStringParameters: map[string]string{
 			"type": "search",
 		},

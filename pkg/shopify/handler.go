@@ -31,28 +31,28 @@ type Post struct {
 	Title       string       `json:"title"`
 }
 
-func Handler(r api.Request) api.Response {
+func Handler(r api.HTTPRequest) api.HTTPResponse {
 
 	if r.IsGuest() {
-		return r.NOPE()
+		return api.Forbidden()
 	}
 
 	switch r.RequestContext.HTTP.Method {
 	case http.MethodPost:
 		return handlePost(r)
 	case http.MethodGet:
-		return handleGet(r)
+		return handleGet()
 	}
 
-	return r.NI()
+	return api.NotImplemented()
 }
 
-func handlePost(r api.Request) api.Response {
+func handlePost(r api.HTTPRequest) api.HTTPResponse {
 
 	var p = new(Post)
 	if err := json.Unmarshal([]byte(r.Body), p); err != nil {
 		log.Err(err).Msg("failed to unmarshal post")
-		return r.BAD(err)
+		return api.BadRequest(err)
 	}
 
 	// assign a new ID
@@ -76,7 +76,7 @@ func handlePost(r api.Request) api.Response {
 	tkn, err := AccessToken()
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get Shopify access token")
-		return r.BAD(err)
+		return api.BadRequest(err)
 	}
 
 	_, err = PostArticle(
@@ -95,17 +95,17 @@ func handlePost(r api.Request) api.Response {
 
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create article on Shopify after spinning it")
-		return r.BAD(err)
+		return api.BadRequest(err)
 	}
 
-	return r.OK(map[string]any{"link": "https://firefibers.com/blogs/news/" + p.Handle})
+	return api.OK(map[string]any{"link": "https://firefibers.com/blogs/news/" + p.Handle})
 }
 
-func handleGet(r api.Request) api.Response {
+func handleGet() api.HTTPResponse {
 
 	orderDB, err := store.New[string, Order]("orders.json")
 	if err != nil {
-		return r.BAD(err)
+		return api.BadRequest(err)
 	}
 	defer func() {
 		if closeErr := orderDB.Close(); closeErr != nil {
@@ -133,7 +133,7 @@ func handleGet(r api.Request) api.Response {
 	for _, c := range slices.Sorted(maps.Keys(customers)) {
 		v = append(v, customers[c])
 	}
-	return r.OK(map[string]any{
+	return api.OK(map[string]any{
 		"customers": v,
 		"orders":    orders,
 	})

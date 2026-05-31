@@ -19,6 +19,22 @@ func key(uid ulid.ULID, typ Type, tgt string) string {
 	return fmt.Sprintf("users/%s/%s/%s/config.json", uid, typ, tgt)
 }
 
+func save(uid ulid.ULID, m *Model) error {
+	if err := m.Validate(); err != nil {
+		return err
+	}
+	return s3.Put(key(uid, m.Type, m.Target), json.Of(m), false)
+}
+
+func Create(uid ulid.ULID, m *Model) (err error) {
+	if m.Type == Sitemap {
+		m.Target = urls.Domain(m.Target)
+	} else {
+		m.Target = strings.ToLower(m.Target)
+	}
+	return save(uid, m)
+}
+
 func Delete(uid ulid.ULID, typ Type, tgt string) (err error) {
 	switch typ {
 	case News:
@@ -34,7 +50,7 @@ func Delete(uid ulid.ULID, typ Type, tgt string) (err error) {
 	return s3.Delete(key(uid, typ, tgt), false)
 }
 
-func Find(uid ulid.ULID, typ Type) Models {
+func FindAll(uid ulid.ULID, typ Type) Models {
 
 	var mm Models
 	prefix := fmt.Sprintf("users/%s/%s/", uid, typ)
@@ -59,17 +75,21 @@ func Find(uid ulid.ULID, typ Type) Models {
 	return mm
 }
 
-func Save(uid ulid.ULID, m *Model) error {
-
-	if err := m.Validate(); err != nil {
-		return err
-	}
-
-	if m.Type == Sitemap {
-		m.Target = urls.Domain(m.Target)
+func FindOne(uid ulid.ULID, typ Type, tgt string) *Model {
+	if out, err := s3.Get(key(uid, typ, tgt), false); err != nil {
+		return nil
 	} else {
-		m.Target = strings.ToLower(m.Target)
+		return json.To[*Model](out)
 	}
+}
 
-	return s3.Put(key(uid, m.Type, m.Target), json.Of(m), false)
+func Update(uid ulid.ULID, m *Model) error {
+	x := FindOne(uid, m.Type, m.Target)
+	if x == nil {
+		return Create(uid, m)
+	}
+	x.Headless = m.Headless
+	x.Blacklist = m.Blacklist
+	x.Frequency = m.Frequency
+	return save(uid, m)
 }

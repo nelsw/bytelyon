@@ -14,27 +14,27 @@ type prompt struct {
 	HTML    bool   `json:"html"`
 }
 
-func Handler(r api.Request) api.Response {
+func Handler(r api.HTTPRequest) api.HTTPResponse {
 	if r.IsGuest() {
-		return r.NOPE()
+		return api.Forbidden()
 	}
 	switch r.RequestContext.HTTP.Method {
 	case http.MethodPost:
 		return handlePost(r)
 	}
-	return r.NI()
+	return api.NotImplemented()
 }
 
-func handlePost(r api.Request) api.Response {
+func handlePost(r api.HTTPRequest) api.HTTPResponse {
 	var p prompt
 	if err := json.Unmarshal([]byte(r.Body), &p); err != nil {
 		log.Err(err).Msg("failed to unmarshal prompt")
-		return r.BAD(err)
+		return api.BadRequest(err)
 	}
 
 	txt, err := Prompt(p.System, p.Message, p.HTML)
 	if err != nil {
-		return r.BAD(err)
+		return api.BadRequest(err)
 	}
-	return r.OK(map[string]string{"text": txt})
+	return api.OK(map[string]string{"text": txt})
 }

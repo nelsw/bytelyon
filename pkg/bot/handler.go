@@ -5,41 +5,52 @@ import (
 	"net/http"
 
 	"github.com/nelsw/bytelyon/pkg/api"
-	"github.com/rs/zerolog/log"
 )
 
-func Handler(r api.Request) api.Response {
+func Handler(r api.HTTPRequest) api.HTTPResponse {
 	switch r.RequestContext.HTTP.Method {
 	case http.MethodDelete:
 		return handleDelete(r)
 	case http.MethodGet:
 		return handleGet(r)
+	case http.MethodPost:
+		return HandlePost(r)
 	case http.MethodPut:
 		return handlePut(r)
 	}
-	return r.NI()
+	return api.NotImplemented()
 }
 
-func handleDelete(r api.Request) api.Response {
+func handleDelete(r api.HTTPRequest) api.HTTPResponse {
 	if err := Delete(r.UserID(), Type(r.Query("type")), r.Query("target")); err != nil {
-		return r.BAD(err)
+		return api.BadRequest(err)
 	}
-	return r.NC()
+	return api.NoContent()
 }
 
-func handleGet(r api.Request) api.Response { return r.OK(Find(r.UserID(), Type(r.Query("type")))) }
+func handleGet(r api.HTTPRequest) api.HTTPResponse {
+	if all := FindAll(r.UserID(), Type(r.Query("type"))); len(all) > 0 {
+		return api.OK(all)
+	}
+	return api.NoContent()
+}
 
-func handlePut(r api.Request) api.Response {
-
+func HandlePost(r api.HTTPRequest) api.HTTPResponse {
 	var m = new(Model)
 	if err := json.Unmarshal([]byte(r.Body), m); err != nil {
-		return r.BAD(err)
+		return api.BadRequest(err)
+	} else if err = Create(r.UserID(), m); err != nil {
+		return api.BadRequest(err)
 	}
+	return api.OK(m)
+}
 
-	if err := Save(r.UserID(), m); err != nil {
-		log.Err(err).Msg("failed to save bot")
-		return r.BAD(err)
+func handlePut(r api.HTTPRequest) api.HTTPResponse {
+	var m = new(Model)
+	if err := json.Unmarshal([]byte(r.Body), m); err != nil {
+		return api.BadRequest(err)
+	} else if err = Update(r.UserID(), m); err != nil {
+		return api.BadRequest(err)
 	}
-
-	return r.OK(m)
+	return api.OK(m)
 }

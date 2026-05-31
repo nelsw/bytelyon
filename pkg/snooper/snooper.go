@@ -10,18 +10,19 @@ import (
 
 type Worker struct {
 	tkn, store string
-	stop, done bool
+	stop       bool
 }
 
 func New(tkn, store string) *Worker {
-	return &Worker{tkn, store, false, true}
+	return &Worker{tkn, store, false}
 }
 
 func (w *Worker) Start() {
 	log.Info().Msg("starting")
 	for !w.stop {
-		w.work()
-		w.sleep()
+		if w.Work(); !w.stop {
+			w.Sleep()
+		}
 	}
 }
 
@@ -29,7 +30,7 @@ func (w *Worker) Stop() {
 	w.stop = true
 }
 
-func (w *Worker) work() {
+func (w *Worker) Work() {
 	log.Info().Msg("working")
 
 	var err error
@@ -55,7 +56,7 @@ func (w *Worker) work() {
 	}
 }
 
-func (w *Worker) sleep() {
+func (w *Worker) Sleep() {
 	log.Info().Msg("sleeping")
 	for i := 0; i < 60 && !w.stop; i++ {
 		time.Sleep(time.Hour * 24)

@@ -12,7 +12,6 @@ func of(a any) (b []byte) {
 	} else {
 		b, _ = Serialize(a)
 	}
-	log.Trace().Msgf("json\n%v\n%s", a, b)
 	return b
 }
 
@@ -47,7 +46,7 @@ func To[T any](b []byte) (a T) {
 }
 
 func Serialize(a any) ([]byte, error) {
-	return json.MarshalIndent(a, "", "\t")
+	return json.MarshalIndent(a, "", "  ")
 }
 
 func Deserialize[T any](b []byte) (t T, err error) {

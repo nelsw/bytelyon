@@ -84,6 +84,7 @@ func (r Request) OK(a any) Response      { return r.response(http.StatusOK, a) }
 
 func (r Request) Auth(a any) (res AuthResponse) {
 
+	res.Context = make(map[string]any)
 	if _, res.IsAuthorized = a.(string); !res.IsAuthorized {
 		res.Context["message"] = a.(error).Error()
 	} else {

@@ -33,7 +33,6 @@ func handlePut(r api.Request) api.Response {
 
 	var m = new(Model)
 	if err := json.Unmarshal([]byte(r.Body), m); err != nil {
-		log.Err(err).Msg("failed to unmarshal bot")
 		return r.BAD(err)
 	}
 

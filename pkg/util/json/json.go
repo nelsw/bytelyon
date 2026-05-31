@@ -10,7 +10,7 @@ func of(a any) (b []byte) {
 	if a == nil {
 		b = []byte(`{}`)
 	} else {
-		b, _ = json.MarshalIndent(a, "", "\t")
+		b, _ = Serialize(a)
 	}
 	log.Trace().Msgf("json\n%v\n%s", a, b)
 	return b
@@ -42,6 +42,14 @@ func Of(a ...any) (b []byte) {
 }
 
 func To[T any](b []byte) (a T) {
-	_ = json.Unmarshal(b, &a)
+	a, _ = Deserialize[T](b)
 	return
+}
+
+func Serialize(a any) ([]byte, error) {
+	return json.MarshalIndent(a, "", "\t")
+}
+
+func Deserialize[T any](b []byte) (t T, err error) {
+	return t, json.Unmarshal(b, &t)
 }

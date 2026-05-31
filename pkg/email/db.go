@@ -40,8 +40,7 @@ func Find(txt string) (uid ulid.ULID, err error) {
 		return
 	}
 
-	m := json.To[*Model](out)
-	return m.UID, nil
+	return json.To[*Model](out).UID, nil
 }
 
 func Validate(txt string) (err error) {

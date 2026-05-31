@@ -66,9 +66,9 @@ type Model struct {
 	Type Type
 }
 
-func (m *Model) UnmarshalJSON(b []byte) (err error) {
+func (m *Model) UnmarshalJSON(b []byte) error {
 
-	alias := json.To[struct {
+	alias, err := json.Deserialize[struct {
 		Blacklist   []string                 `json:"blacklist"`
 		Headless    bool                     `json:"headless"`
 		Fingerprint *playwright.StorageState `json:"fingerprint"`
@@ -78,6 +78,11 @@ func (m *Model) UnmarshalJSON(b []byte) (err error) {
 		RanAt       string                   `json:"ranAt"`
 		UserID      ulid.ULID                `json:"userId"`
 	}](b)
+
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to unmarshal bot")
+		return err
+	}
 
 	m.Blacklist = make(map[string]bool)
 	for _, k := range alias.Blacklist {
@@ -89,7 +94,7 @@ func (m *Model) UnmarshalJSON(b []byte) (err error) {
 	m.RanAt, _ = time.Parse(time.RFC3339, alias.RanAt)
 	m.Target = alias.Target
 	m.Type = alias.Type
-	return
+	return nil
 }
 
 func (m *Model) MarshalJSON() (b []byte, err error) {

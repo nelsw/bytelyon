@@ -11,26 +11,27 @@ import (
 	"github.com/nelsw/bytelyon/pkg/sitemap"
 )
 
-func Handler(r api.Request) (api.Response, error) {
+func Handler(req api.HTTPRequest) (res api.HTTPResponse, err error) {
 
-	r.Log()
+	req.Log()
+	defer res.Log()
 
-	switch r.RawPath {
+	switch req.RawPath {
 	case "/v1/ai":
-		return ai.Handler(r), nil
+		return ai.Handler(req), nil
 	case "/v1/bots":
-		return bot.Handler(r), nil
+		return bot.Handler(req), nil
 	case "/v1/shopify":
-		return shopify.Handler(r), nil
+		return shopify.Handler(req), nil
 	case "/v1/news":
-		return news.Handler(r), nil
+		return news.Handler(req), nil
 	case "/v1/searches":
-		return search.Handler(r), nil
+		return search.Handler(req), nil
 	case "/v1/sitemaps":
-		return sitemap.Handler(r), nil
+		return sitemap.Handler(req), nil
 	}
 
-	return r.NI(), nil
+	return api.NotImplemented(), nil
 }
 
 func main() { lambda.Start(Handler) }

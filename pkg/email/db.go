@@ -1,13 +1,12 @@
 package email
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/mail"
 
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/s3"
-	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/util/json"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -19,7 +18,7 @@ func Create(uid ulid.ULID, txt string) error {
 	} else if ok, _ := Exists(txt); ok {
 		return fmt.Errorf("email already exists")
 	}
-	return s3.Put(key(txt), util.JSON(&Model{uid, txt}), false)
+	return s3.Put(key(txt), json.Of(&Model{uid, txt}), false)
 }
 
 func Delete(txt string) error {
@@ -41,11 +40,7 @@ func Find(txt string) (uid ulid.ULID, err error) {
 		return
 	}
 
-	var m Model
-	if err = json.Unmarshal(out, &m); err != nil {
-		return
-	}
-	return m.UID, nil
+	return json.To[*Model](out).UID, nil
 }
 
 func Validate(txt string) (err error) {

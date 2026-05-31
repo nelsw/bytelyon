@@ -2,6 +2,7 @@ package news
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -12,7 +13,7 @@ import (
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/pw"
-	"github.com/nelsw/bytelyon/pkg/urls"
+	"github.com/nelsw/bytelyon/pkg/util/urls"
 	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
@@ -27,7 +28,7 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, topic string, exclude
 
 	m := model.NewSyncMap[string, Model]()
 	for _, h := range Find(userID, topic) {
-		m.Set(h.URL, h)
+		m.Put(h.URL, h)
 	}
 
 	var wg sync.WaitGroup
@@ -36,10 +37,12 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, topic string, exclude
 	}
 	wg.Wait()
 
-	arr := m.Values()
+	arr := slices.Collect(maps.Values(m.Clone()))
 	slices.SortFunc(arr, func(a, b Model) int { return b.ID.Compare(a.ID) })
 
-	Save(userID, topic, arr)
+	if err := Save(userID, topic, arr); err != nil {
+		log.Err(err).Send()
+	}
 }
 
 func routine(ctx playwright.BrowserContext, m *model.SyncMap[string, Model], h Model) func() {
@@ -57,7 +60,7 @@ func routine(ctx playwright.BrowserContext, m *model.SyncMap[string, Model], h M
 			log.Err(err).Send()
 			return
 		}
-		m.Set(h.URL, h)
+		m.Put(h.URL, h)
 	}
 }
 
@@ -97,7 +100,7 @@ func fetch(topic string, exclude map[string]bool, after time.Time) (headlines []
 				}
 			}
 
-			link, item = chomp(item, "<link>", "</link>")
+			link, _ = chomp(item, "<link>", "</link>")
 			if strings.HasPrefix(link, "http://www.bing.com/news") {
 				link = decodeBingNewsLink(link)
 			} else if strings.HasPrefix(link, "https://news.google.com/rss/articles/") {

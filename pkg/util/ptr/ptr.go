@@ -15,7 +15,7 @@ func Of[T any](t T) *T {
 
 // OrNil returns a pointer to the given value if it is not nil, valid, and not zero; else nil;
 func OrNil[T any](t T) *T {
-	if v := reflect.ValueOf(t); !v.IsNil() && v.IsValid() && !v.IsZero() {
+	if v := reflect.ValueOf(t); v.IsValid() && !v.IsZero() {
 		return Of(t)
 	}
 	return nil

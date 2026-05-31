@@ -19,7 +19,7 @@ func MakeZerolog(args ...string) zerolog.Logger {
 		if s == "" {
 			s = "info"
 		}
-		args = append(args)
+		args = append(args, s)
 	}
 	l := log.Output(zerolog.ConsoleWriter{
 		Out: os.Stdout,
@@ -45,6 +45,7 @@ func MakeZerolog(args ...string) zerolog.Logger {
 			}
 		},
 		FieldsOrder: []string{
+			"request", "response",
 			"ƒ",
 			"ready",
 			"userId", "botId", "id",
@@ -52,7 +53,11 @@ func MakeZerolog(args ...string) zerolog.Logger {
 			"target",
 			"size",
 			"table",
-			"ip", "method", "authorization", "path", "query", "body",
+			"domain",
+			"method", "authorization", "path", "query",
+			"code",
+			"body",
+			"isAuthorized", "context",
 		},
 	})
 

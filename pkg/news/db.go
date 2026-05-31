@@ -1,13 +1,12 @@
 package news
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/nelsw/bytelyon/pkg/page"
 	"github.com/nelsw/bytelyon/pkg/s3"
-	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/util/json"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -24,11 +23,11 @@ func Delete(userID ulid.ULID, topic string) (err error) {
 
 func Find(userID ulid.ULID, topic string) (arr []Model) {
 	if out, err := s3.Get(key(userID, topic), false); err == nil {
-		err = json.Unmarshal(out, &arr)
+		arr = json.To[[]Model](out)
 	}
 	return
 }
 
 func Save(userID ulid.ULID, topic string, arr []Model) error {
-	return s3.Put(key(userID, topic), util.JSON(arr), false)
+	return s3.Put(key(userID, topic), json.Of(arr), false)
 }

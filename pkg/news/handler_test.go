@@ -12,7 +12,7 @@ import (
 
 func TestHandler_Get_Headlines(t *testing.T) {
 	logs.Init("debug")
-	req := api.Request{
+	req := api.HTTPRequest{
 		QueryStringParameters: map[string]string{
 			"topic": "ev fire",
 		},
@@ -35,7 +35,7 @@ func TestHandler_Get_Headlines(t *testing.T) {
 
 func TestHandler_Get_Article(t *testing.T) {
 	logs.Init("debug")
-	req := api.Request{
+	req := api.HTTPRequest{
 		QueryStringParameters: map[string]string{
 			"topic": "ev fire",
 			"url":   "https://www.usfa.fema.gov/blog/emergency-response-to-electric-vehicle-incidents",

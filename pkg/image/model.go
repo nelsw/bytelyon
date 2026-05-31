@@ -16,18 +16,9 @@ import (
 	"golang.org/x/image/webp"
 )
 
-type Models []Model
-
 type Model struct {
 	URL string `json:"url"`
 	ALT string `json:"altText"`
-}
-
-func New(url, alt string) *Model {
-	return &Model{
-		URL: url,
-		ALT: alt,
-	}
 }
 
 func (m *Model) IsPNG() bool { return filepath.Ext(m.URL) == ".png" }
@@ -66,13 +57,13 @@ func (m *Model) ConvertToPNG() (ok bool) {
 		return
 	}
 
-	var publicURL string
-	if publicURL, err = s3.PutPublicImage(id.NewUUID(m.URL).String(), buf.Bytes()); err != nil {
+	key := id.NewUUID(m.URL).String() + ".png"
+	if err = s3.Put(key, buf.Bytes(), true); err != nil {
 		log.Warn().Err(err).Str("url", m.URL).Msg("failed to put public image")
 		return
 	}
 
-	m.URL = publicURL
+	m.URL = "https://bytelyon-public.s3.amazonaws.com/" + key
 	log.Debug().Str("url", m.URL).Msg("public image url")
 
 	return true

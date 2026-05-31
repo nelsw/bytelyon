@@ -2,11 +2,9 @@ package shopify
 
 import (
 	"encoding/json"
-	"errors"
 	"os"
 
 	"github.com/nelsw/bytelyon/pkg/https"
-	"github.com/rs/zerolog/log"
 )
 
 const shopifyAdmin = "https://msnbic-0w.myshopify.com/admin"
@@ -44,17 +42,6 @@ type CreateArticleResponse struct {
 			} `json:"throttleStatus"`
 		} `json:"cost"`
 	} `json:"extensions"`
-}
-
-func (r *CreateArticleResponse) error() (err error) {
-	for _, e := range r.Data.ArticleCreate.UserErrors {
-		log.Warn().
-			Str("code", e.Code).
-			Strs("field", e.Field).
-			Msg(e.Message)
-		err = errors.Join(err, errors.New(e.Message))
-	}
-	return
 }
 
 func AccessToken() (string, error) {

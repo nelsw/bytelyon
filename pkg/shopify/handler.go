@@ -2,22 +2,23 @@ package shopify
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
-	. "github.com/nelsw/bytelyon/pkg/api"
+	"github.com/nelsw/bytelyon/pkg/api"
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/image"
-	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/store"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 
-var handleRegex = regexp.MustCompile("[^a-zA-Z0-9\\-]+")
+var handleRegex = regexp.MustCompile(`[^a-zA-Z0-9\\-]+`)
 
 type Post struct {
 	Body        string       `json:"body"`
@@ -30,28 +31,28 @@ type Post struct {
 	Title       string       `json:"title"`
 }
 
-func Handler(r Request) Response {
+func Handler(r api.HTTPRequest) api.HTTPResponse {
 
 	if r.IsGuest() {
-		return r.NOPE()
+		return api.Forbidden()
 	}
 
 	switch r.RequestContext.HTTP.Method {
 	case http.MethodPost:
 		return handlePost(r)
 	case http.MethodGet:
-		return handleGet(r)
+		return handleGet()
 	}
 
-	return r.NI()
+	return api.NotImplemented()
 }
 
-func handlePost(r Request) Response {
+func handlePost(r api.HTTPRequest) api.HTTPResponse {
 
 	var p = new(Post)
 	if err := json.Unmarshal([]byte(r.Body), p); err != nil {
 		log.Err(err).Msg("failed to unmarshal post")
-		return r.BAD(err)
+		return api.BadRequest(err)
 	}
 
 	// assign a new ID
@@ -75,7 +76,7 @@ func handlePost(r Request) Response {
 	tkn, err := AccessToken()
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get Shopify access token")
-		return r.BAD(err)
+		return api.BadRequest(err)
 	}
 
 	_, err = PostArticle(
@@ -94,22 +95,26 @@ func handlePost(r Request) Response {
 
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create article on Shopify after spinning it")
-		return r.BAD(err)
+		return api.BadRequest(err)
 	}
 
-	return r.OK(map[string]any{"link": "https://firefibers.com/blogs/news/" + p.Handle})
+	return api.OK(map[string]any{"link": "https://firefibers.com/blogs/news/" + p.Handle})
 }
 
-func handleGet(r Request) Response {
+func handleGet() api.HTTPResponse {
 
 	orderDB, err := store.New[string, Order]("orders.json")
 	if err != nil {
-		return r.BAD(err)
+		return api.BadRequest(err)
 	}
-	orderDB.Close()
+	defer func() {
+		if closeErr := orderDB.Close(); closeErr != nil {
+			log.Error().Err(closeErr).Msg("failed to close orderDB")
+		}
+	}()
 
 	var orders []any
-	customers := model.MakeMap[string, any]()
+	customers := map[string]any{}
 	for _, order := range orderDB.Values() {
 		orders = append(orders, order.Row())
 		c := order.Customer
@@ -124,9 +129,12 @@ func handleGet(r Request) Response {
 			customers[c.ID] = c.Row()
 		}
 	}
-
-	return r.OK(map[string]any{
-		"customers": customers.Values(),
+	v := make([]any, 0, len(customers))
+	for _, c := range slices.Sorted(maps.Keys(customers)) {
+		v = append(v, customers[c])
+	}
+	return api.OK(map[string]any{
+		"customers": v,
 		"orders":    orders,
 	})
 }

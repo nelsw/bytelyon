@@ -6,21 +6,22 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"time"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/nelsw/bytelyon/pkg/aws"
 	"github.com/nelsw/bytelyon/pkg/util/ptr"
 	"github.com/rs/zerolog/log"
 )
 
-func PutPrivateObject(key string, data []byte) error {
-	return Put(key, data, false)
-}
+var c *s3.Client
 
-func PutPublicImage(key string, data []byte) (string, error) {
-	return "https://bytelyon-public.s3.amazonaws.com/" + key, Put(key, data, true)
+func init() {
+	cfg, err := config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		panic("aws configuration error, " + err.Error())
+	}
+	c = s3.NewFromConfig(cfg)
 }
 
 // Put creates a new object or replaces an old object with a new object.
@@ -35,9 +36,7 @@ func Put(key string, data []byte, isPublic bool) error {
 
 	l := log.With().
 		Str("ƒ", "put").
-		Str("bucket", bucket).
 		Str("key", key).
-		Int("body", len(data)).
 		Logger()
 
 	l.Trace().Send()
@@ -59,47 +58,13 @@ func Put(key string, data []byte, isPublic bool) error {
 		in.ContentType = ptr.Of(http.DetectContentType(data))
 	}
 
-	if _, err := aws.S3().PutObject(context.Background(), in); err != nil {
+	if _, err := c.PutObject(context.Background(), in); err != nil {
 		l.Err(err).Send()
 		return err
 	}
 
 	l.Debug().Send()
 	return nil
-}
-
-func GetPrivateObject(key string) ([]byte, error) {
-
-	bucket := "bytelyon-private"
-
-	l := log.With().
-		Str("ƒ", "GetPrivateObject").
-		Str("bucket", bucket).
-		Str("key", key).
-		Logger()
-
-	l.Trace().Send()
-
-	out, err := aws.S3().GetObject(context.Background(), &s3.GetObjectInput{
-		Bucket: &bucket,
-		Key:    &key,
-	})
-
-	if err != nil {
-		l.Err(err).Send()
-		return nil, err
-	}
-
-	var b []byte
-	if b, err = io.ReadAll(out.Body); err != nil {
-		l.Err(err).Send()
-		return nil, err
-	}
-	out.Body.Close()
-
-	l.Debug().Send()
-
-	return b, nil
 }
 
 func Get(key string, isPublic bool) ([]byte, error) {
@@ -112,14 +77,13 @@ func Get(key string, isPublic bool) ([]byte, error) {
 	}
 
 	l := log.With().
-		Str("ƒ", "GetPrivateObject").
-		Str("bucket", bucket).
+		Str("ƒ", "get").
 		Str("key", key).
 		Logger()
 
 	l.Trace().Send()
 
-	out, err := aws.S3().GetObject(context.Background(), &s3.GetObjectInput{
+	out, err := c.GetObject(context.Background(), &s3.GetObjectInput{
 		Bucket: &bucket,
 		Key:    &key,
 	})
@@ -134,62 +98,14 @@ func Get(key string, isPublic bool) ([]byte, error) {
 		l.Err(err).Send()
 		return nil, err
 	}
-	out.Body.Close()
+
+	if err = out.Body.Close(); err != nil {
+		l.Err(err).Send()
+	}
 
 	l.Debug().Send()
 
 	return b, nil
-}
-
-func DeletePrivateObject(key string) error {
-
-	bucket := "bytelyon-private"
-
-	l := log.With().
-		Str("ƒ", "delete").
-		Str("bucket", bucket).
-		Str("key", key).
-		Logger()
-
-	l.Trace().Send()
-
-	_, err := aws.S3().DeleteObject(context.Background(), &s3.DeleteObjectInput{
-		Bucket: &bucket,
-		Key:    &key,
-	})
-
-	if err != nil {
-		l.Err(err).Send()
-		return err
-	}
-
-	l.Debug().Send()
-	return nil
-}
-
-func DeletePublicImage(key string) error {
-	bucket := "bytelyon-public"
-
-	l := log.With().
-		Str("ƒ", "delete").
-		Str("bucket", bucket).
-		Str("key", key).
-		Logger()
-
-	l.Trace().Send()
-
-	_, err := aws.S3().DeleteObject(context.Background(), &s3.DeleteObjectInput{
-		Bucket: &bucket,
-		Key:    &key,
-	})
-
-	if err != nil {
-		l.Err(err).Send()
-		return err
-	}
-
-	l.Debug().Send()
-	return nil
 }
 
 func Delete(key string, isPublic bool) error {
@@ -202,13 +118,12 @@ func Delete(key string, isPublic bool) error {
 
 	l := log.With().
 		Str("ƒ", "delete").
-		Str("bucket", bucket).
 		Str("key", key).
 		Logger()
 
 	l.Trace().Send()
 
-	_, err := aws.S3().DeleteObject(context.Background(), &s3.DeleteObjectInput{
+	_, err := c.DeleteObject(context.Background(), &s3.DeleteObjectInput{
 		Bucket: &bucket,
 		Key:    &key,
 	})
@@ -240,7 +155,7 @@ func ListDirectories(prefix string, after ...string) ([]string, error) {
 
 	l.Trace().Send()
 
-	out, err := aws.S3().ListObjectsV2(context.Background(), &s3.ListObjectsV2Input{
+	out, err := c.ListObjectsV2(context.Background(), &s3.ListObjectsV2Input{
 		Bucket:     &bucket,
 		Prefix:     &prefix,
 		StartAfter: &startAfter,
@@ -256,33 +171,4 @@ func ListDirectories(prefix string, after ...string) ([]string, error) {
 	}
 
 	return keys, nil
-}
-
-func GetPresignedURL(key string) (string, error) {
-	client := s3.NewPresignClient(aws.S3())
-
-	presignedUrl, err := client.PresignGetObject(context.Background(), &s3.GetObjectInput{
-		Bucket: ptr.Of("bytelyon-public"),
-		Key:    &key,
-	}, s3.WithPresignExpires(30*time.Minute))
-
-	if err != nil {
-		return "", err
-	}
-
-	return presignedUrl.URL, nil
-}
-
-func DeleteDirectory(prefix string) error {
-
-	keys, err := ListDirectories(prefix)
-	if err != nil {
-		return err
-	}
-
-	for _, k := range keys {
-		DeletePrivateObject(k)
-	}
-
-	return nil
 }

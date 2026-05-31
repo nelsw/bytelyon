@@ -1,7 +1,6 @@
 package password
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"unicode"
@@ -9,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/s3"
-	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/nelsw/bytelyon/pkg/util/json"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -26,7 +25,7 @@ func Create(txt string) (u uuid.UUID, err error) {
 	}
 
 	u = id.NewUUID()
-	return u, s3.Put(key(u), util.JSON(&Model{b}), false)
+	return u, s3.Put(key(u), json.Of(&Model{b}), false)
 }
 
 func Delete(pid uuid.UUID, txt string) error {
@@ -41,7 +40,7 @@ func Delete(pid uuid.UUID, txt string) error {
 func Find(pid uuid.UUID) (m *Model, err error) {
 	var out []byte
 	if out, err = s3.Get(key(pid), false); err == nil {
-		err = json.Unmarshal(out, &m)
+		m = json.To[*Model](out)
 	}
 	return
 }

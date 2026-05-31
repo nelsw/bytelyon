@@ -49,14 +49,15 @@ func main() {
 				time.Sleep(time.Second * 10)
 			}
 		}
-		pwc.Stop()
 	}()
 	<-quit
 	fmt.Println()
 
 	log.Info().Msg("quitting")
 	stop = true
-
+	if err := pwc.Stop(); err != nil {
+		log.Err(err).Send()
+	}
 	fmt.Println()
 	log.Info().Msg("exiting")
 }

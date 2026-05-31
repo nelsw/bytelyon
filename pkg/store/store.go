@@ -4,12 +4,13 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"path"
+	"slices"
 	"strings"
 
 	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/s3"
-	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/rs/zerolog/log"
 )
 
@@ -39,7 +40,7 @@ func New[K cmp.Ordered, V any](args ...any) (*DB[K, V], error) {
 
 	l.Trace().Send()
 
-	b, err := s3.GetPrivateObject(s.key)
+	b, err := s3.Get(s.key, false)
 	if err == nil {
 		var m map[K]V
 		_ = json.Unmarshal(b, &m)
@@ -58,16 +59,9 @@ func New[K cmp.Ordered, V any](args ...any) (*DB[K, V], error) {
 	return s, err
 }
 
-func (db *DB[K, V]) String() string {
-	return string(util.JSON(map[string]any{
-		"key":   db.key,
-		"table": db.table,
-	}))
-}
-
 func (db *DB[K, V]) init() error {
 
-	b, err := s3.GetPrivateObject(db.key)
+	b, err := s3.Get(db.key, false)
 	if err == nil {
 		return json.Unmarshal(b, &db.table)
 	}
@@ -84,27 +78,28 @@ func (db *DB[K, V]) Close() error {
 	return db.Commit()
 }
 
-func (db *DB[K, V]) Keys() []K {
-	return db.table.Keys()
-}
-
 func (db *DB[K, V]) Values() []V {
-	return db.table.Values()
+	m := db.table.Clone()
+	v := make([]V, 0, len(m))
+	for _, k := range slices.Sorted(maps.Keys(m)) {
+		v = append(v, m[k])
+	}
+	return v
 }
 
 func (db *DB[K, V]) Put(k K, v V) {
-	db.table.Set(k, v)
+	db.table.Put(k, v)
 	db.committed = false
 }
 
 func (db *DB[K, V]) Set(k K, v V) V {
-	db.table.Set(k, v)
+	db.table.Put(k, v)
 	db.committed = false
 	return v
 }
 
 func (db *DB[K, V]) Drop(k K) {
-	db.table.Delete(k)
+	db.table.Drop(k)
 	db.committed = false
 }
 
@@ -114,9 +109,9 @@ func (db *DB[K, V]) Commit() error {
 		return nil
 	}
 
-	if b, err := json.Marshal(db.table); err != nil {
+	if b, err := json.Marshal(db.table.Clone()); err != nil {
 		return err
-	} else if err = s3.PutPrivateObject(db.key, b); err != nil {
+	} else if err = s3.Put(db.key, b, false); err != nil {
 		return err
 	}
 

@@ -14,7 +14,7 @@ func TestHandler_Get_URLs(t *testing.T) {
 	logs.Init("debug")
 	req := api.HTTPRequest{
 		QueryStringParameters: map[string]string{
-			"query": "ev fire blankets for sale",
+			"query": "ev fire blanket",
 		},
 		RequestContext: events.APIGatewayV2HTTPRequestContext{
 			Authorizer: &events.APIGatewayV2HTTPRequestContextAuthorizerDescription{
@@ -31,14 +31,15 @@ func TestHandler_Get_URLs(t *testing.T) {
 	res := Handler(req)
 	assert.Equal(t, res.StatusCode, http.StatusOK)
 	assert.NotEmpty(t, res.Body)
+	t.Log(res.Body)
 }
 
 func TestHandler_Get_Snippet(t *testing.T) {
 	logs.Init("debug")
 	req := api.HTTPRequest{
 		QueryStringParameters: map[string]string{
-			"domain": "firefibers.com",
-			"url":    "https://firefibers.com",
+			"id":    "01KSZZY2N7G81DWNB1WSEZ7B7W",
+			"query": "ev fire blanket for sale",
 		},
 		RequestContext: events.APIGatewayV2HTTPRequestContext{
 			Authorizer: &events.APIGatewayV2HTTPRequestContextAuthorizerDescription{
@@ -55,4 +56,5 @@ func TestHandler_Get_Snippet(t *testing.T) {
 	res := Handler(req)
 	assert.Equal(t, res.StatusCode, http.StatusOK)
 	assert.NotEmpty(t, res.Body)
+	t.Log(res.Body)
 }

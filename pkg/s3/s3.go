@@ -36,9 +36,7 @@ func Put(key string, data []byte, isPublic bool) error {
 
 	l := log.With().
 		Str("ƒ", "put").
-		Str("bucket", bucket).
 		Str("key", key).
-		Int("body", len(data)).
 		Logger()
 
 	l.Trace().Send()
@@ -79,8 +77,7 @@ func Get(key string, isPublic bool) ([]byte, error) {
 	}
 
 	l := log.With().
-		Str("ƒ", "GetPrivateObject").
-		Str("bucket", bucket).
+		Str("ƒ", "get").
 		Str("key", key).
 		Logger()
 
@@ -121,7 +118,6 @@ func Delete(key string, isPublic bool) error {
 
 	l := log.With().
 		Str("ƒ", "delete").
-		Str("bucket", bucket).
 		Str("key", key).
 		Logger()
 

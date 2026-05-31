@@ -43,7 +43,7 @@ func FindSerp(userID ulid.ULID, query string, id ulid.ULID) (*serp.Model, error)
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Println(arr)
 	for _, a := range arr {
 		if a.Compare(id) == 0 {
 			return serp.Find(query, a)

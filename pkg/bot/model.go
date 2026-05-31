@@ -3,11 +3,12 @@ package bot
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/news"
 	"github.com/nelsw/bytelyon/pkg/search"
 	"github.com/nelsw/bytelyon/pkg/sitemap"
@@ -45,11 +46,11 @@ func (m Models) Less(i, j int) bool {
 // Model stores bot configuration and state.
 type Model struct {
 
-	// Blacklist is a list of keywords that should be excluded from results.
-	Blacklist model.Set[string]
+	// Blacklist is a set of keywords that should be excluded from results.
+	Blacklist map[string]bool
 
 	// Fingerprint is the browser state of the bot, containing cookies and origins.
-	Fingerprint model.Fingerprint
+	Fingerprint *playwright.StorageState
 
 	// Frequency is the rate at which to run the bot.
 	Frequency time.Duration
@@ -70,20 +71,29 @@ type Model struct {
 func (m *Model) UnmarshalJSON(b []byte) (err error) {
 
 	var alias struct {
-		Blacklist []string  `json:"blacklist"`
-		Headless  bool      `json:"headless"`
-		Frequency int64     `json:"frequency"`
-		Target    string    `json:"target"`
-		Type      Type      `json:"type"`
-		RanAt     string    `json:"ranAt"`
-		UserID    ulid.ULID `json:"userId"`
+		Blacklist   []string                 `json:"blacklist"`
+		Headless    bool                     `json:"headless"`
+		Fingerprint *playwright.StorageState `json:"fingerprint"`
+		Frequency   int64                    `json:"frequency"`
+		Target      string                   `json:"target"`
+		Type        Type                     `json:"type"`
+		RanAt       string                   `json:"ranAt"`
+		UserID      ulid.ULID                `json:"userId"`
 	}
 
 	if err = json.Unmarshal(b, &alias); err != nil {
 		return
 	}
 
-	m.Blacklist = model.MakeSet(alias.Blacklist...)
+	if alias.Fingerprint == nil {
+		alias.Fingerprint = &playwright.StorageState{}
+	}
+
+	m.Blacklist = make(map[string]bool)
+	for _, k := range alias.Blacklist {
+		m.Blacklist[k] = true
+	}
+	m.Fingerprint = alias.Fingerprint
 	m.Frequency = time.Duration(alias.Frequency)
 	m.Headless = alias.Headless
 	m.RanAt, _ = time.Parse(time.RFC3339, alias.RanAt)
@@ -93,13 +103,17 @@ func (m *Model) UnmarshalJSON(b []byte) (err error) {
 }
 
 func (m *Model) MarshalJSON() ([]byte, error) {
+	if m.Fingerprint == nil {
+		m.Fingerprint = &playwright.StorageState{}
+	}
 	return json.Marshal(map[string]any{
-		"blacklist": m.Blacklist.Slice(),
-		"frequency": m.Frequency.Nanoseconds(),
-		"headless":  m.Headless,
-		"ranAt":     m.RanAt.Format(time.RFC3339),
-		"target":    m.Target,
-		"type":      m.Type,
+		"blacklist":   slices.Collect(maps.Keys(m.Blacklist)),
+		"fingerprint": m.Fingerprint,
+		"frequency":   m.Frequency.Nanoseconds(),
+		"headless":    m.Headless,
+		"ranAt":       m.RanAt.Format(time.RFC3339),
+		"target":      m.Target,
+		"type":        m.Type,
 	})
 }
 
@@ -144,9 +158,10 @@ func (m *Model) Run(
 	}
 
 	// update the storage state of the bot
-	if state, _ := ctx.StorageState(); state != nil {
-		m.Fingerprint.Cookies = state.Cookies
-		m.Fingerprint.Origins = state.Origins
+	if state, err := ctx.StorageState(); err != nil || state == nil {
+		log.Warn().Err(err).Msg("failed to get browser storage state")
+	} else {
+		m.Fingerprint = state
 	}
 
 	// save bot

@@ -11,28 +11,26 @@ func Find(url string, id ulid.ULID) (Model, error) {
 	return page.FindObject[Model](url, id)
 }
 
-func Create(url, title string, id ulid.ULID, content string, screenshot []byte) error {
-	doc := document.New(url, content)
+func Create(url, title string, id ulid.ULID, content string, screenshot []byte) (err error) {
+
+	doc := document.New(content)
+
 	a := &Model{
 		Body:        doc.Paragraphs(),
-		Description: doc.Meta.Description(),
+		Description: doc.Description(),
 		ID:          id,
-		Image:       doc.Meta.Image(),
-		Keywords:    doc.Meta.Keywords(),
-		Source:      doc.Meta.Source(),
+		Image:       doc.Image(),
+		Keywords:    doc.Keywords(),
+		Source:      doc.Source(),
 		Title:       title,
 		URL:         url,
 	}
 
-	if err := page.SaveObject(a.URL, a.ID, a); err != nil {
+	if err = page.SaveObject(a.URL, a.ID, a); err != nil {
 		log.Warn().Err(err).Msg("failed to save article object")
-		return err
-	}
-
-	if err := page.SaveScreenshot(a.URL, a.ID, screenshot); err != nil {
+	} else if err = page.SaveScreenshot(a.URL, a.ID, screenshot); err != nil {
 		log.Warn().Err(err).Msg("failed to save article screenshot")
-		return err
 	}
 
-	return nil
+	return
 }

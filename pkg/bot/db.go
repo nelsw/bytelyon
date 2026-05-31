@@ -70,7 +70,7 @@ func Save(uid ulid.ULID, m *Model) error {
 		return err
 	}
 
-	if m.Type == "sitemap" {
+	if m.Type == Sitemap {
 		m.Target = urls.Domain(m.Target)
 	} else {
 		m.Target = strings.ToLower(m.Target)

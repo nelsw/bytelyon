@@ -15,11 +15,6 @@ import (
 
 func key(pid uuid.UUID) string { return fmt.Sprintf("porkys/%s.json", pid) }
 
-// Compare compares a bcrypt hashed password with its possible plaintext equivalent.
-func (m *Model) Compare(txt string) error {
-	return bcrypt.CompareHashAndPassword(m.Hash, []byte(txt))
-}
-
 func Create(txt string) (u uuid.UUID, err error) {
 	if err = Validate(txt); err != nil {
 		return

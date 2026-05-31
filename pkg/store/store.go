@@ -92,10 +92,6 @@ func (db *DB[K, V]) Values() []V {
 	return db.table.Values()
 }
 
-func (db *DB[K, V]) Get(k K) (V, bool) {
-	return db.table.Get(k)
-}
-
 func (db *DB[K, V]) Put(k K, v V) {
 	db.table.Set(k, v)
 	db.committed = false

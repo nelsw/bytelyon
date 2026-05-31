@@ -14,7 +14,7 @@ func NewCapacitor(cap int) *Capacitor {
 func (c *Capacitor) Inc() (ok bool) {
 	c.Lock()
 	defer c.Unlock()
-	if ok = c.cur <= c.cap; ok {
+	if ok = c.cur < c.cap; ok {
 		c.cur += 1
 	}
 	return

@@ -4,28 +4,39 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
-func JSON(a any) []byte {
+func JSON(a any, pretty ...bool) []byte {
+
 	if a == nil {
 		return []byte(`{}`)
 	}
+
+	var b []byte
+
 	switch v := a.(type) {
 	case []byte:
-		return v
+		b = v
 	case string:
-		return []byte(v)
+		b = []byte(v)
 	default:
-		return Safe(json.Marshal(a))
+		b, _ = json.Marshal(a)
 	}
-}
 
-func PrettyJSON(a any) string {
-	return string(Safe(json.MarshalIndent(a, "", "\t")))
-}
+	if len(pretty) == 0 {
+		return b
+	}
 
-func PrintlnPrettyJSON(a any) {
-	fmt.Println(PrettyJSON(a))
+	m := make(map[string]any)
+	_ = json.Unmarshal(b, &m)
+	b, _ = json.MarshalIndent(m, "", "\t")
+
+	log.Trace().Str("JSON", string(b)).Send()
+
+	return b
 }
 
 func Path(a ...any) string {
@@ -42,4 +53,13 @@ func Trunc(s string, n int) string {
 	}
 	s = s[:n-3] + "..."
 	return s
+}
+
+func HasPrefix(s string, prefixes ...string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
 }

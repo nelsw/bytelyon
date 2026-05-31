@@ -1,6 +1,8 @@
 package sitemap
 
 import (
+	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -9,6 +11,8 @@ import (
 	"github.com/nelsw/bytelyon/pkg/page"
 	"github.com/nelsw/bytelyon/pkg/pw"
 	"github.com/nelsw/bytelyon/pkg/snippet"
+	"github.com/nelsw/bytelyon/pkg/urls"
+	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
@@ -16,7 +20,7 @@ import (
 
 func Work(ctx playwright.BrowserContext, userID ulid.ULID, domain string) {
 
-	urls := model.NewSyncMap[string, bool]()
+	m := model.NewSyncMap[string, bool]()
 
 	var wg sync.WaitGroup
 
@@ -24,7 +28,7 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, domain string) {
 		work(
 			model.NewCapacitor(25),
 			ctx,
-			urls,
+			m,
 			&wg,
 			domain,
 			"https://"+domain,
@@ -33,7 +37,7 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, domain string) {
 	})
 	wg.Wait()
 
-	if err := Save(userID, domain, urls); err != nil {
+	if err := Save(userID, domain, m); err != nil {
 		log.Warn().Err(err).Msg("failed to save sitemap")
 	}
 }
@@ -65,7 +69,7 @@ func work(
 		return
 	}
 
-	doc := document.New(url, content)
+	doc := document.New(content)
 
 	snip := snippet.New(url, doc.Title(), doc.Meta)
 	if err := page.SaveObject(snip.URL, snip.ID, snip); err != nil {
@@ -75,7 +79,42 @@ func work(
 	}
 	urls.Set(url, true)
 
-	for _, u := range doc.URLs() {
-		wg.Go(func() { work(capacitor, ctx, urls, wg, domain, u, depth-1) })
+	for _, href := range doc.HREFs() {
+		if u, ok := pageLink(domain, href); ok {
+			wg.Go(func() { work(capacitor, ctx, urls, wg, domain, u, depth-1) })
+		}
 	}
+}
+
+func pageLink(domain, href string) (string, bool) {
+
+	// trim whitespace, lowercase, and remove trailing slash
+	href = urls.Clean(href)
+
+	// if the href is ...
+	if path.Ext(href) != "" || // file
+		urls.Domain(href) != domain || // outbound
+		util.Eq(href, "", "/") || // root
+		urls.IsBrowserFunction(href) || // browser function
+		util.HasPrefix(href, "#", "http://") { // fragment or insecure
+		return "", false
+	}
+
+	// if the link is a secure URL
+	if strings.HasPrefix(href, "https://"+domain) {
+		return href, true
+	}
+
+	// if the link is missing URL protocol
+	if strings.HasPrefix(href, domain) {
+		return "https://" + href, true
+	}
+
+	// if the link is relative to the root urls
+	if strings.HasPrefix(href, "/") {
+		return "https://" + domain + href, true
+	}
+
+	// else the link is relative to this url
+	return "https://" + domain + "/" + href, true
 }

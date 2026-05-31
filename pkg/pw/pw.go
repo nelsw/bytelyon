@@ -92,7 +92,7 @@ func NewBrowser(c *playwright.Playwright, headless bool) (playwright.Browser, er
 }
 
 // NewBrowserContext creates a new BrowserContext instance
-func NewBrowserContext(bro playwright.Browser, state *playwright.OptionalStorageState) (playwright.BrowserContext, error) {
+func NewBrowserContext(bro playwright.Browser, state *playwright.StorageState) (playwright.BrowserContext, error) {
 
 	userAgent := func() *string {
 
@@ -113,6 +113,22 @@ func NewBrowserContext(bro playwright.Browser, state *playwright.OptionalStorage
 		return ptr.Of(agents[rand.Intn(len(agents))])
 	}
 
+	storageState := &playwright.OptionalStorageState{Origins: state.Origins}
+	for _, c := range state.Cookies {
+		storageState.Cookies = append(storageState.Cookies, playwright.OptionalCookie{
+			Name:         c.Name,
+			Value:        c.Value,
+			URL:          nil,
+			Domain:       ptr.OrNil(c.Domain),
+			Path:         ptr.OrNil(c.Path),
+			Expires:      ptr.OrNil(c.Expires),
+			HttpOnly:     ptr.OrNil(c.HttpOnly),
+			Secure:       ptr.OrNil(c.Secure),
+			SameSite:     c.SameSite,
+			PartitionKey: c.PartitionKey,
+		})
+	}
+
 	ctx, err := bro.NewContext(playwright.BrowserNewContextOptions{
 		AcceptDownloads:   ptr.True,
 		ColorScheme:       playwright.ColorSchemeDark,
@@ -125,7 +141,7 @@ func NewBrowserContext(bro playwright.Browser, state *playwright.OptionalStorage
 		ReducedMotion:     playwright.ReducedMotionNoPreference,
 		TimezoneId:        ptr.Of("America/New_York"),
 		UserAgent:         userAgent(),
-		StorageState:      state,
+		StorageState:      storageState,
 	})
 
 	if err != nil {

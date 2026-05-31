@@ -32,11 +32,11 @@ func Find(a any) (m *Model, err error) {
 		return
 	}
 
-	m.UID = uid
+	m.ID = uid
 
 	return
 }
 
 func Save(m *Model) error {
-	return s3.Put(key(m.UID), util.JSON(m), false)
+	return s3.Put(key(m.ID), util.JSON(m), false)
 }

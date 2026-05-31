@@ -6,7 +6,7 @@ import (
 )
 
 type Model struct {
-	UID ulid.ULID `json:"-"`
+	ID  ulid.ULID `json:"-"`
 	EID uuid.UUID `json:"eid"`
 	PID uuid.UUID `json:"pid"`
 }

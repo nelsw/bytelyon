@@ -8,7 +8,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/nelsw/bytelyon/pkg/document"
 	"github.com/nelsw/bytelyon/pkg/id"
-	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/html"
@@ -23,21 +22,18 @@ type Model struct {
 	Asked     []any `json:"people_also_ask"`
 	Searched  []any `json:"people_also_search_for"`
 	// todo - Popular products
-	ID         ulid.ULID         `json:"-"`
-	Doc        *goquery.Document `json:"-"`
-	Content    string            `json:"-"`
-	URL        string            `json:"-"`
-	Screenshot []byte            `json:"-"`
+
+	ID ulid.ULID `json:"-"`
+
+	doc     *document.Model
+	content string
 }
 
-func New(query, content string, screenshot []byte) *Model {
+func New(content string) *Model {
 
 	m := &Model{
-		ID:         id.NewULID(),
-		Doc:        util.Safe(goquery.NewDocumentFromReader(strings.NewReader(content))),
-		Content:    content,
-		Screenshot: screenshot,
-		URL:        "google.com/search?q=" + strings.ReplaceAll(query, " ", "+"),
+		content: content,
+		ID:      id.NewULID(),
 	}
 
 	m.fillOrganicData()
@@ -60,19 +56,19 @@ func New(query, content string, screenshot []byte) *Model {
 
 // todo - prevent duplicates
 func (m *Model) AddSponsored(url, content string) {
-	doc := document.New(url, content)
+	doc := document.New(content)
 	m.Sponsored = append(m.Sponsored, map[string]any{
 		"link":     url,
 		"position": len(m.Sponsored),
-		"snippet":  doc.Meta.Description(),
-		"source":   doc.Meta.Source(),
+		"snippet":  doc.Description(),
+		"source":   doc.Source(),
 		"title":    doc.Title(),
 	})
 }
 
 func (m *Model) fillOrganicData() {
 	log.Info().Msg("Parsing organic results")
-	c := m.Content
+	c := m.content
 	left := strings.Index(c, `var m={`) + 7
 	c = c[left:]
 	c = c[:strings.Index(c, "};")]
@@ -145,7 +141,7 @@ func (m *Model) fillOrganicData() {
 }
 func (m *Model) fillrOganicDataV2() {
 	log.Info().Msg("Parsing organic results v2")
-	e := m.Doc.Find("a").FilterFunction(func(i int, s *goquery.Selection) bool {
+	e := m.doc.Find("a").FilterFunction(func(i int, s *goquery.Selection) bool {
 		href, ok := s.Attr("href")
 		return ok &&
 			!strings.Contains(href, "google.com") &&
@@ -259,7 +255,7 @@ func (m *Model) fillrOganicDataV2() {
 
 func (m *Model) fillPeopleAlsoAskData() {
 	log.Info().Msg("Parsing People Also Ask results")
-	m.Doc.Find("div[class*='related-question-pair']").Each(func(i int, sel *goquery.Selection) {
+	m.doc.Find("div[class*='related-question-pair']").Each(func(i int, sel *goquery.Selection) {
 		if sel == nil {
 			return
 		}
@@ -272,7 +268,7 @@ func (m *Model) fillPeopleAlsoAskData() {
 }
 func (m *Model) fillPeopleAlsoAskDataV2() {
 	log.Info().Msg("Parsing People Also Ask results v2")
-	e := m.Doc.Find("span:contains('People also ask')")
+	e := m.doc.Find("span:contains('People also ask')")
 	if e == nil {
 		return
 	}
@@ -314,7 +310,7 @@ func (m *Model) fillPeopleAlsoAskDataV2() {
 
 func (m *Model) fillPeopleAlsoSearchForData() {
 	log.Info().Msg("Parsing People Also Search For results")
-	m.Doc.Find("span").Each(func(i int, sel *goquery.Selection) {
+	m.doc.Find("span").Each(func(i int, sel *goquery.Selection) {
 		if sel == nil || sel.Text() != "People also search for" {
 			return
 		}
@@ -345,7 +341,7 @@ func (m *Model) fillPeopleAlsoSearchForData() {
 }
 func (m *Model) fillPeopleAlsoSearchForDataV2() {
 	log.Info().Msg("Parsing People Also Search For results v2")
-	e := m.Doc.Find("accordion-entry-search-icon")
+	e := m.doc.Find("accordion-entry-search-icon")
 	if e == nil {
 		return
 	}

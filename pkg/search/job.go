@@ -24,7 +24,6 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, query string, exclude
 	Update(userID, query, m.ID)
 
 	defer func() {
-		serp.Update(m)
 		g.Close()
 	}()
 
@@ -40,7 +39,7 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, query string, exclude
 		}
 		content, screenshot := pw.Content(p), pw.Screenshot(p)
 		m.AddSponsored(p.URL(), content)
-		serp.Update(m)
+		serp.Update(query, m)
 		if err = page.SaveScreenshot(p.URL(), m.ID, screenshot); err != nil {
 			log.Warn().Err(err).Msg("Failed to save screenshot")
 		}

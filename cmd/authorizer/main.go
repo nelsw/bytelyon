@@ -15,23 +15,23 @@ import (
 
 var jwtKey = []byte(os.Getenv("JWT_SECRET"))
 
-func Handler(r api.Request) (any, error) {
+func Handler(r api.Request) (api.AuthResponse, error) {
 	r.Log()
 	if typ, tkn := r.Authorization(); typ == "Bearer" {
-		return handleBearerAuth(r, tkn)
+		return handleBearerAuth(r, tkn), nil
 	} else if typ == "Basic" {
-		return handleBasicAuth(r)
+		return handleBasicAuth(r), nil
 	}
 	return r.Auth(errors.New("invalid authorizer type; must be 'Bearer' or 'Basic'")), nil
 }
 
-func handleBasicAuth(r api.Request) (any, error) {
+func handleBasicAuth(r api.Request) api.AuthResponse {
 
 	var u *user.Model
 	if e, p, err := r.Basic(); err != nil {
-		return nil, err
+		return r.Auth(err)
 	} else if u, err = user.Login(e, p); err != nil {
-		return nil, err
+		return r.Auth(err)
 	}
 
 	tkn, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.RegisteredClaims{
@@ -43,33 +43,27 @@ func handleBasicAuth(r api.Request) (any, error) {
 	}).SignedString(jwtKey)
 
 	if err != nil {
-		return nil, err
+		return r.Auth(err)
 	}
-
-	// todo - is this necessary?
-	if r.Query("action") == "login" {
-		return r.OK(map[string]any{"token": tkn}), nil
-	}
-
-	return r.Auth(tkn), nil
+	return r.Auth(tkn)
 }
 
-func handleBearerAuth(r api.Request, t string) (api.AuthResponse, error) {
+func handleBearerAuth(r api.Request, t string) api.AuthResponse {
 
 	tkn, err := jwt.ParseWithClaims(t, &jwt.RegisteredClaims{}, func(*jwt.Token) (any, error) { return jwtKey, nil })
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to parse jwt")
-		return r.Auth(err), nil
+		return r.Auth(err)
 	}
 
 	if !tkn.Valid || id.ParseULID(tkn.Claims.(*jwt.RegisteredClaims).ID).IsZero() {
 		err = errors.New("invalid JWT token (either expired or unprocessable")
 		log.Warn().Err(err).Send()
-		return r.Auth(err), nil
+		return r.Auth(err)
 	}
 
 	log.Debug().Msg("jwt valid")
-	return r.Auth(t), nil
+	return r.Auth(t)
 }
 
 func main() { lambda.Start(Handler) }

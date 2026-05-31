@@ -36,10 +36,6 @@ func Exists(txt string) (bool, error) {
 
 func Find(txt string) (uid ulid.ULID, err error) {
 
-	if ok, _ := Exists(txt); !ok {
-		return ulid.Zero, fmt.Errorf("email not found")
-	}
-
 	var out []byte
 	if out, err = s3.Get(key(txt), false); err != nil {
 		return

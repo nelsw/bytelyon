@@ -18,9 +18,6 @@ func Run(
 	var err error
 
 	for _, t := range bot.Types {
-		if t != bot.Sitemap {
-			continue
-		}
 		for _, b := range bot.Find(uid, t) {
 
 			l := log.With().
@@ -34,7 +31,7 @@ func Run(
 				l.Debug().Msg("bot not ready")
 			} else if bro, err = pw.NewBrowser(pwc, b.Headless); err != nil {
 				l.Err(err).Msgf("failed to create browser for %s", uid)
-			} else if ctx, err = pw.NewBrowserContext(bro, b.Fingerprint.GetState()); err != nil {
+			} else if ctx, err = pw.NewBrowserContext(bro, b.Fingerprint); err != nil {
 				l.Err(err).Msg("failed to create browser context")
 			} else {
 				b.Run(bro, ctx, uid)

@@ -6,6 +6,33 @@
 [Go](https://go.dev/doc/install) (1.20+) is required to launch the application and develop it locally.
 ***
 
+## Data Model
+
+```mermaid
+classDiagram
+
+    class Bot {
+        +ULID ID
+        +string Target
+        +BotType Type
+    }
+    
+    class BotType {
+        <<enumeration>>
+        news
+        search
+        sitemap
+    }
+    
+    Bot "1" --> "1" BotType : has
+    
+    
+    style Bot fill:#bfb,stroke:#6f6,stroke-width:2px,color:#000,stroke-dasharray: 5 5
+    style BotType fill:#ffb,stroke:#663,stroke-width:2px,color:#000,stroke-dasharray: 5 5
+```
+
+***
+
 ## 🚀 Launch
 ### Run
 ```shell

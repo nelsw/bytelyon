@@ -1,102 +1,65 @@
 package util
 
 import (
-	"bytes"
-	"errors"
-	"image"
-	"image/jpeg"
-	"image/png"
-	"math/rand"
-	"net/http"
-	"reflect"
-	"regexp"
+	"encoding/json"
+	"fmt"
+	"path"
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	"golang.org/x/image/webp"
 )
 
-var (
-	fileExtRegex = regexp.MustCompile(`.(webp|jpg|jpeg|png)`)
-)
+func JSON(a any, pretty ...bool) []byte {
 
-func Check(err error) {
-	if err != nil {
-		panic(err)
+	if a == nil {
+		return []byte(`{}`)
 	}
-}
 
-func Must[T any](t T, err error) T {
-	Check(err)
-	return t
-}
+	var b []byte
 
-func Suppress[T any](t T, err error) T {
-	if err == nil {
-		log.Warn().Err(err).Msg("suppressing error")
+	switch v := a.(type) {
+	case []byte:
+		b = v
+	case string:
+		b = []byte(v)
+	default:
+		b, _ = json.Marshal(a)
 	}
-	return t
+
+	if len(pretty) == 0 {
+		return b
+	}
+
+	m := make(map[string]any)
+	_ = json.Unmarshal(b, &m)
+	b, _ = json.MarshalIndent(m, "", "\t")
+
+	log.Trace().Str("JSON", string(b)).Send()
+
+	return b
 }
 
-func IsEmpty[T any](val T) bool {
-	v := reflect.ValueOf(val)
-	// .IsZero() handles structs, primitives, and pointers
-	return !v.IsValid() || v.IsZero()
+func Path(a ...any) string {
+	var arr []string
+	for _, e := range a {
+		arr = append(arr, fmt.Sprint(e))
+	}
+	return path.Join(arr...)
 }
 
-func Ptr[T any](t T) *T { return &t }
-
-func Between[T int | float64](min, max T) T {
-	return T(rand.Intn(int(max)-int(min)) + int(min))
-}
-
-func Domain(s string) string {
-	s = strings.TrimPrefix(s, "https://")
-	s = strings.TrimPrefix(s, "http://")
-	s = strings.TrimPrefix(s, "www.")
-	s = strings.Split(s, "/")[0]
+func Trunc(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	s = s[:n-3] + "..."
 	return s
 }
 
-func Capitalize(s string) string {
-	return strings.ToUpper(s[0:1]) + s[1:]
-}
-
-func IsImageFile(s string) bool {
-	return fileExtRegex.MatchString(s)
-}
-
-func ToPng(b []byte) ([]byte, error) {
-
-	var err error
-	var i image.Image
-
-	switch t := http.DetectContentType(b); t {
-	case "image/png":
-		return b, nil
-	case "image/jpeg", "image/jpg":
-		i, err = jpeg.Decode(bytes.NewReader(b))
-	case "image/webp":
-		i, err = webp.Decode(bytes.NewReader(b))
-	default:
-		return nil, errors.New("unsupported image type: " + t)
+func HasPrefix(s string, prefixes ...string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
 	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	buf := new(bytes.Buffer)
-	if err = png.Encode(buf, i); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
-func PtrOrNil[T any](a T) *T {
-	if v := reflect.ValueOf(a); v.IsZero() || v.IsNil() {
-		return nil
-	}
-	return &a
+	return false
 }

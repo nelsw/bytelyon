@@ -6,49 +6,57 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"github.com/nelsw/bytelyon/internal/pw"
-	"github.com/nelsw/bytelyon/internal/worker"
-	"github.com/nelsw/bytelyon/pkg/aws"
+	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/logs"
+	"github.com/nelsw/bytelyon/pkg/pw"
+	"github.com/nelsw/bytelyon/pkg/user"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 
-var u string
+func main() {
 
-func init() {
-	var ak, sk, l string
-	flag.StringVar(&u, "u", "01KMXGBJJE2GMCA1A9EXDGF4AJ", "user id")
+	var u, l string
+	flag.StringVar(&u, "u", ulid.Zero.String(), "user id")
 	flag.StringVar(&l, "l", "debug", "log level [trace, debug, info, warn, error]")
-	flag.StringVar(&ak, "ak", "", "AWS Access Key ID")
-	flag.StringVar(&sk, "sk", "", "AWS Secret Access Key")
 	flag.Parse()
 
+	m := map[string]any{
+		"Log Level":  l,
+		"Process ID": os.Getpid(),
+		"User ID":    u,
+	}
+
 	logs.Init(l)
-	logs.PrintWorkerBanner(map[string]any{
-		"AWS Access Key": ak,
-		"AWS Secret Key": sk,
-		"Log Level":      l,
-		"Process ID":     os.Getpid(),
-		"User ID":        u,
-	})
-
-	aws.Init(ak, sk, "us-east-1")
-}
-
-func main() {
-	w := worker.New(pw.Run(), ulid.MustParse(u))
-	go w.Start()
+	log.Info().Fields(m).Msg("starting")
+	logs.PrintWorkerBanner(m)
 
 	quit := make(chan os.Signal, 1)
 
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	log.Info().Msg("listening for quit signal (Ctrl+C)")
+
+	pwc := pw.Run()
+	var stop bool
+	go func() {
+		for !stop {
+			log.Info().Msg("running")
+			user.Run(pwc, id.ParseULID(u))
+			logs.PrintNyanCat()
+			if !stop {
+				time.Sleep(time.Second * 10)
+			}
+		}
+		pwc.Stop()
+	}()
 	<-quit
 	fmt.Println()
 
 	log.Info().Msg("quitting")
-	w.Stop()
+	stop = true
+
+	fmt.Println()
 	log.Info().Msg("exiting")
 }

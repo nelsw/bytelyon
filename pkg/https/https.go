@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/nelsw/bytelyon/pkg/util"
 	"github.com/rs/zerolog/log"
 )
 
@@ -36,19 +37,23 @@ func Get(url string) ([]byte, error) {
 
 func get(url string) ([]byte, int, error) {
 
-	log.Trace().Str("url", url).Msg("get")
+	l := log.With().
+		Str("ƒ", "get").
+		Str("url", util.Trunc(url, 30)).
+		Logger()
+
+	l.Trace().Send()
 
 	res, err := http.Get(url)
 	if err != nil {
-		log.Err(err).Str("url", url).Msg("failed to get")
+		l.Err(err).Send()
 		return nil, -1, err
 	}
 	defer res.Body.Close()
 
-	log.Debug().
-		Str("url", url).
+	l.Trace().
 		Str("status", res.Status).
-		Msg("got")
+		Send()
 
 	var b []byte
 	b, err = io.ReadAll(res.Body)

@@ -6,13 +6,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 var (
 	cfg aws.Config
-	dbc *dynamodb.Client
 	s3c *s3.Client
 )
 
@@ -25,14 +23,6 @@ func Init(args ...string) {
 			Region:      args[2],
 		}
 	}
-}
-
-func DB() *dynamodb.Client {
-	if dbc == nil {
-		Init()
-		dbc = dynamodb.NewFromConfig(cfg)
-	}
-	return dbc
 }
 
 func S3() *s3.Client {

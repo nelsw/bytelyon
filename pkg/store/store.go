@@ -1,30 +1,71 @@
 package store
 
 import (
+	"cmp"
 	"encoding/json"
-	"iter"
-	"maps"
-	"slices"
+	"fmt"
+	"path"
 	"strings"
 
+	"github.com/nelsw/bytelyon/pkg/model"
 	"github.com/nelsw/bytelyon/pkg/s3"
+	"github.com/nelsw/bytelyon/pkg/util"
+	"github.com/rs/zerolog/log"
 )
 
-type table[T any] map[string]T
-
-type DB[T any] struct {
-	table table[T]
-	key   string
+type DB[K cmp.Ordered, V any] struct {
+	table     *model.SyncMap[K, V]
+	key       string
+	committed bool
 }
 
-func New[T any](key string) (*DB[T], error) {
-	s := new(DB[T])
-	s.table = make(map[string]T)
-	s.key = key
-	return s, s.init()
+func New[K cmp.Ordered, V any](args ...any) (*DB[K, V], error) {
+
+	s := new(DB[K, V])
+	s.committed = true
+
+	var arr []string
+	for _, a := range args {
+		arr = append(arr, fmt.Sprint(a))
+	}
+	s.key = strings.Join(arr, "/")
+
+	// if we're missing a file extension, assume json
+	if path.Ext(s.key) == "" {
+		s.key += ".json"
+	}
+
+	l := log.With().Str("store", s.key).Logger()
+
+	l.Trace().Send()
+
+	b, err := s3.GetPrivateObject(s.key)
+	if err == nil {
+		var m map[K]V
+		_ = json.Unmarshal(b, &m)
+		s.table = model.NewSyncMap[K, V](m)
+	} else if strings.Contains(err.Error(), "StatusCode: 404") {
+		s.table = model.NewSyncMap[K, V]()
+	}
+
+	if err != nil {
+		l.Err(err).Send()
+		return nil, err
+	}
+
+	l.Debug().Send()
+
+	return s, err
 }
 
-func (db *DB[T]) init() error {
+func (db *DB[K, V]) String() string {
+	return string(util.JSON(map[string]any{
+		"key":   db.key,
+		"table": db.table,
+	}))
+}
+
+func (db *DB[K, V]) init() error {
 
 	b, err := s3.GetPrivateObject(db.key)
 	if err == nil {
@@ -32,37 +73,53 @@ func (db *DB[T]) init() error {
 	}
 
 	if strings.Contains(err.Error(), "StatusCode: 404") {
-		db.table = make(map[string]T)
+		db.table = model.NewSyncMap[K, V]()
 		return nil
 	}
 
 	return err
 }
 
-func (db *DB[T]) Close() error {
+func (db *DB[K, V]) Close() error {
 	return db.Commit()
 }
 
-func (db *DB[T]) Keys() []string {
-	return slices.Collect(maps.Keys(db.table))
+func (db *DB[K, V]) Keys() []K {
+	return db.table.Keys()
 }
 
-func (db *DB[T]) All() iter.Seq2[string, T] {
-	return maps.All(db.table)
+func (db *DB[K, V]) Values() []V {
+	return db.table.Values()
 }
 
-func (db *DB[T]) Get(k string) T {
-	return db.table[k]
+func (db *DB[K, V]) Put(k K, v V) {
+	db.table.Set(k, v)
+	db.committed = false
 }
 
-func (db *DB[T]) Put(k string, v T) {
-	db.table[k] = v
+func (db *DB[K, V]) Set(k K, v V) V {
+	db.table.Set(k, v)
+	db.committed = false
+	return v
 }
 
-func (db *DB[T]) Commit() error {
-	b, err := json.Marshal(db.table)
-	if err != nil {
+func (db *DB[K, V]) Drop(k K) {
+	db.table.Delete(k)
+	db.committed = false
+}
+
+func (db *DB[K, V]) Commit() error {
+
+	if db.committed {
+		return nil
+	}
+
+	if b, err := json.Marshal(db.table); err != nil {
+		return err
+	} else if err = s3.PutPrivateObject(db.key, b); err != nil {
 		return err
 	}
-	return s3.PutPrivateObject(db.key, b)
+
+	db.committed = true
+	return nil
 }

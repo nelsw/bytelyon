@@ -40,7 +40,7 @@ func New[K cmp.Ordered, V any](args ...any) (*DB[K, V], error) {
 
 	l.Trace().Send()
 
-	b, err := s3.GetPrivateObject(s.key)
+	b, err := s3.Get(s.key, false)
 	if err == nil {
 		var m map[K]V
 		_ = json.Unmarshal(b, &m)
@@ -61,7 +61,7 @@ func New[K cmp.Ordered, V any](args ...any) (*DB[K, V], error) {
 
 func (db *DB[K, V]) init() error {
 
-	b, err := s3.GetPrivateObject(db.key)
+	b, err := s3.Get(db.key, false)
 	if err == nil {
 		return json.Unmarshal(b, &db.table)
 	}
@@ -111,7 +111,7 @@ func (db *DB[K, V]) Commit() error {
 
 	if b, err := json.Marshal(db.table.Clone()); err != nil {
 		return err
-	} else if err = s3.PutPrivateObject(db.key, b); err != nil {
+	} else if err = s3.Put(db.key, b, false); err != nil {
 		return err
 	}
 

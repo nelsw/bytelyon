@@ -27,8 +27,6 @@ func Delete(uid ulid.ULID, typ Type, tgt string) (err error) {
 		err = search.Delete(uid, tgt)
 	case Sitemap:
 		err = sitemap.Delete(uid, tgt)
-	default:
-		err = typeErr(typ)
 	}
 	if err != nil {
 		return

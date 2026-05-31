@@ -18,9 +18,6 @@ import (
 )
 
 var (
-	typeErr = func(t any) error {
-		return fmt.Errorf("invalid bot type; need [search, news, sitemap]; got: [%s]", t)
-	}
 	typeRegex = regexp.MustCompile(`^(search|news|sitemap)$`)
 	Types     = []Type{News, Search, Sitemap}
 )
@@ -141,9 +138,6 @@ func (m *Model) Run(
 		search.Work(ctx, uid, m.Target, m.Blacklist)
 	case Sitemap:
 		sitemap.Work(ctx, uid, m.Target)
-	default:
-		log.Err(typeErr(m.Type)).Send()
-		return
 	}
 
 	// update bot worked at to now
@@ -168,8 +162,8 @@ func (m *Model) Run(
 }
 
 func (m *Model) Validate() error {
-	if s := string(m.Type); !typeRegex.MatchString(s) {
-		return typeErr(s)
+	if !typeRegex.MatchString(string(m.Type)) {
+		return fmt.Errorf("invalid bot type; need [search, news, sitemap]; got: [%s]", m.Type)
 	}
 	return nil
 }

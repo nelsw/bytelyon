@@ -1,6 +1,7 @@
 package sitemap
 
 import (
+	"fmt"
 	"path"
 	"strings"
 	"sync"
@@ -44,7 +45,7 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, domain string) {
 func work(
 	capacitor *model.Counter,
 	ctx playwright.BrowserContext,
-	urls *model.SyncMap[string, bool],
+	smap *model.SyncMap[string, bool],
 	wg *sync.WaitGroup,
 	domain string,
 	url string,
@@ -52,11 +53,11 @@ func work(
 ) {
 
 	// check if we're at the depth limit or if we've already visited this URL
-	if depth <= 0 || urls.Has(url) {
+	if depth <= 0 || smap.Has(url) {
 		return
 	}
 
-	urls.Put(url, true)
+	smap.Put(url, true)
 
 	for !capacitor.Inc() {
 		time.Sleep(500 * time.Millisecond)
@@ -65,6 +66,7 @@ func work(
 
 	content, screenshot := pw.Scrape(url, ctx)
 	if content == "" {
+		smap.Drop(url)
 		return
 	}
 
@@ -79,23 +81,23 @@ func work(
 
 	for _, href := range doc.HREFs() {
 		if u, ok := pageLink(domain, href); ok {
-			wg.Go(func() { work(capacitor, ctx, urls, wg, domain, u, depth-1) })
+			wg.Go(func() { work(capacitor, ctx, smap, wg, domain, u, depth-1) })
 		}
 	}
 }
 
 func pageLink(domain, href string) (string, bool) {
-
+	fmt.Println(href)
 	// trim whitespace, lowercase, and remove trailing slash
 	href = urls.Clean(href)
 
 	// if the href is ...
-	if path.Ext(href) != "" || // file
-		href == "" || href == "/" || // root
-		urls.Domain(href) != domain || // outbound
+	if href == "" || // root
+		path.Ext(href) != "" || // file
 		urls.IsBrowserFunction(href) || // browser function
 		strings.HasPrefix(href, "#") || // fragment
-		strings.HasPrefix(href, "http://") { // insecure
+		strings.HasPrefix(href, "http://") || // insecure
+		(strings.HasPrefix(href, "https://") && !strings.HasPrefix(href, "https://"+domain)) { // outbound
 		return "", false
 	}
 

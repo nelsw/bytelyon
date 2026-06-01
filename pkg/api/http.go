@@ -1,12 +1,11 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
-	"regexp"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/nelsw/bytelyon/pkg/id"
+	"github.com/nelsw/bytelyon/pkg/util/json"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -21,7 +20,6 @@ var headers = map[string]string{
 	"Access-Control-Allow-Methods": "*",
 	"Content-Type":                 "application/json",
 }
-var isGuest = regexp.MustCompile(`^(01KMXGBJJE2GMCA1A9EXDGF4AJ|01KM010XK0HY8HWWFPJTZGRF0F)$`)
 
 func BadRequest(err error) HTTPResponse {
 	return HTTPResponse{StatusCode: http.StatusBadRequest, Body: `{"message":"` + err.Error() + `"}`, Headers: headers}
@@ -40,7 +38,7 @@ func NotImplemented() HTTPResponse {
 }
 
 func OK(a any) HTTPResponse {
-	if b, err := json.Marshal(a); err != nil {
+	if b, err := json.Serialize(a); err != nil {
 		return ServerError(err)
 	} else {
 		return HTTPResponse{StatusCode: http.StatusOK, Body: string(b), Headers: headers}
@@ -55,7 +53,7 @@ func ServerError(err error) HTTPResponse {
 	}
 }
 
-func (r HTTPResponse) Log() { log.Log().EmbedObject(r).Msg("request") }
+func (r HTTPResponse) Log() { log.Log().EmbedObject(r).Msg("response") }
 func (r HTTPResponse) MarshalZerologObject(evt *zerolog.Event) {
 	evt.Int("status", r.StatusCode)
 	if r.Body != "" {
@@ -63,7 +61,10 @@ func (r HTTPResponse) MarshalZerologObject(evt *zerolog.Event) {
 	}
 }
 
-func (r HTTPRequest) IsGuest() bool { return !isGuest.MatchString(r.UserID().String()) }
+func (r HTTPRequest) IsGuest() bool {
+	s := r.UserID().String()
+	return s != "01KMXGBJJE2GMCA1A9EXDGF4AJ" && s != "01KM010XK0HY8HWWFPJTZGRF0F"
+}
 
 func (r HTTPRequest) Log() { log.Log().EmbedObject(r).Msg("request") }
 

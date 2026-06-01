@@ -13,6 +13,7 @@ import (
 	"github.com/nelsw/bytelyon/pkg/util/urls"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/net/html"
 )
 
 type Section string
@@ -51,10 +52,6 @@ func (s Section) Int() int {
 		return 8
 	}
 	return -1
-}
-
-func (s Section) Compare(other Section) int {
-	return s.Int() - other.Int()
 }
 
 type Items []*Item
@@ -97,6 +94,7 @@ func New(content string) *Model {
 	}
 
 	m.fillOrganicData()
+	m.fillrOganicDataV2()
 
 	m.fillPeopleAlsoAskData()
 	m.fillPeopleAlsoAskDataV2()
@@ -149,6 +147,10 @@ func (m *Model) Add(i *Item) {
 }
 
 func (m *Model) AddSponsored(url, content string) {
+	if l := len(m.sections[sponsored]); l > 0 && m.sections[sponsored][l-1].Link == url {
+		log.Debug().Msgf("skipping duplicate sponsored result: %s", url)
+		return
+	}
 	doc := document.New(content)
 	m.Add(&Item{
 		Section: sponsored,
@@ -229,7 +231,117 @@ func (m *Model) fillOrganicData() {
 		m.Add(item)
 	}
 }
+func (m *Model) fillrOganicDataV2() {
+	log.Info().Msg("Parsing organic results v2")
+	e := m.doc.Find("a").FilterFunction(func(i int, s *goquery.Selection) bool {
+		href, ok := s.Attr("href")
+		return ok &&
+			!strings.Contains(href, "google.com") &&
+			strings.HasPrefix(href, "/url") &&
+			strings.Contains(href, "&url=")
+	})
 
+	if e == nil {
+		return
+	}
+
+	for _, e = range e.EachIter() {
+
+		_, u, ok := strings.Cut(e.AttrOr("href", ""), "&url=")
+		if !ok {
+			continue
+		}
+
+		URL := u
+		if i := strings.LastIndex(URL, "/"); i > 0 {
+			URL = URL[:i]
+		}
+
+		for ok = true; ok; _, ok = e.Attr("class") {
+			e = e.Parent()
+		}
+
+		data, err := e.Html()
+		if err != nil {
+			continue
+		}
+
+		data = strings.ReplaceAll(data, "</a>", "")
+		data = strings.ReplaceAll(data, "</div>", "")
+		data = strings.ReplaceAll(data, "</span>", "")
+		parts := strings.Split(data, "<div>")
+
+		var dollars []string
+
+		for x := 0; x < len(parts); x++ {
+
+			chump := chomp(parts[x])
+
+			for _, chunk := range strings.Split(chump, "<") {
+
+				var money string
+				if l, r, k := strings.Cut(chunk, ">"); k {
+					money = r
+				} else {
+					money = l
+				}
+
+				if money == "" || money == "More results" {
+					continue
+				}
+
+				money = strings.TrimPrefix(money, " · ")
+				money = strings.TrimPrefix(money, "More results")
+				money = strings.TrimSuffix(money, "Previous")
+
+				dollars = append(dollars, money)
+			}
+		}
+
+		if len(dollars) == 0 {
+			continue
+		}
+
+		var first, second, last string
+		for _, d := range dollars {
+			d = strings.TrimSpace(d)
+			if len(d) < 12 && !strings.Contains(URL, d) {
+				continue
+			}
+			if strings.Contains(d, "›") || strings.Contains(URL, d) {
+				last = d
+				continue
+			}
+
+			d = html.UnescapeString(d)
+			if first == "" {
+				first = d
+				continue
+			}
+			if second == "" {
+				second = d
+				continue
+			}
+			if len(d) > len(second) {
+				second = d
+			}
+		}
+
+		if len(first) > len(second) {
+			tmp := first
+			first = second
+			second = tmp
+		}
+
+		m.Add(&Item{
+			Section: organic,
+			Link:    URL,
+			Title:   first,
+			Snippet: second,
+			Source:  last,
+		})
+	}
+}
 func (m *Model) fillPeopleAlsoAskData() {
 	log.Info().Msg("Parsing People Also Ask results")
 	m.doc.Find("div[class*='related-question-pair']").Each(func(i int, sel *goquery.Selection) {
@@ -309,9 +421,10 @@ func (m *Model) fillPeopleAlsoSearchForData() {
 
 		next.Find("a").Each(func(i int, sel *goquery.Selection) {
 			m.Add(&Item{
-				Title:  sel.Text(),
-				Link:   fmt.Sprintf("https://www.google.com%s", sel.AttrOr("href", "")),
-				Source: "Google",
+				Section: peopleAlsoSearchFor,
+				Title:   sel.Text(),
+				Link:    fmt.Sprintf("https://www.google.com%s", sel.AttrOr("href", "")),
+				Source:  "Google",
 			})
 		})
 	})
@@ -343,4 +456,14 @@ func (m *Model) fillPeopleAlsoSearchForDataV2() {
 			Title:   y[i],
 		})
 	}
+}
+func chomp(s string) string {
+	for len(s) > 0 && s[0] == '<' {
+		idx := strings.Index(s, ">")
+		if idx < 0 {
+			break
+		}
+		s = s[idx+1:]
+	}
+	return s
 }

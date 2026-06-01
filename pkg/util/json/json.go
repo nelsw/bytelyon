@@ -6,11 +6,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func of(a any) (b []byte) {
-	if a == nil {
-		b = []byte(`{}`)
-	} else {
-		b, _ = Serialize(a)
+func of(a any) []byte {
+	b, err := Serialize(a)
+	if err != nil {
+		log.Warn().Err(err).Any("a", a).Msg("failed to serialize")
+		return []byte(`{}`)
 	}
 	return b
 }
@@ -18,7 +18,7 @@ func of(a any) (b []byte) {
 func Of(a ...any) (b []byte) {
 
 	if len(a) == 0 {
-		return of(nil)
+		return []byte(`{}`)
 	}
 
 	if len(a) == 1 {
@@ -46,7 +46,10 @@ func To[T any](b []byte) (a T) {
 }
 
 func Serialize(a any) ([]byte, error) {
-	return json.MarshalIndent(a, "", "  ")
+	if a == nil {
+		return []byte(`{}`), nil
+	}
+	return json.Marshal(a)
 }
 
 func Deserialize[T any](b []byte) (t T, err error) {

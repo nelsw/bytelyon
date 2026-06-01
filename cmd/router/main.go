@@ -14,24 +14,27 @@ import (
 func Handler(req api.HTTPRequest) (res api.HTTPResponse, err error) {
 
 	req.Log()
-	defer res.Log()
 
 	switch req.RawPath {
 	case "/v1/ai":
-		return ai.Handler(req), nil
+		res = ai.Handler(req)
 	case "/v1/bots":
-		return bot.Handler(req), nil
+		res = bot.Handler(req)
 	case "/v1/shopify":
-		return shopify.Handler(req), nil
+		res = shopify.Handler(req)
 	case "/v1/news":
-		return news.Handler(req), nil
+		res = news.Handler(req)
 	case "/v1/searches":
-		return search.Handler(req), nil
+		res = search.Handler(req)
 	case "/v1/sitemaps":
-		return sitemap.Handler(req), nil
+		res = sitemap.Handler(req)
+	default:
+		res = api.NotImplemented()
 	}
 
-	return api.NotImplemented(), nil
+	res.Log()
+
+	return
 }
 
 func main() { lambda.Start(Handler) }

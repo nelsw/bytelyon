@@ -30,6 +30,8 @@ const (
 	Sitemap = "sitemap"
 )
 
+func (t Type) String() string { return string(t) }
+
 type Models []*Model
 
 func (m Models) Len() int      { return len(m) }

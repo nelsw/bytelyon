@@ -55,6 +55,34 @@ func Run() *playwright.Playwright {
 	return pwc
 }
 
+func Open(c *playwright.Playwright, headless bool, state *playwright.StorageState) (playwright.BrowserContext, error) {
+
+	bro, err := NewBrowser(c, headless)
+	if err != nil {
+		return nil, err
+	}
+
+	var ctx playwright.BrowserContext
+	if ctx, err = NewBrowserContext(bro, state); err == nil {
+		return ctx, nil
+	}
+
+	if err = bro.Close(); err != nil {
+		log.Warn().Err(err).Msg("failed to close browser")
+	}
+	return nil, err
+}
+
+func Close(ctx playwright.BrowserContext) {
+	bro := ctx.Browser()
+	if err := ctx.Close(); err != nil {
+		log.Warn().Err(err).Msg("failed to close browser context")
+	}
+	if err := bro.Close(); err != nil {
+		log.Warn().Err(err).Msg("failed to close browser")
+	}
+}
+
 // NewBrowser creates a new Browser instance
 func NewBrowser(c *playwright.Playwright, headless bool) (playwright.Browser, error) {
 	return c.Chromium.Launch(playwright.BrowserTypeLaunchOptions{

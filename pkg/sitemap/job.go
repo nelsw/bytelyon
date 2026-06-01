@@ -1,7 +1,6 @@
 package sitemap
 
 import (
-	"fmt"
 	"path"
 	"strings"
 	"sync"
@@ -87,7 +86,7 @@ func work(
 }
 
 func pageLink(domain, href string) (string, bool) {
-	fmt.Println(href)
+
 	// trim whitespace, lowercase, and remove trailing slash
 	href = urls.Clean(href)
 

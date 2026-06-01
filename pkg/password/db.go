@@ -28,15 +28,6 @@ func Create(txt string) (u uuid.UUID, err error) {
 	return u, s3.Put(key(u), json.Of(&Model{b}), false)
 }
 
-func Delete(pid uuid.UUID, txt string) error {
-	if m, err := Find(pid); err != nil {
-		return err
-	} else if err = m.Compare(txt); err != nil {
-		return err
-	}
-	return s3.Delete(key(pid), false)
-}
-
 func Find(pid uuid.UUID) (*Model, error) {
 	out, err := s3.Get(key(pid), false)
 	if err != nil {

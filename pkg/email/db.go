@@ -21,13 +21,6 @@ func Create(uid ulid.ULID, txt string) error {
 	return s3.Put(key(txt), json.Of(&Model{uid, txt}), false)
 }
 
-func Delete(txt string) error {
-	if ok, _ := Exists(txt); !ok {
-		return nil
-	}
-	return s3.Delete(key(txt), false)
-}
-
 func Exists(txt string) (bool, error) {
 	_, err := Find(txt)
 	return err == nil, err

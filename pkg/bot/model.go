@@ -16,7 +16,6 @@ import (
 
 var (
 	typeRegex = regexp.MustCompile(`^(search|news|sitemap)$`)
-	Types     = []Type{News, Search, Sitemap}
 )
 
 type Type string

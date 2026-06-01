@@ -1,11 +1,11 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/nelsw/bytelyon/pkg/id"
-	"github.com/nelsw/bytelyon/pkg/util/json"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -38,7 +38,7 @@ func NotImplemented() HTTPResponse {
 }
 
 func OK(a any) HTTPResponse {
-	if b, err := json.Serialize(a); err != nil {
+	if b, err := json.Marshal(a); err != nil {
 		return ServerError(err)
 	} else {
 		return HTTPResponse{StatusCode: http.StatusOK, Body: string(b), Headers: headers}

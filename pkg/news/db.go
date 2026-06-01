@@ -22,8 +22,12 @@ func Delete(userID ulid.ULID, topic string) (err error) {
 }
 
 func Find(userID ulid.ULID, topic string) (arr []Model) {
-	if out, err := s3.Get(key(userID, topic), false); err == nil {
-		arr = json.To[[]Model](out)
+	out, err := s3.Get(key(userID, topic), false)
+	if err != nil {
+		return []Model{}
+	}
+	if err = json.Unmarshal(out, &arr); err != nil {
+		return []Model{}
 	}
 	return
 }

@@ -37,12 +37,17 @@ func Delete(pid uuid.UUID, txt string) error {
 	return s3.Delete(key(pid), false)
 }
 
-func Find(pid uuid.UUID) (m *Model, err error) {
-	var out []byte
-	if out, err = s3.Get(key(pid), false); err == nil {
-		m = json.To[*Model](out)
+func Find(pid uuid.UUID) (*Model, error) {
+	out, err := s3.Get(key(pid), false)
+	if err != nil {
+		return nil, err
 	}
-	return
+
+	var m Model
+	if err = json.Unmarshal(out, &m); err != nil {
+		return nil, err
+	}
+	return &m, nil
 }
 
 func Validate(password string) error {

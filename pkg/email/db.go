@@ -39,8 +39,12 @@ func Find(txt string) (uid ulid.ULID, err error) {
 	if out, err = s3.Get(key(txt), false); err != nil {
 		return
 	}
+	var m Model
+	if err = json.Unmarshal(out, &m); err != nil {
+		return
+	}
 
-	return json.To[*Model](out).UID, nil
+	return m.UID, nil
 }
 
 func Validate(txt string) (err error) {

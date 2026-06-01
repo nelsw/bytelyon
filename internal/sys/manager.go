@@ -3,9 +3,10 @@ package sys
 import (
 	"context"
 	"math/rand"
+	"sync"
 	"time"
 
-	"github.com/nelsw/bytelyon/pkg/id"
+	"github.com/nelsw/bytelyon/pkg/user"
 	"github.com/playwright-community/playwright-go"
 )
 
@@ -13,59 +14,68 @@ const shutdownPollIntervalMax = 500 * time.Millisecond
 
 type Manager struct {
 	pwc     *playwright.Playwright
-	workers Workers
+	workers []*Worker
+	stop    bool
+	done    bool
 }
 
-func NewManager() (*Manager, error) {
-	pwc, err := playwright.Run()
-	if err != nil {
+func NewManager() (m *Manager, err error) {
+
+	m = new(Manager)
+
+	if m.pwc, err = playwright.Run(); err != nil {
 		return nil, err
 	}
-	// todo - find all users
-	return &Manager{
-		pwc,
-		Workers{
-			NewWorker(pwc, id.ParseULID("01KM010XK0HY8HWWFPJTZGRF0F")),
-			NewWorker(pwc, id.ParseULID("01KM01JC9PS1R4X4FDJNFAR4AZ")),
-			NewWorker(pwc, id.ParseULID("01KMXGBJJE2GMCA1A9EXDGF4AJ")),
-		},
-	}, nil
+
+	for _, uid := range user.IDs() {
+		m.workers = append(m.workers, NewWorker(m.pwc, uid))
+	}
+
+	return
 }
 
 func (m *Manager) Start() {
+
+	m.done = false
+	var wg sync.WaitGroup
 	for _, w := range m.workers {
-		go w.Work()
+		wg.Go(w.Work)
 	}
+	wg.Wait()
+	m.done = true
+
+	for i := 0; i < 10; i++ {
+		if time.Sleep(time.Second); m.stop {
+			return
+		}
+	}
+
+	m.Start()
 }
 
 func (m *Manager) Stop(ctx context.Context) error {
+
+	m.stop = true
+	for _, w := range m.workers {
+		w.stop = true
+	}
 
 	pollIntervalBase := time.Millisecond
 	nextPollInterval := func() time.Duration {
 		// Add 10% jitter.
 		interval := pollIntervalBase + time.Duration(rand.Intn(int(pollIntervalBase/10)))
 		// Double and clamp for next time.
-		pollIntervalBase *= 2
-		if pollIntervalBase > shutdownPollIntervalMax {
+		if pollIntervalBase *= 2; pollIntervalBase > shutdownPollIntervalMax {
 			pollIntervalBase = shutdownPollIntervalMax
 		}
 		return interval
 	}
 
-	ƒ := func() bool {
-		for _, w := range m.workers {
-			if w.Quit(); !w.Done() {
-				return false
-			}
-		}
-		return true
-	}
-
 	timer := time.NewTimer(nextPollInterval())
 	defer timer.Stop()
 	for {
-		if ƒ() {
-			return nil
+		if m.done {
+			return m.pwc.Stop()
 		}
 		select {
 		case <-ctx.Done():

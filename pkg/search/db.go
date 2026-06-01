@@ -33,7 +33,9 @@ func Find(userID ulid.ULID, query string) (arr []ulid.ULID, err error) {
 	if out, err = s3.Get(key(userID, query), false); err != nil {
 		return
 	}
-	arr = json.To[[]ulid.ULID](out)
+	if err = json.Unmarshal(out, &arr); err != nil {
+		return
+	}
 	slices.SortFunc(arr, func(a, b ulid.ULID) int { return b.Compare(a) })
 	return
 }

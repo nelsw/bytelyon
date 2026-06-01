@@ -55,7 +55,7 @@ func Run() *playwright.Playwright {
 	return pwc
 }
 
-func Open(c *playwright.Playwright, headless bool, state *playwright.StorageState) (playwright.BrowserContext, error) {
+func Open(c *playwright.Playwright, headless bool, state *playwright.OptionalStorageState) (playwright.BrowserContext, error) {
 
 	bro, err := NewBrowser(c, headless)
 	if err != nil {
@@ -122,7 +122,7 @@ func NewBrowser(c *playwright.Playwright, headless bool) (playwright.Browser, er
 }
 
 // NewBrowserContext creates a new BrowserContext instance
-func NewBrowserContext(bro playwright.Browser, state *playwright.StorageState) (playwright.BrowserContext, error) {
+func NewBrowserContext(bro playwright.Browser, state *playwright.OptionalStorageState) (playwright.BrowserContext, error) {
 
 	userAgent := func() *string {
 
@@ -143,25 +143,6 @@ func NewBrowserContext(bro playwright.Browser, state *playwright.StorageState) (
 		return ptr.Of(agents[rand.Intn(len(agents))])
 	}
 
-	storageState := &playwright.OptionalStorageState{}
-	if state != nil {
-		storageState.Origins = state.Origins
-		for _, c := range state.Cookies {
-			storageState.Cookies = append(storageState.Cookies, playwright.OptionalCookie{
-				Name:         c.Name,
-				Value:        c.Value,
-				URL:          nil,
-				Domain:       ptr.OrNil(c.Domain),
-				Path:         ptr.OrNil(c.Path),
-				Expires:      ptr.OrNil(c.Expires),
-				HttpOnly:     ptr.OrNil(c.HttpOnly),
-				Secure:       ptr.OrNil(c.Secure),
-				SameSite:     c.SameSite,
-				PartitionKey: c.PartitionKey,
-			})
-		}
-	}
-
 	ctx, err := bro.NewContext(playwright.BrowserNewContextOptions{
 		AcceptDownloads:   ptr.True,
 		ColorScheme:       playwright.ColorSchemeDark,
@@ -174,7 +155,7 @@ func NewBrowserContext(bro playwright.Browser, state *playwright.StorageState) (
 		ReducedMotion:     playwright.ReducedMotionNoPreference,
 		TimezoneId:        ptr.Of("America/New_York"),
 		UserAgent:         userAgent(),
-		StorageState:      storageState,
+		StorageState:      state,
 	})
 
 	if err != nil {

@@ -51,9 +51,10 @@ func FindObjects[T any](url string) (out []T, err error) {
 
 func FindObject[T any](url string, id ulid.ULID) (t T, err error) {
 	var out []byte
-	if out, err = s3.Get(key(url, id, "object.json"), false); err == nil {
-		t = json.To[T](out)
+	if out, err = s3.Get(key(url, id, "object.json"), false); err != nil {
+		return
 	}
+	err = json.Unmarshal(out, &t)
 	return
 }
 

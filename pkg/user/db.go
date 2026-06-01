@@ -1,20 +1,38 @@
 package user
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/nelsw/bytelyon/pkg/id"
 	"github.com/nelsw/bytelyon/pkg/s3"
 	"github.com/nelsw/bytelyon/pkg/util/json"
+
 	"github.com/oklog/ulid/v2"
 )
 
-func key(uid ulid.ULID) string { return fmt.Sprintf("users/%s/_.json", uid) }
+func key(uid ulid.ULID) string { return fmt.Sprintf("users/%s/user.json", uid) }
 
-func Find(a any) (m *Model, err error) {
+func IDs() (ids []ulid.ULID) {
+	prefix := "users/"
+	arr, _ := s3.ListDirectories(prefix)
+	for _, k := range arr {
+		if !strings.HasSuffix(k, "/user.json") {
+			continue
+		}
+		s := strings.TrimPrefix(k, prefix)
+		s = strings.TrimSuffix(s, "/user.json")
+		ids = append(ids, id.ParseULID(s))
+	}
+
+	return
+}
+
+func Find(a any) (*Model, error) {
 
 	if a == nil {
-		return
+		return nil, errors.New("no user id provided")
 	}
 
 	var uid ulid.ULID
@@ -24,15 +42,19 @@ func Find(a any) (m *Model, err error) {
 		uid, _ = a.(ulid.ULID)
 	}
 
-	var out []byte
-	if out, err = s3.Get(key(uid), false); err != nil {
-		return
+	out, err := s3.Get(key(uid), false)
+	if err != nil {
+		return nil, err
 	}
 
-	m = json.To[*Model](out)
+	var m Model
+	if err = json.Unmarshal(out, &m); err != nil {
+		return nil, err
+	}
+
 	m.ID = uid
 
-	return
+	return &m, nil
 }
 
 func Save(m *Model) error {

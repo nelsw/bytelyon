@@ -4,51 +4,36 @@ import (
 	"github.com/nelsw/bytelyon/pkg/bot"
 	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
-	"github.com/rs/zerolog/log"
 )
 
-type Workers []*Worker
 type Worker struct {
-	pwc        *playwright.Playwright
-	uid        ulid.ULID
-	quit, done bool
+	pwc  *playwright.Playwright
+	uid  ulid.ULID
+	stop bool
 }
 
-func NewWorker(pwc *playwright.Playwright, uid ulid.ULID) *Worker {
-	return &Worker{pwc: pwc, uid: uid}
-}
-
-func (w *Worker) Quit() {
-	w.quit = true
-}
-
-func (w *Worker) Done() bool {
-	return w.done
+func NewWorker(
+	pwc *playwright.Playwright,
+	uid ulid.ULID,
+) *Worker {
+	return &Worker{
+		pwc: pwc,
+		uid: uid,
+	}
 }
 
 func (w *Worker) Work() {
 
-	var jobs Jobs
-	for _, t := range bot.Types {
-		for _, b := range bot.FindAll(w.uid, t) {
-			if b.IsReady() {
-				jobs = append(jobs, NewJob(b, w.pwc, w.uid))
-			}
-		}
+	if w.stop {
+		return
 	}
 
-	log.Debug().
-		Int("jobs", len(jobs)).
-		Stringer("uid", w.uid).
-		Send()
-
-	queue := make(chan *Job, 3)
+	jobs := make(chan *Job, 3)
 	done := make(chan bool)
-
 	go func() {
 		for {
-			if q, more := <-queue; more {
-				q.Work()
+			if j, more := <-jobs; more {
+				j.Work()
 				continue
 			}
 			done <- true
@@ -56,13 +41,12 @@ func (w *Worker) Work() {
 		}
 	}()
 
-	for _, j := range jobs {
-		if w.quit {
+	for _, b := range bot.AllReady(w.uid) {
+		if w.stop {
 			break
 		}
-		queue <- j
+		jobs <- NewJob(b, w.pwc, w.uid)
 	}
-	close(queue)
+	close(jobs)
 	<-done
-	w.done = true
 }

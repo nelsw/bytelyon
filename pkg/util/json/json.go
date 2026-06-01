@@ -7,11 +7,17 @@ import (
 )
 
 func of(a any) []byte {
-	b, err := Serialize(a)
+
+	if a == nil {
+		return []byte(`{}`)
+	}
+
+	b, err := Marshal(a)
 	if err != nil {
 		log.Warn().Err(err).Any("a", a).Msg("failed to serialize")
 		return []byte(`{}`)
 	}
+
 	return b
 }
 
@@ -40,18 +46,16 @@ func Of(a ...any) (b []byte) {
 	return of(m)
 }
 
-func To[T any](b []byte) (a T) {
-	a, _ = Deserialize[T](b)
+func Marshal(v any) (b []byte, err error) {
+	if b, err = json.Marshal(v); err != nil {
+		log.Warn().Err(err).Msgf("failed to marshal %T", v)
+	}
 	return
 }
 
-func Serialize(a any) ([]byte, error) {
-	if a == nil {
-		return []byte(`{}`), nil
+func Unmarshal(b []byte, a any) (err error) {
+	if err = json.Unmarshal(b, a); err != nil {
+		log.Warn().Err(err).Msgf("failed to unmarshal %T", a)
 	}
-	return json.Marshal(a)
-}
-
-func Deserialize[T any](b []byte) (t T, err error) {
-	return t, json.Unmarshal(b, &t)
+	return
 }

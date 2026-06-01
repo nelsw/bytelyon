@@ -50,6 +50,17 @@ func Delete(uid ulid.ULID, typ Type, tgt string) (err error) {
 	return s3.Delete(key(uid, typ, tgt), false)
 }
 
+func AllReady(uid ulid.ULID) (mm Models) {
+	for _, typ := range []Type{News, Search, Sitemap} {
+		for _, m := range FindAll(uid, typ) {
+			if m.IsReady() {
+				mm = append(mm, m)
+			}
+		}
+	}
+	return
+}
+
 func FindAll(uid ulid.ULID, typ Type) Models {
 
 	var mm Models
@@ -67,7 +78,10 @@ func FindAll(uid ulid.ULID, typ Type) Models {
 			continue
 		}
 
-		mm = append(mm, json.To[*Model](b))
+		var m Model
+		if err = json.Unmarshal(b, &m); err == nil {
+			mm = append(mm, &m)
+		}
 	}
 
 	sort.Sort(mm)
@@ -75,21 +89,22 @@ func FindAll(uid ulid.ULID, typ Type) Models {
 	return mm
 }
 
-func FindOne(uid ulid.ULID, typ Type, tgt string) *Model {
-	if out, err := s3.Get(key(uid, typ, tgt), false); err != nil {
-		return nil
-	} else {
-		return json.To[*Model](out)
-	}
-}
-
 func Update(uid ulid.ULID, m *Model) error {
-	x := FindOne(uid, m.Type, m.Target)
-	if x == nil {
-		return Create(uid, m)
+
+	out, err := s3.Get(key(uid, m.Type, m.Target), false)
+	if err != nil {
+		return save(uid, m)
 	}
+
+	var x Model
+	if err = json.Unmarshal(out, &x); err != nil {
+		return save(uid, m)
+	}
+
+	x.RanAt = m.RanAt
 	x.Headless = m.Headless
 	x.Blacklist = m.Blacklist
 	x.Frequency = m.Frequency
+
 	return save(uid, m)
 }

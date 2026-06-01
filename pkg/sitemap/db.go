@@ -17,10 +17,12 @@ func key(userID ulid.ULID, domain string) string {
 func Delete(userID ulid.ULID, domain string) error { return s3.Delete(key(userID, domain), false) }
 
 func Find(userID ulid.ULID, domain string) (arr []string) {
-	if out, err := s3.Get(key(userID, domain), false); err == nil {
-		arr = json.To[[]string](out)
+	if out, err := s3.Get(key(userID, domain), false); err != nil {
+		return []string{}
+	} else if err = json.Unmarshal(out, &arr); err != nil {
+		return []string{}
 	}
-	return
+	return arr
 }
 
 func Save(userID ulid.ULID, domain string, m map[string]bool) error {

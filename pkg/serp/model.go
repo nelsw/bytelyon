@@ -115,8 +115,8 @@ func (m *Model) MarshalJSON() ([]byte, error) {
 }
 
 func (m *Model) UnmarshalJSON(b []byte) error {
-	items, err := json.Deserialize[Items](b)
-	if err != nil {
+	var items Items
+	if err := json.Unmarshal(b, items); err != nil {
 		return err
 	}
 

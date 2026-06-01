@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/pkg/bot"
+	"github.com/nelsw/bytelyon/pkg/fingerprint"
 	"github.com/nelsw/bytelyon/pkg/news"
 	"github.com/nelsw/bytelyon/pkg/pw"
 	"github.com/nelsw/bytelyon/pkg/search"
@@ -12,8 +13,6 @@ import (
 	"github.com/playwright-community/playwright-go"
 	"github.com/rs/zerolog/log"
 )
-
-type Jobs []*Job
 
 type Job struct {
 	*bot.Model
@@ -43,7 +42,7 @@ func (j *Job) Work() {
 
 	l.Trace().Send()
 
-	ctx, err := pw.Open(j.pwc, j.Headless, j.Fingerprint)
+	ctx, err := pw.Open(j.pwc, j.Headless, fingerprint.Find(j.uid, j.Type, j.Target))
 	if err != nil {
 		l.Err(err).Send()
 		return
@@ -67,12 +66,12 @@ func (j *Job) Work() {
 		j.Frequency = 0
 	}
 
+	// save bot
+	log.Err(bot.Update(j.uid, j.Model)).Send()
+
 	// update the storage state of the bot
 	var state *playwright.StorageState
 	if state, err = ctx.StorageState(); err == nil && state != nil {
-		j.Fingerprint = state
+		fingerprint.Save(j.uid, j.Type, j.Target, state)
 	}
-
-	// save bot
-	log.Err(bot.Update(j.uid, j.Model)).Send()
 }

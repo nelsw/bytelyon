@@ -36,9 +36,7 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, domain string) {
 	})
 	wg.Wait()
 
-	if err := Save(userID, domain, m.Clone()); err != nil {
-		log.Warn().Err(err).Msg("failed to save sitemap")
-	}
+	log.Err(Save(userID, domain, m.Clone())).Msgf("worked sitemap %s", domain)
 }
 
 func work(

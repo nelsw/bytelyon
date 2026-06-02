@@ -13,16 +13,18 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, query string, exclude
 
 	g, err := pw.SearchGoogle(query, ctx)
 	if err != nil {
+		log.Err(err).Msgf("work search %s", query)
 		return
 	}
 
 	var m *serp.Model
 	if m, err = serp.Create(query, pw.Content(g), pw.Screenshot(g)); err != nil {
+		log.Err(err).Msgf("work search %s", query)
 		return
 	}
 
 	if err = Update(userID, query, m.ID); err != nil {
-		log.Warn().Err(err).Msg("Failed to save search object")
+		log.Err(err).Msg("Failed to save search object")
 		return
 	}
 
@@ -36,7 +38,9 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, query string, exclude
 	for _, l := range pw.Locators(g, "[data-dtld]") {
 		if domain := pw.Attribute(l, "data-dtld"); exclude[domain] {
 			continue
-		} else if p, err = pw.NewTab(ctx, l); err != nil || p == nil || p.URL() == "about:blank" {
+		}
+
+		if p, err = pw.NewTab(ctx, l); err != nil || p == nil || p.URL() == "about:blank" {
 			if p != nil {
 				if err = p.Close(); err != nil {
 					log.Warn().Err(err).Msg("Failed to close page")

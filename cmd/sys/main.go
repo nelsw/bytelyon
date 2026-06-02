@@ -38,10 +38,9 @@ func main() {
 	quit := make(chan os.Signal, 1)
 
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	log.Info().Msg("listening for quit signal (Ctrl+C)")
 	<-quit
 	fmt.Println()
-	log.Info().Msg("quitting")
+	log.Info().Msg("quitting ...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -49,5 +48,5 @@ func main() {
 	if err = mgr.Stop(ctx); err != nil {
 		log.Err(err).Msg("failed to stop manager")
 	}
-	log.Info().Msg("exiting")
+	log.Info().Msg("exiting ...")
 }

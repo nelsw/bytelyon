@@ -1,6 +1,7 @@
 package pw
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"regexp"
@@ -416,6 +417,45 @@ func Attribute(l playwright.Locator, a string) string {
 		return ""
 	}
 	return strings.TrimSpace(s)
+}
+
+func Page(url string, ctx playwright.BrowserContext) (content string, screenshot []byte, err error) {
+
+	l := log.With().
+		Str("ƒ", "Page").
+		Str("url", url).
+		Logger()
+
+	l.Trace().Send()
+
+	var page playwright.Page
+
+	if page, err = NewPage(ctx); err != nil {
+		l.Warn().Msgf("scrape failed: %s", err.Error())
+		return
+	}
+
+	defer func() {
+		if closeErr := page.Close(); closeErr != nil {
+			l.Warn().Err(closeErr).Msg("failed to close page")
+		}
+	}()
+
+	if err = Visit(page, url); err != nil {
+		l.Warn().Msgf("Visit failed: %s", err.Error())
+		return
+	}
+
+	if content, err = page.Content(); err != nil {
+		err = errors.Join(err, err)
+	}
+	if screenshot, err = page.Screenshot(playwright.PageScreenshotOptions{FullPage: ptr.True}); err != nil {
+		err = errors.Join(err, err)
+	}
+
+	l.Debug().Send()
+
+	return
 }
 
 func Scrape(url string, ctx playwright.BrowserContext) (content string, screenshot []byte) {

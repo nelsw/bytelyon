@@ -5,7 +5,6 @@ import (
 	"maps"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/nelsw/bytelyon/pkg/article"
@@ -21,8 +20,17 @@ import (
 
 func Work(ctx playwright.BrowserContext, userID ulid.ULID, topic string, exclude map[string]bool, after time.Time) {
 
+	l := log.With().
+		Stringer("user", userID).
+		Time("after", after).
+		Str("topic", topic).
+		Logger()
+
+	l.Trace().Send()
+
 	headlines := fetch(topic, exclude, after)
 	if len(headlines) == 0 {
+		l.Info().Msg("no headlines found")
 		return
 	}
 
@@ -31,37 +39,65 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, topic string, exclude
 		m.Put(h.URL, h)
 	}
 
-	var wg sync.WaitGroup
-	for _, h := range headlines {
-		wg.Go(routine(ctx, m, h))
-	}
-	wg.Wait()
+	jobs := make(chan Model)
+	errs := make(chan error)
+	done := make(chan bool)
+
+	go func() {
+		for {
+
+			if j, more := <-jobs; more {
+				go execute(ctx, m, j, errs)
+				continue
+			}
+			done <- true
+			return
+		}
+	}()
+
+	go func() {
+		for i, h := range headlines {
+			if i < 10 {
+				jobs <- h
+				continue
+			}
+			<-errs
+			jobs <- h
+		}
+		close(jobs)
+	}()
+	<-done
 
 	arr := slices.Collect(maps.Values(m.Clone()))
 	slices.SortFunc(arr, func(a, b Model) int { return b.ID.Compare(a.ID) })
 
-	if err := Save(userID, topic, arr); err != nil {
-		log.Err(err).Send()
-	}
+	l.Err(Save(userID, topic, arr)).Send()
 }
 
-func routine(ctx playwright.BrowserContext, m *model.SyncMap[string, Model], h Model) func() {
-	return func() {
-		if m.Has(h.URL) {
-			return
-		}
-
-		content, screenshot := pw.Scrape(h.URL, ctx)
-		if content == "" {
-			return
-		}
-
-		if err := article.Create(h.URL, h.Title, h.ID, content, screenshot); err != nil {
-			log.Err(err).Send()
-			return
-		}
-		m.Put(h.URL, h)
+func execute(
+	ctx playwright.BrowserContext,
+	m *model.SyncMap[string, Model],
+	h Model,
+	errs chan error,
+) error {
+	if m.Has(h.URL) {
+		return nil
 	}
+
+	content, screenshot, err := pw.Page(h.URL, ctx)
+	if content == "" {
+		return nil
+	}
+
+	if err = article.Create(h.URL, h.Title, h.ID, content, screenshot); err != nil {
+		log.Err(err).Msg("failed to create article")
+		return err
+	}
+
+	log.Info().Str("title", h.Title).Msg("created news article")
+	m.Put(h.URL, h)
+
+	return nil
 }
 
 func fetch(topic string, exclude map[string]bool, after time.Time) (headlines []Model) {
@@ -114,7 +150,5 @@ func fetch(topic string, exclude map[string]bool, after time.Time) (headlines []
 			})
 		}
 	}
-
-	log.Debug().Int("count", len(headlines)).Msg("news")
 	return
 }

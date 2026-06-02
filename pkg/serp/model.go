@@ -162,7 +162,7 @@ func (m *Model) AddSponsored(url, content string) {
 }
 
 func (m *Model) fillOrganicData() {
-	log.Info().Msg("Parsing organic results")
+	log.Trace().Msg("Parsing organic results")
 	c := m.content
 	left := strings.Index(c, `var m={`) + 7
 	c = c[left:]
@@ -232,7 +232,7 @@ func (m *Model) fillOrganicData() {
 	}
 }
 func (m *Model) fillrOganicDataV2() {
-	log.Info().Msg("Parsing organic results v2")
+	log.Trace().Msg("Parsing organic results v2")
 	e := m.doc.Find("a").FilterFunction(func(i int, s *goquery.Selection) bool {
 		href, ok := s.Attr("href")
 		return ok &&
@@ -343,7 +343,7 @@ func (m *Model) fillrOganicDataV2() {
 	}
 }
 func (m *Model) fillPeopleAlsoAskData() {
-	log.Info().Msg("Parsing People Also Ask results")
+	log.Trace().Msg("Parsing People Also Ask results")
 	m.doc.Find("div[class*='related-question-pair']").Each(func(i int, sel *goquery.Selection) {
 		if sel == nil {
 			return
@@ -356,7 +356,7 @@ func (m *Model) fillPeopleAlsoAskData() {
 	})
 }
 func (m *Model) fillPeopleAlsoAskDataV2() {
-	log.Info().Msg("Parsing People Also Ask results v2")
+	log.Trace().Msg("Parsing People Also Ask results v2")
 
 	e := m.doc.Find("span:contains('People also ask')")
 	if e == nil {
@@ -399,7 +399,7 @@ func (m *Model) fillPeopleAlsoAskDataV2() {
 }
 
 func (m *Model) fillPeopleAlsoSearchForData() {
-	log.Info().Msg("Parsing People Also Search For results")
+	log.Trace().Msg("Parsing People Also Search For results")
 	m.doc.Find("span").Each(func(i int, sel *goquery.Selection) {
 		if sel == nil || sel.Text() != "People also search for" {
 			return
@@ -429,8 +429,9 @@ func (m *Model) fillPeopleAlsoSearchForData() {
 		})
 	})
 }
+
 func (m *Model) fillPeopleAlsoSearchForDataV2() {
-	log.Info().Msg("Parsing People Also Search For results v2")
+	log.Trace().Msg("Parsing People Also Search For results v2")
 	e := m.doc.Find("accordion-entry-search-icon")
 	if e == nil {
 		return

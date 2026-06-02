@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -89,18 +90,20 @@ func Get(key string, isPublic bool) ([]byte, error) {
 	})
 
 	if err != nil {
-		l.Err(err).Send()
+		if !strings.Contains(err.Error(), "NoSuchKey") {
+			l.Err(err).Send()
+		}
 		return nil, err
 	}
 
 	var b []byte
 	if b, err = io.ReadAll(out.Body); err != nil {
-		l.Err(err).Send()
+		l.Warn().Err(err).Send()
 		return nil, err
 	}
 
 	if err = out.Body.Close(); err != nil {
-		l.Err(err).Send()
+		l.Warn().Err(err).Send()
 	}
 
 	l.Debug().Send()
@@ -129,7 +132,7 @@ func Delete(key string, isPublic bool) error {
 	})
 
 	if err != nil {
-		l.Err(err).Send()
+		l.Warn().Err(err).Send()
 		return err
 	}
 

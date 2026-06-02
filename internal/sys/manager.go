@@ -3,7 +3,6 @@ package sys
 import (
 	"context"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/nelsw/bytelyon/pkg/user"
@@ -16,7 +15,6 @@ type Manager struct {
 	pwc     *playwright.Playwright
 	workers []*Worker
 	stop    bool
-	done    bool
 }
 
 func NewManager() (m *Manager, err error) {
@@ -35,27 +33,17 @@ func NewManager() (m *Manager, err error) {
 }
 
 func (m *Manager) Start() {
-
-	m.done = false
-	var wg sync.WaitGroup
+	if m.stop {
+		return
+	}
 	for _, w := range m.workers {
-		wg.Go(w.Work)
+		go w.Work()
 	}
-	wg.Wait()
-	m.done = true
-
-	for i := 0; i < 10; i++ {
-		if time.Sleep(time.Second); m.stop {
-			return
-		}
-	}
-
-	m.Start()
+	time.AfterFunc(10*time.Second, m.Start)
 }
 
 func (m *Manager) Stop(ctx context.Context) error {
 
-	m.stop = true
 	for _, w := range m.workers {
 		w.stop = true
 	}
@@ -71,10 +59,19 @@ func (m *Manager) Stop(ctx context.Context) error {
 		return interval
 	}
 
+	done := func() bool {
+		for _, w := range m.workers {
+			if w.busy {
+				return false
+			}
+		}
+		return true
+	}
+
 	timer := time.NewTimer(nextPollInterval())
 	defer timer.Stop()
 	for {
-		if m.done {
+		if done() {
 			return m.pwc.Stop()
 		}
 		select {

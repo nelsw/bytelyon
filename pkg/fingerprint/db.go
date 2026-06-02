@@ -1,6 +1,7 @@
 package fingerprint
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/nelsw/bytelyon/pkg/bot"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
-	"github.com/rs/zerolog/log"
 )
 
 func key(uid ulid.ULID, typ bot.Type, tgt string) string {
@@ -24,14 +24,17 @@ func Find(uid ulid.ULID, typ bot.Type, tgt string) *playwright.OptionalStorageSt
 	}
 
 	var m playwright.OptionalStorageState
-	if err = json.Unmarshal(out, m); err != nil {
+	if err = json.Unmarshal(out, &m); err != nil {
 		return &playwright.OptionalStorageState{}
 	}
 	return &m
 }
 
-func Save(uid ulid.ULID, typ bot.Type, tgt string, m *playwright.StorageState) {
-	if err := s3.Put(key(uid, typ, tgt), json.Of(m), false); err != nil {
-		log.Warn().Err(err).Msg("failed to save fingerprint")
+func Save(uid ulid.ULID, typ bot.Type, tgt string, m *playwright.StorageState) error {
+	if m == nil {
+		return errors.New("nil StorageState")
+	} else if err := s3.Put(key(uid, typ, tgt), json.Of(m), false); err != nil {
+		return err
 	}
+	return nil
 }

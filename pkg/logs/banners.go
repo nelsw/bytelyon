@@ -16,22 +16,6 @@ var bannerTopLines = []string{
 	YellowBoldIntense + `  *` + BlueBoldIntense + `    ██╔══██╗  ╚██╔╝     ██║   ██╔══╝  ██║    ╚██╔╝  ██║   ██║██║╚██╗██║    ` + YellowBoldIntense + `* `,
 	YellowBoldIntense + `  *` + BlueBoldIntense + `    ██████╔╝   ██║      ██║   ███████╗███████╗██║   ╚██████╔╝██║ ╚████║    ` + YellowBoldIntense + `* `,
 	YellowBoldIntense + `  *` + BlueBoldIntense + `    ╚═════╝    ╚═╝      ╚═╝   ╚══════╝╚══════╝╚═╝    ╚═════╝ ╚═╝  ╚═══╝    ` + YellowBoldIntense + `* `,
-	YellowBoldIntense + `  *` + BlackBoldIntense + `    -------------------------------------------------------------------    ` + YellowBoldIntense + `* `,
-}
-
-var managerLines = []string{
-	YellowBoldIntense + `  *` + Purple + `               ▄▄   ▄▄  ▄▄▄  ▄▄  ▄▄  ▄▄▄   ▄▄▄▄ ▄▄▄▄▄ ▄▄▄▄                 ` + YellowBoldIntense + `* `,
-	YellowBoldIntense + `  *` + Purple + `               ██▀▄▀██ ██▀██ ███▄██ ██▀██ ██ ▄▄ ██▄▄  ██▄█▄                ` + YellowBoldIntense + `* `,
-	YellowBoldIntense + `  *` + Purple + `               ██   ██ ██▀██ ██ ▀██ ██▀██ ▀███▀ ██▄▄▄ ██ ██                ` + YellowBoldIntense + `* `,
-}
-
-var workerLines = []string{
-	YellowBoldIntense + `  *` + Purple + `                  ▄▄   ▄▄  ▄▄▄  ▄▄▄▄  ▄▄ ▄▄ ▄▄▄▄▄ ▄▄▄▄                     ` + YellowBoldIntense + `* `,
-	YellowBoldIntense + `  *` + Purple + `                  ██ ▄ ██ ██▀██ ██▄█▄ ██▄█▀ ██▄▄  ██▄█▄                    ` + YellowBoldIntense + `* `,
-	YellowBoldIntense + `  *` + Purple + `                   ▀█▀█▀  ▀███▀ ██ ██ ██ ██ ██▄▄▄ ██ ██                    ` + YellowBoldIntense + `* `,
-}
-
-var bannerBottomLines = []string{
 	YellowBoldIntense + `  *                                                                           * `,
 	YellowBoldIntense + `  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * `,
 }
@@ -40,17 +24,6 @@ func PrintBanner(opts ...map[string]any) {
 	var lines []string
 	lines = append(lines, "\n")
 	lines = append(lines, bannerTopLines...)
-	lines = append(lines, bannerBottomLines...)
-	lines = append(lines, "\n")
-	println(strings.Join(lines, "\n") + Reset)
-}
-
-func PrintWorkerBanner(opts ...map[string]any) {
-	var lines []string
-	lines = append(lines, "\n")
-	lines = append(lines, bannerTopLines...)
-	lines = append(lines, workerLines...)
-	lines = append(lines, bannerBottomLines...)
 	lines = append(lines, "\n")
 	if len(opts) > 0 {
 		for _, k := range slices.Sorted(maps.Keys(opts[0])) {
@@ -62,14 +35,6 @@ func PrintWorkerBanner(opts ...map[string]any) {
 		}
 		lines = append(lines, "\n")
 	}
-	println(strings.Join(lines, "\n") + Reset)
-}
-
-func PrintManagerBanner() {
-	var lines []string
-	lines = append(lines, bannerTopLines...)
-	lines = append(lines, managerLines...)
-	lines = append(lines, bannerBottomLines...)
 	println(strings.Join(lines, "\n") + Reset)
 }
 

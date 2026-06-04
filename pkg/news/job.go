@@ -5,6 +5,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nelsw/bytelyon/pkg/article"
@@ -39,65 +40,42 @@ func Work(ctx playwright.BrowserContext, userID ulid.ULID, topic string, exclude
 		m.Put(h.URL, h)
 	}
 
-	jobs := make(chan Model)
-	errs := make(chan error)
-	done := make(chan bool)
+	c := model.NewCounter(10)
 
-	go func() {
-		for {
-
-			if j, more := <-jobs; more {
-				go execute(ctx, m, j, errs)
-				continue
-			}
-			done <- true
-			return
+	var wg sync.WaitGroup
+	for _, h := range headlines {
+		if m.Has(h.URL) {
+			continue
 		}
-	}()
-
-	go func() {
-		for i, h := range headlines {
-			if i < 10 {
-				jobs <- h
-				continue
+		m.Put(h.URL, h)
+		wg.Go(func() {
+			for !c.Inc() {
+				time.Sleep(500 * time.Millisecond)
 			}
-			<-errs
-			jobs <- h
-		}
-		close(jobs)
-	}()
-	<-done
+
+			content, screenshot, err := pw.Page(h.URL, ctx)
+			c.Dec()
+			if err != nil {
+				m.Drop(h.URL)
+				return
+			}
+
+			if err = article.Create(h.URL, h.Title, h.ID, content, screenshot); err != nil {
+				log.Err(err).Msg("failed to create article")
+				m.Drop(h.URL)
+				return
+			}
+
+			log.Info().Str("title", h.Title).Msg("created news article")
+			m.Put(h.URL, h)
+		})
+	}
+	wg.Wait()
 
 	arr := slices.Collect(maps.Values(m.Clone()))
 	slices.SortFunc(arr, func(a, b Model) int { return b.ID.Compare(a.ID) })
 
 	l.Err(Save(userID, topic, arr)).Send()
-}
-
-func execute(
-	ctx playwright.BrowserContext,
-	m *model.SyncMap[string, Model],
-	h Model,
-	errs chan error,
-) error {
-	if m.Has(h.URL) {
-		return nil
-	}
-
-	content, screenshot, err := pw.Page(h.URL, ctx)
-	if content == "" {
-		return nil
-	}
-
-	if err = article.Create(h.URL, h.Title, h.ID, content, screenshot); err != nil {
-		log.Err(err).Msg("failed to create article")
-		return err
-	}
-
-	log.Info().Str("title", h.Title).Msg("created news article")
-	m.Put(h.URL, h)
-
-	return nil
 }
 
 func fetch(topic string, exclude map[string]bool, after time.Time) (headlines []Model) {

@@ -116,7 +116,7 @@ func (m *Model) MarshalJSON() ([]byte, error) {
 
 func (m *Model) UnmarshalJSON(b []byte) error {
 	var items Items
-	if err := json.Unmarshal(b, items); err != nil {
+	if err := json.Unmarshal(b, &items); err != nil {
 		return err
 	}
 

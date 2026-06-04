@@ -59,9 +59,10 @@ func work(
 	for !capacitor.Inc() {
 		time.Sleep(500 * time.Millisecond)
 	}
-	defer capacitor.Dec()
 
 	content, screenshot := pw.Scrape(url, ctx)
+	capacitor.Dec()
+
 	if content == "" {
 		smap.Drop(url)
 		return

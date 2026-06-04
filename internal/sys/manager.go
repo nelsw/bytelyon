@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/nelsw/bytelyon/pkg/user"
+	"github.com/oklog/ulid/v2"
 	"github.com/playwright-community/playwright-go"
 )
 
@@ -13,40 +14,53 @@ const shutdownPollIntervalMax = 500 * time.Millisecond
 
 type Manager struct {
 	pwc     *playwright.Playwright
-	workers []*Worker
+	workers map[ulid.ULID]*Worker
 	stop    bool
 }
 
-func NewManager() (m *Manager, err error) {
-
-	m = new(Manager)
-
-	if m.pwc, err = playwright.Run(); err != nil {
+func NewManager() (*Manager, error) {
+	pwc, err := playwright.Run()
+	if err != nil {
 		return nil, err
 	}
-
-	for _, uid := range user.IDs() {
-		m.workers = append(m.workers, NewWorker(m.pwc, uid))
-	}
-
-	return
+	return &Manager{
+		pwc:     pwc,
+		workers: make(map[ulid.ULID]*Worker),
+	}, nil
 }
 
 func (m *Manager) Start() {
+
 	if m.stop {
 		return
 	}
-	for _, w := range m.workers {
-		go w.Work()
+
+	for _, uid := range user.IDs() {
+		if _, ok := m.workers[uid]; ok {
+			continue
+		}
+		m.workers[uid] = &Worker{
+			pwc: m.pwc,
+			uid: uid,
+		}
+		go m.workers[uid].Work()
 	}
-	time.AfterFunc(10*time.Second, m.Start)
+
+	time.AfterFunc(time.Minute, m.Start)
 }
 
 func (m *Manager) Stop(ctx context.Context) error {
 
-	for _, w := range m.workers {
-		w.stop = true
-	}
+	m.stop = true
+	done := make(chan bool)
+	go func() {
+		for _, w := range m.workers {
+			if w.stop = true; w.busy {
+				return
+			}
+		}
+		done <- true
+	}()
 
 	pollIntervalBase := time.Millisecond
 	nextPollInterval := func() time.Duration {
@@ -59,22 +73,12 @@ func (m *Manager) Stop(ctx context.Context) error {
 		return interval
 	}
 
-	done := func() bool {
-		for _, w := range m.workers {
-			if w.busy {
-				return false
-			}
-		}
-		return true
-	}
-
 	timer := time.NewTimer(nextPollInterval())
 	defer timer.Stop()
 	for {
-		if done() {
-			return m.pwc.Stop()
-		}
 		select {
+		case <-done:
+			return m.pwc.Stop()
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-timer.C:

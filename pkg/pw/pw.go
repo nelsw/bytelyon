@@ -233,16 +233,27 @@ func Press(page playwright.Page, s string) error {
 }
 
 // NewPage creates a new document in the browser context.
-func NewPage(ctx playwright.BrowserContext) (page playwright.Page, err error) {
-	if page, err = ctx.NewPage(); err == nil {
-		err = page.AddInitScript(playwright.Script{Content: ptr.Of(`() => {
+func NewPage(ctx playwright.BrowserContext) (playwright.Page, error) {
+
+	page, err := ctx.NewPage()
+	if err != nil {
+		log.Err(err).Msg("failed to create new page")
+		return nil, err
+	}
+
+	err = page.AddInitScript(playwright.Script{Content: ptr.Of(`() => {
   Object.defineProperty(window.screen, "width", { get: () => 1920 });
   Object.defineProperty(window.screen, "height", { get: () => 1080 });
   Object.defineProperty(window.screen, "colorDepth", { get: () => 24 });
   Object.defineProperty(window.screen, "pixelDepth", { get: () => 24 });
 }`)})
+
+	if err != nil {
+		log.Err(err).Msg("failed to add init script for new page")
+		return nil, err
 	}
-	return
+
+	return page, nil
 }
 
 func NewTab(ctx playwright.BrowserContext, l playwright.Locator) (page playwright.Page, err error) {
@@ -271,10 +282,15 @@ func NewTab(ctx playwright.BrowserContext, l playwright.Locator) (page playwrigh
 
 // GoTo returns the main resource response.
 func GoTo(page playwright.Page, url string) (playwright.Response, error) {
-	return page.Goto(url, playwright.PageGotoOptions{
+	res, err := page.Goto(url, playwright.PageGotoOptions{
 		Timeout:   ptr.Of(10_000.0),
 		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
 	})
+	if err != nil {
+		log.Err(err).Msgf("failed to visit %s", url)
+		return nil, err
+	}
+	return res, nil
 }
 
 // Visit navigates to the given URL, waits for the document to load,
@@ -305,7 +321,11 @@ func ScrollToBottomThenTop(page playwright.Page) error {
     }, 100);
   });
 }`)
-	return err
+	if err != nil {
+		log.Err(err).Msg("failed to scroll to bottom")
+		return err
+	}
+	return nil
 }
 
 // Click the first document element located by the given selectors.
@@ -419,7 +439,7 @@ func Attribute(l playwright.Locator, a string) string {
 	return strings.TrimSpace(s)
 }
 
-func Page(url string, ctx playwright.BrowserContext) (content string, screenshot []byte, err error) {
+func Page(url string, ctx playwright.BrowserContext) (string, []byte, error) {
 
 	l := log.With().
 		Str("ƒ", "Page").
@@ -428,34 +448,34 @@ func Page(url string, ctx playwright.BrowserContext) (content string, screenshot
 
 	l.Trace().Send()
 
-	var page playwright.Page
-
-	if page, err = NewPage(ctx); err != nil {
-		l.Warn().Msgf("scrape failed: %s", err.Error())
-		return
-	}
+	var err error
 
 	defer func() {
-		if closeErr := page.Close(); closeErr != nil {
-			l.Warn().Err(closeErr).Msg("failed to close page")
-		}
+		l.Err(err).Send()
 	}()
 
-	if err = Visit(page, url); err != nil {
-		l.Warn().Msgf("Visit failed: %s", err.Error())
-		return
+	var page playwright.Page
+	if page, err = NewPage(ctx); err != nil {
+		return "", nil, err
+	} else if err = Visit(page, url); err != nil {
+		return "", nil, err
 	}
 
-	if content, err = page.Content(); err != nil {
-		err = errors.Join(err, err)
-	}
-	if screenshot, err = page.Screenshot(playwright.PageScreenshotOptions{FullPage: ptr.True}); err != nil {
-		err = errors.Join(err, err)
+	content, cErr := page.Content()
+	if cErr != nil {
+		err = errors.Join(err, cErr)
 	}
 
-	l.Debug().Send()
+	screenshot, sErr := page.Screenshot(playwright.PageScreenshotOptions{FullPage: ptr.True})
+	if sErr != nil {
+		err = errors.Join(err, sErr)
+	}
 
-	return
+	if closeErr := page.Close(); closeErr != nil {
+		err = errors.Join(err, closeErr)
+	}
+
+	return content, screenshot, err
 }
 
 func Scrape(url string, ctx playwright.BrowserContext) (content string, screenshot []byte) {

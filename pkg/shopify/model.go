@@ -1,12 +1,8 @@
 package shopify
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
-
-	"github.com/nelsw/bytelyon/pkg/https"
 )
 
 var ByteLyon = &Credentials{
@@ -25,42 +21,37 @@ type Credentials struct {
 	} `json:"Client"`
 }
 
-func (c *Credentials) adminApi() string {
-	return fmt.Sprintf("https://%s.myshopify.com/admin/api/2026-01/graphql.json", c.Store)
-}
-
-func (c *Credentials) authApi() string {
-	return fmt.Sprintf("https://%s.myshopify.com/admin/oauth/access_token", c.Store)
-}
-
-func (c *Credentials) accessToken() (tkn string, err error) {
-
-	if err = c.Validate(); err != nil {
-		return
-	}
-
-	u := fmt.Sprintf("https://%s.myshopify.com/admin/oauth/access_token", c.Store)
-	v := map[string][]string{
-		"grant_type":    {"client_credentials"},
-		"client_id":     {c.Client.ID},
-		"client_secret": {c.Client.Secret},
-	}
-
-	var out []byte
-	if out, err = https.PostForm(u, v); err != nil {
-		return
-	}
-
-	var atr struct {
-		AccessToken string `json:"access_token"`
-	}
-
-	if err = json.Unmarshal(out, &atr); err == nil {
-		return
-	}
-
-	return atr.AccessToken, nil
-}
+//func (c *Credentials) adminApi() string {
+//	return fmt.Sprintf("https://%s.myshopify.com/admin/api/2026-01/graphql.json", c.Store)
+//}
+//
+//func (c *Credentials) accessToken() (tkn string, err error) {
+//
+//	if err = c.Validate(); err != nil {
+//		return
+//	}
+//
+//	var out []byte
+//	if out, err = https.PostForm(
+//		fmt.Sprintf("https://%s.myshopify.com/admin/oauth/access_token", c.Store),
+//		map[string][]string{
+//			"grant_type":    {"client_credentials"},
+//			"client_id":     {c.Client.ID},
+//			"client_secret": {c.Client.Secret},
+//		}); err != nil {
+//		return
+//	}
+//
+//	var atr struct {
+//		AccessToken string `json:"access_token"`
+//	}
+//
+//	if err = json.Unmarshal(out, &atr); err == nil {
+//		return
+//	}
+//
+//	return atr.AccessToken, nil
+//}
 
 func (c *Credentials) Blogs() (map[string]string, error) {
 	// todo - client ƒ

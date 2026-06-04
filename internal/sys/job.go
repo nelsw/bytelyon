@@ -34,21 +34,17 @@ func NewJob(
 	}
 }
 
-func Execute(
-	b *bot.Model,
-	p *playwright.Playwright,
-	u ulid.ULID,
-) {
+func (j *Job) Work() {
 
 	l := log.With().
-		Stringer("uid", u).
-		Str("target", b.Target).
-		Stringer("type", b.Type).
+		Stringer("uid", j.uid).
+		Str("target", j.Target).
+		Stringer("type", j.Type).
 		Logger()
 
 	l.Info().Msg("executing ...")
 
-	ctx, err := pw.Open(p, b.Headless, fingerprint.Find(u, b.Type, b.Target))
+	ctx, err := pw.Open(j.pwc, j.Headless, fingerprint.Find(j.uid, j.Type, j.Target))
 	defer func() {
 		pw.Close(ctx)
 		l.Err(err).Msg("executed")
@@ -57,54 +53,6 @@ func Execute(
 	if err != nil {
 		return
 	}
-
-	switch b.Type {
-	case bot.News:
-		news.Work(ctx, u, b.Target, b.Blacklist, b.RanAt)
-	case bot.Search:
-		search.Work(ctx, u, b.Target, b.Blacklist)
-	case bot.Sitemap:
-		sitemap.Work(ctx, u, b.Target)
-	}
-
-	// update when this bot was run, and when to run next
-	if b.RanAt = time.Now().UTC(); b.Frequency == 1 {
-		// reset frequency if set to 1ns (once & stop)
-		b.Frequency = 0
-	}
-
-	// update bot
-	err = errors.Join(err, bot.Update(u, b))
-
-	// update the storage state of the bot
-	if state, _ := ctx.StorageState(); state != nil {
-		err = errors.Join(err, fingerprint.Save(u, b.Type, b.Target, state))
-	}
-
-	return
-}
-
-func (j *Job) AddError(err error) {
-	j.err = errors.Join(j.err, err)
-}
-
-func (j *Job) Work() {
-
-	l := log.With().
-		Str("ƒ", "job").
-		Stringer("uid", j.uid).
-		Str("target", j.Target).
-		Stringer("type", j.Type).
-		Logger()
-
-	l.Trace().Send()
-
-	ctx, err := pw.Open(j.pwc, j.Headless, fingerprint.Find(j.uid, j.Type, j.Target))
-	if err != nil {
-		j.AddError(err)
-		return
-	}
-	defer pw.Close(ctx)
 
 	switch j.Type {
 	case bot.News:
@@ -122,15 +70,10 @@ func (j *Job) Work() {
 	}
 
 	// update bot
-	if err = bot.Update(j.uid, j.Model); err != nil {
-		j.AddError(err)
-	}
+	err = errors.Join(err, bot.Update(j.uid, j.Model))
 
 	// update the storage state of the bot
-	var state *playwright.StorageState
-	if state, err = ctx.StorageState(); err != nil {
-		j.AddError(err)
-	} else if err = fingerprint.Save(j.uid, j.Type, j.Target, state); err != nil {
-		j.AddError(err)
+	if state, _ := ctx.StorageState(); state != nil {
+		err = errors.Join(err, fingerprint.Save(j.uid, j.Type, j.Target, state))
 	}
 }

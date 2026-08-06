@@ -35,3 +35,5 @@ go.work.sum
 .secrets/
 .zed/
 apps/mgr/vendor/
+apps/bro/models/__pycache__/
+apps/bro/__pycache__/

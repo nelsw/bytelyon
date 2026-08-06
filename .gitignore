@@ -37,3 +37,4 @@ go.work.sum
 apps/mgr/vendor/
 apps/bro/models/__pycache__/
 apps/bro/__pycache__/
+apps/bro/services/__pycache__/

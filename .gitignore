@@ -38,3 +38,5 @@ apps/mgr/vendor/
 apps/bro/models/__pycache__/
 apps/bro/__pycache__/
 apps/bro/services/__pycache__/
+apps/bro/.mypy_cache/
+apps/bro/.ruff_cache/

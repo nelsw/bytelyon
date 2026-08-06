@@ -2,8 +2,8 @@ from datetime import datetime
 
 from fastapi import FastAPI
 
-import services.news
-from models import bot
+from jobs.news import NewsBot
+from models.bot import Bot
 
 app = FastAPI()
 
@@ -14,12 +14,12 @@ async def index():
 
 
 @app.post("/bot")
-async def post_bot(b: bot.Bot):
+async def post_bot(b: Bot):
     return b
 
 
 @app.put("/news/{id}/query/{query}/since/{since}")
 async def put_news(id: int, query: str, since: datetime):
-    b = services.news.NewsBot(id, query, since, 5, 200)
+    b = NewsBot(bot_id=id, query=query, since=since, max_concurrency=5, max_pages=200)
     await b.run()
     return b.articles

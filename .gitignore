@@ -40,3 +40,5 @@ apps/bro/__pycache__/
 apps/bro/services/__pycache__/
 apps/bro/.mypy_cache/
 apps/bro/.ruff_cache/
+apps/bro/jobs/__pycache__/
+apps/bro/requirements.txt

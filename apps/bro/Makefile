@@ -1,8 +1,8 @@
 lint:
 	mypy . --fix
 	ty check .
-	ruff check . --fix
-	ruff format . --check
+	ruff format
+	ruff check --fix --unsafe-fixes
 
 install:
 	@uv run sync

@@ -1,0 +1,9 @@
+{
+    "preset": "laravel",
+    "rules": {
+        "Pint/phpdoc_type_annotations_only": true,
+        "blank_line_before_statement": {
+            "statements": ["declare", "try"]
+        }
+    }
+}

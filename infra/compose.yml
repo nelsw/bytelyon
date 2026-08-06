@@ -1,0 +1,104 @@
+name: bytelyon
+
+services:
+  bro:
+    image: "bytelyon/bro:latest"
+    build:
+      context: ..
+      dockerfile: infra/docker/bro.Dockerfile
+    ports:
+      - "${BRO_PORT:-8085}:${BRO_PORT:-8085}"
+    networks:
+      - sail
+    depends_on:
+      - mgr
+  mgr:
+    image: "bytelyon/mgr:latest"
+    build:
+      context: ..
+      dockerfile: infra/docker/mgr.Dockerfile
+    ports:
+      - "3000:3000"
+    networks:
+      - sail
+    depends_on:
+      - web
+
+  web:
+    image: "bytelyon/web:latest"
+    profiles: ["local", "testing"]
+    build:
+      context: ..
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        WWWGROUP: "${WWWGROUP:-1000}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${APP_PORT:-80}:80"
+      - "${VITE_PORT:-5173}:${VITE_PORT:-5173}"
+    environment:
+      WWWUSER: "${WWWUSER:-1000}"
+      LARAVEL_SAIL: 1
+      XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
+      XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
+      IGNITION_LOCAL_SITES_PATH: "${PWD:-apps/web}"
+    volumes:
+      - "../apps/web/.:/var/www/html"
+    networks:
+      - sail
+    depends_on:
+      - pgsql
+      - redis
+
+  pgsql:
+    image: "postgres:18-alpine"
+    profiles: ["local", "testing"]
+    ports:
+      - "${FORWARD_DB_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME:-root}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - "sail-pgsql:/var/lib/postgresql"
+      - "../infra/pgsql/create-testing-database.sql:/docker-entrypoint-initdb.d/10-create-testing-database.sql"
+    networks:
+      - sail
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "pg_isready",
+          "-q",
+          "-d",
+          "${DB_DATABASE}",
+          "-U",
+          "${DB_USERNAME}",
+        ]
+      retries: 3
+      timeout: 5s
+
+  redis:
+    image: "redis:alpine"
+    profiles: ["local", "testing"]
+    ports:
+      - "${FORWARD_REDIS_PORT:-6379}:6379"
+    volumes:
+      - "sail-redis:/data"
+    networks:
+      - sail
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      retries: 3
+      timeout: 5s
+
+networks:
+  sail:
+    driver: bridge
+
+volumes:
+  sail-pgsql:
+    driver: local
+  sail-redis:
+    driver: local

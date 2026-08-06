@@ -1,0 +1,317 @@
+@import 'tailwindcss';
+
+@import 'tw-animate-css';
+
+@plugin '@tailwindcss/typography';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    /* ── Type ─────────────────────────────────────────────────────────
+       Space Grotesk (display) / Manrope (UI + body) / JetBrains Mono
+       (metrics, IDs, anything numeric). Self-hosted via vite.config.ts. */
+    --font-sans:
+        Manrope, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+    --text-xs: 12px;
+    --text-xs--line-height: 18px;
+    --text-sm: 13px;
+    --text-sm--line-height: 20px;
+    --text-base: 15px;
+    --text-base--line-height: 22px;
+    --text-md: 17px;
+    --text-md--line-height: 26px;
+    --text-lg: 20px;
+    --text-lg--line-height: 26px;
+    --text-xl: 24px;
+    --text-xl--line-height: 31px;
+    --text-2xl: 32px;
+    --text-2xl--line-height: 36px;
+    --text-3xl: 44px;
+    --text-3xl--line-height: 48px;
+    --text-4xl: 60px;
+    --text-4xl--line-height: 66px;
+
+    --tracking-tight: -0.02em;
+    --tracking-normal: 0em;
+    --tracking-wide: 0.04em;
+
+    /* ── Radius: 6px buttons/inputs, 10px cards, 16px dialogs/panels ───── */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 10px;
+    --radius-xl: 16px;
+    --radius-2xl: 16px;
+
+    /* ── Shadows: soft and low-contrast, never coloured ───────────────── */
+    --shadow-xs: 0 1px 1px rgb(18 19 26 / 0.04);
+    --shadow-sm: 0 1px 2px rgb(18 19 26 / 0.06);
+    --shadow-md:
+        0 4px 12px rgb(18 19 26 / 0.08), 0 1px 2px rgb(18 19 26 / 0.04);
+    --shadow-lg: 0 16px 40px rgb(18 19 26 / 0.14);
+
+    /* ── Motion: snappy, no bounce or overshoot ───────────────────────── */
+    --ease-snap: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ease-glide: cubic-bezier(0.16, 1, 0.3, 1);
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary-hover: var(--primary-hover);
+    --color-primary-active: var(--primary-active);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-destructive-hover: var(--destructive-hover);
+
+    /* Semantic status families — tint background, -700 foreground. Kept
+       separate from the decorative spectrum below, never interchangeable. */
+    --color-success: var(--success);
+    --color-success-tint: var(--success-tint);
+    --color-success-strong: var(--success-strong);
+    --color-warning: var(--warning);
+    --color-warning-tint: var(--warning-tint);
+    --color-warning-strong: var(--warning-strong);
+    --color-info: var(--info);
+    --color-info-tint: var(--info-tint);
+    --color-info-strong: var(--info-strong);
+    --color-danger-tint: var(--danger-tint);
+    --color-danger-strong: var(--danger-strong);
+
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    /* The 7-step spectrum lifted from the lion mark. Data visualisation
+       only — never used as UI or status colour. */
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+    --color-chart-6: var(--chart-6);
+    --color-chart-7: var(--chart-7);
+
+    --color-sidebar: var(--sidebar-background);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/*
+  The default border color has changed to `currentColor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--border, currentColor);
+    }
+}
+
+:root {
+    /* ── Brand ────────────────────────────────────────────────────────── */
+    --brand-pink: #e4056f;
+    --brand-pink-600: #c2005d;
+    --brand-pink-700: #9b0049;
+    --brand-pink-100: #fde3ef;
+    --brand-purple: #5b1e8c;
+    --brand-blue: #005ba9;
+
+    /* Spectrum extracted from the lion mark. Decorative/data only. */
+    --spectrum-yellow: #fbaa26;
+    --spectrum-orange: #f37424;
+    --spectrum-pink: #e4056f;
+    --spectrum-orchid: #bb4d9c;
+    --spectrum-purple: #800e69;
+    --spectrum-cyan: #59c9e6;
+    --spectrum-blue: #005ba9;
+
+    /* Marketing surfaces only — hero sections, slides, big quotes.
+       Never product UI. */
+    --gradient-lion: linear-gradient(
+        100deg,
+        var(--spectrum-yellow) 0%,
+        var(--spectrum-orange) 20%,
+        var(--spectrum-pink) 45%,
+        var(--spectrum-purple) 68%,
+        var(--spectrum-cyan) 85%,
+        var(--spectrum-blue) 100%
+    );
+
+    /* ── Neutrals ─────────────────────────────────────────────────────── */
+    --gray-0: #ffffff;
+    --gray-25: #fbfbfd;
+    --gray-50: #f5f6f9;
+    --gray-100: #eaecf2;
+    --gray-200: #d7dae3;
+    --gray-300: #b7bccb;
+    --gray-400: #8c93a8;
+    --gray-500: #666e85;
+    --gray-600: #4b5268;
+    --gray-700: #363b4d;
+    --gray-800: #22252f;
+    --gray-900: #12131a;
+
+    /* ── Semantic ─────────────────────────────────────────────────────── */
+    --success: #12b76a;
+    --success-tint: #d8f6e7;
+    --success-strong: #0a7a46;
+    --warning: #f5a524;
+    --warning-tint: #fdf0d5;
+    --warning-strong: #9a6300;
+    --danger: #e4362b;
+    --danger-tint: #fce1de;
+    --danger-strong: #a11f17;
+    --info: #2e90fa;
+    --info-tint: #dcebff;
+    --info-strong: #1a5aa8;
+
+    /* ── Light theme ──────────────────────────────────────────────────── */
+    --background: var(--gray-25);
+    --foreground: var(--gray-900);
+    --card: var(--gray-0);
+    --card-foreground: var(--gray-900);
+    --popover: var(--gray-0);
+    --popover-foreground: var(--gray-900);
+    --primary: var(--brand-pink);
+    --primary-foreground: #ffffff;
+    --primary-hover: var(--brand-pink-600);
+    --primary-active: var(--brand-pink-700);
+    --secondary: var(--gray-50);
+    --secondary-foreground: var(--gray-800);
+    --muted: var(--gray-50);
+    --muted-foreground: var(--gray-600);
+    --accent: var(--gray-100);
+    --accent-foreground: var(--gray-800);
+    --destructive: #d13444;
+    --destructive-foreground: #ffffff;
+    --destructive-hover: #bf4139;
+    --border: var(--gray-200);
+    --input: var(--gray-200);
+    --ring: var(--brand-pink);
+
+    --chart-1: var(--spectrum-yellow);
+    --chart-2: var(--spectrum-orange);
+    --chart-3: var(--spectrum-pink);
+    --chart-4: var(--spectrum-orchid);
+    --chart-5: var(--spectrum-purple);
+    --chart-6: var(--spectrum-cyan);
+    --chart-7: var(--spectrum-blue);
+
+    --sidebar-background: var(--gray-0);
+    --sidebar-foreground: var(--gray-600);
+    --sidebar-primary: var(--brand-pink);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--gray-50);
+    --sidebar-accent-foreground: var(--gray-900);
+    --sidebar-border: var(--gray-100);
+    --sidebar-ring: var(--brand-pink);
+    --sidebar: var(--gray-0);
+}
+
+/*
+  The design system specifies light mode only. This dark theme is derived
+  from the same neutral ramp (gray-900 page, gray-800 surfaces) so the
+  appearance switcher keeps working without going off-brand. Brand pink is
+  held at its exact value — white on #E4056F clears 4.6:1, and as a focus
+  ring against the gray-900 page it clears the 3:1 bar for UI components.
+  The semantic tints are inverted to dark fills with light text, since the
+  light -100/-700 pairs are unreadable on a dark surface.
+*/
+.dark {
+    --success-tint: #0b3a24;
+    --success-strong: #6ee7b0;
+    --warning-tint: #3d2a06;
+    --warning-strong: #fbcf7a;
+    --danger-tint: #45140f;
+    --danger-strong: #f8a49c;
+    --info-tint: #0d2a4d;
+    --info-strong: #93c5fd;
+
+    --background: var(--gray-900);
+    --foreground: var(--gray-100);
+    --card: var(--gray-800);
+    --card-foreground: var(--gray-100);
+    --popover: var(--gray-800);
+    --popover-foreground: var(--gray-100);
+    --primary: var(--brand-pink);
+    --primary-foreground: #ffffff;
+    --secondary: var(--gray-800);
+    --secondary-foreground: var(--gray-100);
+    --muted: var(--gray-800);
+    --muted-foreground: var(--gray-300);
+    --accent: var(--gray-700);
+    --accent-foreground: var(--gray-100);
+    --destructive: #d13444;
+    --destructive-foreground: #ffffff;
+    --destructive-hover: #bf4139;
+    --border: var(--gray-700);
+    --input: var(--gray-700);
+    --ring: #ff3d8b;
+
+    --sidebar-background: #191b23;
+    --sidebar-foreground: var(--gray-300);
+    --sidebar-primary: var(--brand-pink);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--gray-700);
+    --sidebar-accent-foreground: var(--gray-100);
+    --sidebar-border: var(--gray-700);
+    --sidebar-ring: #ff3d8b;
+    --sidebar: #191b23;
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+        font-size: var(--text-base);
+    }
+
+    /* Headings carry the display face — bold and geometric, echoing the
+       sharp facets of the lion mark. */
+    h1,
+    h2,
+    h3,
+    h4 {
+        font-family: var(--font-display);
+        letter-spacing: var(--tracking-tight);
+    }
+}

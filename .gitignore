@@ -24,9 +24,14 @@ profile.cov
 go.work
 go.work.sum
 
-# env file
+# env files
 .env
+.env.local
+.env.prod
+.env.testing
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.secrets/
+.zed/
+apps/mgr/vendor/

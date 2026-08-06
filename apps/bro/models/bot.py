@@ -1,10 +1,8 @@
-
-
 from datetime import datetime
 
 from pydantic import BaseModel
 
-from ..models import bot_type
+from models import bot_type
 
 # from models import bot_type
 

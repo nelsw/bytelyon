@@ -1,17 +1,18 @@
-# format:
-	# ruff check . scripts --fix
-	# ruff format . scripts
-
 lint:
-	mypy .
+	mypy . --fix
 	ty check .
-	ruff check .
+	ruff check . --fix
 	ruff format . --check
 
 install:
-	@uv pip compile apps/bro/pyproject.toml -o apps/bro/requirements.txt
+	@uv run sync
+	@uv pip compile pyproject.toml -o requirements.txt
 
 test:
+	./tests/main.sh
 	coverage run -m pytest tests/
 	coverage report
 	coverage html --title "${@-coverage}"
+
+up:
+	uv run fastapi dev --port 8085

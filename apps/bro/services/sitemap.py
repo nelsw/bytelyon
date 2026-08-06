@@ -6,14 +6,15 @@ import uuid
 from urllib.parse import urlparse
 
 import aiofiles
-from doc import Doc
-from playwright.async_api import (  # pyright: ignore[reportMissingImports]
+from playwright.async_api import (
     BrowserContext,
     Error,
     Page,
     async_playwright,
 )
-from seleniumbase import cdp_driver  # pyright: ignore[reportMissingImports]
+from seleniumbase import cdp_driver
+
+from models.doc import Doc
 
 
 class SitemapBot:
@@ -38,7 +39,7 @@ class SitemapBot:
         self.bounder = asyncio.Semaphore(max_concurrency)
         self.queue: asyncio.Queue = asyncio.Queue()
         self.visited_urls: set = set()
-        self.pages = []
+        self.pages: list[dict] = []
         self.visited_lock = asyncio.Lock()
         self.pages_crawled = 0
         self.max_pages = max_pages
@@ -47,16 +48,22 @@ class SitemapBot:
         self.out_dir = f"output/{bot_id!s}"
         os.makedirs(self.out_dir, exist_ok=True)
 
-
     async def write_results(self):
         urls = list(self.visited_urls)
         urls.sort()
-        async with aiofiles.open(f"{self.out_dir}/results.json", "w", encoding="utf-8") as f:
-            await f.write(json.dumps({
-                "urls": urls,
-                "domain": self.domain,
-                "pages": self.pages,
-            }, indent=4))
+        async with aiofiles.open(
+            f"{self.out_dir}/results.json", "w", encoding="utf-8"
+        ) as f:
+            await f.write(
+                json.dumps(
+                    {
+                        "urls": urls,
+                        "domain": self.domain,
+                        "pages": self.pages,
+                    },
+                    indent=4,
+                )
+            )
 
     def _same_domain(self, url: str) -> bool:
         netloc = urlparse(url).netloc.removeprefix("www.")
@@ -80,7 +87,6 @@ class SitemapBot:
             links.add(f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/"))
         return list(links)
 
-
     async def scrape_page(self, page: Page, url: str):
         """Saves the rendered HTML and a full-page screenshot for a URL."""
 
@@ -90,17 +96,18 @@ class SitemapBot:
             await page.screenshot(path=path, full_page=True)
             html = await page.content()
             title = await page.title()
-            self.pages.append({
-                "domain": self.domain,
-                "meta": Doc(html).meta,
-                "screenshot_key": path,
-                "title": title,
-                "url": url,
-            })
+            self.pages.append(
+                {
+                    "domain": self.domain,
+                    "meta": Doc(html).meta,
+                    "screenshot_key": path,
+                    "title": title,
+                    "url": url,
+                }
+            )
         except Error as e:
             print(f"[-] Error scraping page: {e}")
             return
-
 
     async def crawl_page(self, context: BrowserContext, url: str) -> list:
         """Fetches and scrapes one URL, retrying on failure with backoff.
@@ -111,7 +118,11 @@ class SitemapBot:
         last_error = None
         for attempt in range(1, self.max_retries + 2):
             async with self.bounder:
-                suffix = f" (attempt {attempt}/{self.max_retries + 1})" if attempt > 1 else ""
+                suffix = (
+                    f" (attempt {attempt}/{self.max_retries + 1})"
+                    if attempt > 1
+                    else ""
+                )
                 print(f"[+] Crawling: {url}{suffix}")
                 page = await context.new_page()
                 try:
@@ -190,11 +201,30 @@ def main():
     )
     parser.add_argument("bot_id", help="ID of the sitemap bot")
     parser.add_argument("domain", help="Domain to crawl, e.g. example.com")
-    parser.add_argument("--max-concurrency", type=int, default=10, help="Concurrent pages (default: 10)")
-    parser.add_argument("--max-pages", type=int, default=100, help="Hard stop on pages crawled (default: 100)")
-    parser.add_argument("--out-dir", default="output", help="Output directory (default: output)")
-    parser.add_argument("--max-retries", type=int, default=2, help="Retries per failed page, beyond the first attempt (default: 2)")
-    parser.add_argument("--retry-backoff", type=float, default=2.0, help="Base seconds to wait before a retry, multiplied by attempt number (default: 2.0)")
+    parser.add_argument(
+        "--max-concurrency", type=int, default=10, help="Concurrent pages (default: 10)"
+    )
+    parser.add_argument(
+        "--max-pages",
+        type=int,
+        default=100,
+        help="Hard stop on pages crawled (default: 100)",
+    )
+    parser.add_argument(
+        "--out-dir", default="output", help="Output directory (default: output)"
+    )
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=2,
+        help="Retries per failed page, beyond the first attempt (default: 2)",
+    )
+    parser.add_argument(
+        "--retry-backoff",
+        type=float,
+        default=2.0,
+        help="Base seconds to wait before a retry, multiplied by attempt number (default: 2.0)",
+    )
     args = parser.parse_args()
 
     bot = SitemapBot(
@@ -206,9 +236,12 @@ def main():
         retry_backoff=args.retry_backoff,
     )
 
-    print(f"Starting parallel crawl of {bot.domain} (max {bot.max_pages} pages, concurrency {bot.max_concurrency})")
+    print(
+        f"Starting parallel crawl of {bot.domain} (max {bot.max_pages} pages, concurrency {bot.max_concurrency})"
+    )
     asyncio.run(bot.run())
     print(f"Finished. Pages visited: {len(bot.visited_urls)}.")
+
 
 if __name__ == "__main__":
     main()

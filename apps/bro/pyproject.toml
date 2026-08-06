@@ -3,10 +3,20 @@ name = "bro"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
+    "aiofiles>=25.1.0",
+    "aiohttp>=3.14.3",
     "beautifulsoup4>=4.15.0",
     "fastapi[standard]>=0.141.1",
+    "mypy>=2.3.0",
     "playwright>=1.62.0",
     "pydantic>=2.13.4",
     "pytz>=2026.3.post1",
     "seleniumbase>=4.51.10",
+    "ty>=0.0.69",
+    "types-aiofiles>=25.1.0.20260518",
+    "types-pytz>=2026.3.1.20260727",
 ]
+
+[[tool.mypy.overrides]]
+module = ["seleniumbase.*"]
+follow_untyped_imports = true

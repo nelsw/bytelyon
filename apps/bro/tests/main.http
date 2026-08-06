@@ -1,6 +1,6 @@
 # Test your FastAPI endpoints
 
-GET http://127.0.0.1:8200/
+GET http://127.0.0.1:8000/
 Accept: application/json
 
 ###
@@ -16,3 +16,9 @@ Content-Type: application/json
 }
 
 ###
+@query = situation in iran
+@id = 1
+@since = 2025-01-01T05:00:00Z
+
+PUT 127.0.0.1:8085/news/{{id}}/query/{{query}}/since/{{since}}
+Accept: application/json

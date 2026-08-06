@@ -1,13 +1,13 @@
 import argparse
 import asyncio
 import datetime
-import json
 import os
 from datetime import datetime as dt
 from urllib.parse import quote, urlparse
 from xml.etree import ElementTree
 
-import requests
+import aiohttp
+from aiohttp import ClientSession
 from playwright.async_api import (
     BrowserContext,
     Error,
@@ -16,24 +16,26 @@ from playwright.async_api import (
 from pytz import timezone
 from seleniumbase.undetected import cdp_driver
 
+from models.doc import Doc
+
 RFC_1123 = "%a, %d %b %Y %H:%M:%S %Z"
 
 
 class NewsBot:
     def __init__(
-            self,
-            bot_id: int,
-            query: str,
-            since: datetime.datetime,
-            max_concurrency: int,
-            max_pages: int,
-            max_retries: int = 3,
-            retry_backoff: float = 3.0,
+        self,
+        bot_id: int,
+        query: str,
+        since: datetime.datetime,
+        max_concurrency: int,
+        max_pages: int,
+        max_retries: int = 3,
+        retry_backoff: float = 3.0,
     ):
         self.bot_id = bot_id
         self.query = query
         self.since = since
-        self.articles = []
+        self.articles: list[dict] = []
         self.max_concurrency = max_concurrency
         self.bounder = asyncio.Semaphore(max_concurrency)
         self.queue: asyncio.Queue = asyncio.Queue()
@@ -46,30 +48,6 @@ class NewsBot:
         self.output_dir = f"output/{self.bot_id}"
         os.makedirs(self.output_dir, exist_ok=True)
         print(f"[ ] NewsBot: id={self.bot_id} query='{self.query}' since={self.since}")
-
-
-    # todo - httpx async client
-    async def fetch_articles(self, url: str) -> None:
-        source: str = "Bing News"
-        if url.startswith("https://news.google"):
-            source = "Google News"
-        try:
-            response = requests.get(url)
-            if response.status_code != 200:
-                print(f"Error fetching {source} RSS feed: [{response.status_code}]")
-            else:
-                for item in ElementTree.fromstring(response.content).findall(".//item"):
-                    pubdate = item.findtext("pubDate", default="")
-                    if dt.strptime(pubdate, RFC_1123).astimezone(timezone('UTC')) > self.since:
-                        await self.queue.put({
-                            "source": source,
-                            "url": item.findtext("link"),
-                            "title": item.findtext("title"),
-                            "published_at": pubdate,
-                        })
-        except requests.HTTPError as e:
-            print(f"[!] Error fetching {source} articles: {e}")
-
 
     def append_article(self, item: dict, url: str, html: str) -> None:
         d = Doc(html)
@@ -87,13 +65,16 @@ class NewsBot:
         item["keywords"] = d.keywords()
         self.articles.append(item)
 
-
     async def scrape_page(self, context: BrowserContext, item: dict) -> None:
         last_error = None
         url = item["url"]
         for attempt in range(1, self.max_retries + 2):
             async with self.bounder:
-                suffix = f" (attempt {attempt}/{self.max_retries + 1})" if attempt > 1 else ""
+                suffix = (
+                    f" (attempt {attempt}/{self.max_retries + 1})"
+                    if attempt > 1
+                    else ""
+                )
                 print(f"[+] Scraping: {url}{suffix}")
                 page = await context.new_page()
                 try:
@@ -104,7 +85,7 @@ class NewsBot:
                     url = page.url
                     content = await page.content()
                     self.append_article(item, url, content)
-                    print(f"[+] Appended {item["source"]} Article: {url}")
+                    print(f"[+] Appended {item['source']} Article: {url}")
                     return
                 except Error as e:
                     last_error = e
@@ -138,10 +119,42 @@ class NewsBot:
             finally:
                 self.queue.task_done()
 
+    async def fetch_url(self, session: ClientSession, url: str) -> None:
+        # Sends an asynchronous GET request
+        async with session.get(url) as response:
+            if response.status >= 300:
+                print(f"[!] Error fetching {url}")
+                return
+
+            source: str = "Bing News"
+            if url.startswith("https://news.google"):
+                source = "Google News"
+
+            text = await response.text(encoding="utf-8")
+            for item in ElementTree.fromstring(text=text).findall(".//item"):
+                pubdate = item.findtext("pubDate", default="")
+                if (
+                    dt.strptime(pubdate, RFC_1123).astimezone(timezone("UTC"))
+                    > self.since
+                ):
+                    await self.queue.put(
+                        {
+                            "source": source,
+                            "url": item.findtext("link"),
+                            "title": item.findtext("title"),
+                            "published_at": pubdate,
+                        }
+                    )
 
     async def run(self) -> None:
-        await self.fetch_articles(f"https://news.google.com/rss/search?q={quote(self.query)}&hl=en-US&gl=US&ceid=US:en")
-        await self.fetch_articles(f"https://www.bing.com/news/search?format=rss&q={quote(self.query)}")
+        urls = [
+            f"https://www.bing.com/news/search?format=rss&q={quote(self.query)}",
+            f"https://news.google.com/rss/search?q={quote(self.query)}&hl=en-US&gl=US&ceid=US:en",
+        ]
+        async with aiohttp.ClientSession() as session:
+            tasks = [self.fetch_url(session, url) for url in urls]
+            await asyncio.gather(*tasks)
+
         driver = await cdp_driver.start_async()
         try:
             endpoint_url = driver.get_endpoint_url()
@@ -163,24 +176,41 @@ class NewsBot:
                 await browser.close()
         finally:
             driver.stop()
-            async with aiofiles.open(f"{self.output_dir}/results.json", "w", encoding="utf-8") as f:
-                await f.write(json.dumps(self.articles, indent=4))
-                print(f"[+] NewsBot: id={self.bot_id} query={self.query} articles={len(self.articles)}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Get XML from Google and Bing News RSS, visit items and save page source.")
+        description="Get XML from Google and Bing News RSS, visit items and save page source."
+    )
     parser.add_argument("bot_id", type=int, help="Unique identifier for the bot")
     parser.add_argument("query", type=str, help="The search query")
-    parser.add_argument("since", type=str, help="The oldest date for including articles")
-    parser.add_argument("--max-concurrency", type=int, default=5, help="Concurrent pages (default: 5)")
-    parser.add_argument("--max-pages", type=int, default=200, help="Hard stop on pages crawled (default: 200)")
-    parser.add_argument("--out-dir", default="output", help="Output directory (default: output)")
-    parser.add_argument("--max-retries", type=int, default=5,
-                        help="Retries per failed page, beyond the first attempt (default: 5)")
-    parser.add_argument("--retry-backoff", type=float, default=2.0,
-                        help="Base seconds to wait before a retry, multiplied by attempt number (default: 2.0)")
+    parser.add_argument(
+        "since", type=str, help="The oldest date for including articles"
+    )
+    parser.add_argument(
+        "--max-concurrency", type=int, default=5, help="Concurrent pages (default: 5)"
+    )
+    parser.add_argument(
+        "--max-pages",
+        type=int,
+        default=200,
+        help="Hard stop on pages crawled (default: 200)",
+    )
+    parser.add_argument(
+        "--out-dir", default="output", help="Output directory (default: output)"
+    )
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=5,
+        help="Retries per failed page, beyond the first attempt (default: 5)",
+    )
+    parser.add_argument(
+        "--retry-backoff",
+        type=float,
+        default=2.0,
+        help="Base seconds to wait before a retry, multiplied by attempt number (default: 2.0)",
+    )
     args = parser.parse_args()
 
     bot = NewsBot(
@@ -194,6 +224,7 @@ def main():
     )
 
     asyncio.run(bot.run())
+
 
 if __name__ == "__main__":
     main()

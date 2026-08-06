@@ -30,6 +30,7 @@ from datetime import UTC, datetime
 def get_datetime_utc() -> datetime:
     return datetime.now(UTC)
 
+
 async def async_scroll_to_bottom_then_top(page: AsyncPage):
     await page.evaluate(SCROLL_PAGE_JS)
 
@@ -68,5 +69,6 @@ def handle_press_and_hold(page: SyncPage) -> None:
         except Error as e:
             print("[!] handle_press_and_hold", text, e)
 
+
 def press_escape_key(page: SyncPage) -> None:
-    page.keyboard.press('Escape')
+    page.keyboard.press("Escape")

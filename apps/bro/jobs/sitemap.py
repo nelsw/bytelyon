@@ -1,23 +1,22 @@
 import argparse
 import asyncio
-import json
-import os
-import uuid
 from urllib.parse import urlparse
 
-import aiofiles
 from playwright.async_api import (
     BrowserContext,
     Error,
-    Page,
     async_playwright,
+)
+from playwright.async_api import (
+    Page as AsyncPage,
 )
 from seleniumbase import cdp_driver
 
-from models.doc import Doc
+from models.page import Page, from_playwright
+from utils.utils import parse_domain
 
 
-class SitemapBot:
+class SitemapJob:
     """Crawls a domain-breadth-first, fetching multiple pages concurrently.
 
     Chrome is launched via SeleniumBase's undetected cdp_driver (to reduce
@@ -26,10 +25,10 @@ class SitemapBot:
 
     def __init__(
         self,
-        bot_id: int,
         domain: str,
-        max_concurrency: int,
-        max_pages: int,
+        bot_id: int | None = None,
+        max_concurrency: int = 5,
+        max_pages: int = 200,
         max_retries: int = 3,
         retry_backoff: float = 3.0,
     ):
@@ -39,37 +38,17 @@ class SitemapBot:
         self.bounder = asyncio.Semaphore(max_concurrency)
         self.queue: asyncio.Queue = asyncio.Queue()
         self.visited_urls: set = set()
-        self.pages: list[dict] = []
+        self.pages: list[Page] = []
         self.visited_lock = asyncio.Lock()
         self.pages_crawled = 0
         self.max_pages = max_pages
         self.max_retries = max_retries
         self.retry_backoff = retry_backoff
-        self.out_dir = f"output/{bot_id!s}"
-        os.makedirs(self.out_dir, exist_ok=True)
-
-    async def write_results(self):
-        urls = list(self.visited_urls)
-        urls.sort()
-        async with aiofiles.open(
-            f"{self.out_dir}/results.json", "w", encoding="utf-8"
-        ) as f:
-            await f.write(
-                json.dumps(
-                    {
-                        "urls": urls,
-                        "domain": self.domain,
-                        "pages": self.pages,
-                    },
-                    indent=4,
-                )
-            )
 
     def _same_domain(self, url: str) -> bool:
-        netloc = urlparse(url).netloc.removeprefix("www.")
-        return netloc == self.domain
+        return parse_domain(url) == self.domain
 
-    async def extract_links(self, page: Page) -> list:
+    async def extract_links(self, page: AsyncPage) -> list:
         """Returns normalized, same-domain absolute URLs found on the page."""
         try:
             hrefs = await page.evaluate(
@@ -87,27 +66,11 @@ class SitemapBot:
             links.add(f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/"))
         return list(links)
 
-    async def scrape_page(self, page: Page, url: str):
+    async def scrape_page(self, page: AsyncPage, url: str):
         """Saves the rendered HTML and a full-page screenshot for a URL."""
-
-        key = uuid.uuid5(uuid.NAMESPACE_URL, url)
-        path = f"{self.out_dir}/{key}.png"
-        try:
-            await page.screenshot(path=path, full_page=True)
-            html = await page.content()
-            title = await page.title()
-            self.pages.append(
-                {
-                    "domain": self.domain,
-                    "meta": Doc(html).meta,
-                    "screenshot_key": path,
-                    "title": title,
-                    "url": url,
-                }
-            )
-        except Error as e:
-            print(f"[-] Error scraping page: {e}")
-            return
+        p = await from_playwright(page)
+        if p is not None:
+            self.pages.append(p)
 
     async def crawl_page(self, context: BrowserContext, url: str) -> list:
         """Fetches and scrapes one URL, retrying on failure with backoff.
@@ -169,30 +132,24 @@ class SitemapBot:
 
     async def run(self):
         await self.queue.put(f"https://{self.domain}")
-
         driver = await cdp_driver.start_async()
-        try:
-            endpoint_url = driver.get_endpoint_url()
+        endpoint_url = driver.get_endpoint_url()
+        async with async_playwright() as p:
+            browser = await p.chromium.connect_over_cdp(endpoint_url)
+            context = browser.contexts[0]
 
-            async with async_playwright() as p:
-                browser = await p.chromium.connect_over_cdp(endpoint_url)
-                context = browser.contexts[0]
+            workers = [
+                asyncio.create_task(self.worker(context))
+                for _ in range(self.max_concurrency)
+            ]
 
-                workers = [
-                    asyncio.create_task(self.worker(context))
-                    for _ in range(self.max_concurrency)
-                ]
+            await self.queue.join()
 
-                await self.queue.join()
+            for worker_task in workers:
+                worker_task.cancel()
+            await asyncio.gather(*workers, return_exceptions=True)
 
-                for worker_task in workers:
-                    worker_task.cancel()
-                await asyncio.gather(*workers, return_exceptions=True)
-
-                await browser.close()
-        finally:
-            driver.stop()
-            await self.write_results()
+            await browser.close()
 
 
 def main():
@@ -227,7 +184,7 @@ def main():
     )
     args = parser.parse_args()
 
-    bot = SitemapBot(
+    bot = SitemapJob(
         bot_id=args.bot_id,
         domain=args.domain,
         max_concurrency=args.max_concurrency,

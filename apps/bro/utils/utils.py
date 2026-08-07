@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 from playwright.async_api import Page as AsyncPage
 from playwright.sync_api import (
     Error,
@@ -25,6 +27,10 @@ SCROLL_PAGE_JS = """async () => {
 
 
 from datetime import UTC, datetime
+
+
+def parse_domain(url: str) -> str:
+    return str(urlparse(url).netloc).removeprefix("www.")
 
 
 def get_datetime_utc() -> datetime:

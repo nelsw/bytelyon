@@ -13,13 +13,16 @@ async def index():
     return {"message": "🤖"}
 
 
-@app.post("/bot")
-async def post_bot(b: Bot):
-    return b
-
-
-@app.put("/news/{id}/query/{query}/since/{since}")
-async def put_news(id: int, query: str, since: datetime):
-    b = NewsBot(bot_id=id, query=query, since=since, max_concurrency=5, max_pages=200)
+@app.put("/news/{id}/query/{q}/since/{dt}")
+async def put_news(id: int, q: str, dt: datetime):
+    b = NewsBot(bot_id=id, query=q, since=dt, max_concurrency=5, max_pages=200)
     await b.run()
-    return b.articles
+    return b.articles # todo - create task
+
+@app.put("/search/{id}/query/{q}")
+async def put_search(id: int, q: str):
+    return None
+
+@app.put("/sitemap/{id}/domain/{q}")
+async def put_news(id: int, q: str):
+    return None

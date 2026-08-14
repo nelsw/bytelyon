@@ -19,8 +19,8 @@ build: install
 	@$(dock) build --no-cache
 
 up:
-	@$(dock) up -d
-	@$(web) "npm run dev && make fresh"
+	@$(dock) --profile $(mode) up -d
+	@$(web) "npm install && npm run dev && make fresh"
 
 down:
 	@$(dock) down --remove-orphans --rmi local

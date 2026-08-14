@@ -9,7 +9,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-
 func Make(lvl zerolog.Level, out ...io.Writer) (logger zerolog.Logger) {
 
 	if len(out) == 0 || out[0] == nil {
@@ -27,7 +26,7 @@ func Make(lvl zerolog.Level, out ...io.Writer) (logger zerolog.Logger) {
 
 func defaultWriter() io.Writer {
 	return zerolog.ConsoleWriter{
-		Out:         os.Stdout,
+		Out:        os.Stdout,
 		TimeFormat: time.Kitchen,
 		FieldsOrder: []string{
 			"#", "id",
@@ -39,21 +38,21 @@ func defaultWriter() io.Writer {
 				a = "   "
 			}
 			switch l := strings.ToUpper(a.(string)[:3]); l {
-				case "TRA":
-					return "\033[0;36m" + l + "\033[0m"
-				case "DEB":
-					return "\033[0;35m" + l + "\033[0m"
-				case "INF":				
-					return "\033[0;32m" + l + "\033[0m"
-				case "WAR":
-					return "\033[0;33m" + l + "\033[0m"
-				case "ERR":
-					return "\033[0;31m" + l + "\033[0m"
-				case "FAT", "PAN":
-					return "\033[41m" + "\033[0;37m" + l + "\033[0m"
-				default:
-					return ""
-				}
+			case "TRA":
+				return "\033[0;36m" + l + "\033[0m"
+			case "DEB":
+				return "\033[0;35m" + l + "\033[0m"
+			case "INF":
+				return "\033[0;32m" + l + "\033[0m"
+			case "WAR":
+				return "\033[0;33m" + l + "\033[0m"
+			case "ERR":
+				return "\033[0;31m" + l + "\033[0m"
+			case "FAT", "PAN":
+				return "\033[41m" + "\033[0;37m" + l + "\033[0m"
+			default:
+				return ""
+			}
 		},
 	}
 }

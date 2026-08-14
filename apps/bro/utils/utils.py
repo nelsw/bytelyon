@@ -26,18 +26,10 @@ SCROLL_PAGE_JS = """async () => {
     }"""
 
 
-from datetime import UTC, datetime
-
-
 def parse_domain(url: str) -> str:
     if not url:
         return ""
     return str(urlparse(url).netloc).removeprefix("www.")
-
-
-def get_datetime_utc() -> datetime:
-    return datetime.now(UTC)
-
 
 async def async_scroll_to_bottom_then_top(page: AsyncPage):
     await page.evaluate(SCROLL_PAGE_JS)

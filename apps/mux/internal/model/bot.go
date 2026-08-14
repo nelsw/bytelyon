@@ -1,6 +1,8 @@
 package model
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -22,4 +24,14 @@ func (b *Bot) MarshalZerologObject(evt *zerolog.Event) {
 	evt.Int("#", b.ID).
 		Str("q", b.Query).
 		Any("t", b.Type)
+}
+
+type BotType string
+
+func (t *BotType) UnmarshalJSON(payload []byte) error {
+	if text := string(payload); text == `"news"` || text == `"search"` || text == `"sitemap"` {
+		*t = BotType(strings.ReplaceAll(text, `"`, ""))
+		return nil
+	}
+	return fmt.Errorf("unknown bot type: %s", payload)
 }

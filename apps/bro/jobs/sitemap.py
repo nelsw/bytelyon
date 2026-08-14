@@ -2,7 +2,6 @@ import asyncio
 import logging
 from urllib.parse import urlparse
 
-import httpx
 from playwright.async_api import (
     BrowserContext,
     Error,
@@ -13,14 +12,14 @@ from playwright.async_api import (
 
 from jobs.job import Job
 from models.bot import Bot
-from models.page import scrape_page
-from models.sitemap import Sitemap
-from services.http import del_bot, put_bot, put_sitemap, put_sitemap_page
+from services.redis import publish_page, publish_sitemap
 from utils.utils import parse_domain
 
 HREF_EXPRESSION = (
     "() => Array.from(document.querySelectorAll('a[href]')).map(a => a.href)"
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SitemapJob(Job):
@@ -43,8 +42,9 @@ class SitemapJob(Job):
             max_retries=max_retries,
             retry_backoff=retry_backoff,
         )
-        self.model = Sitemap(bot)
-        logging.info("[+] Initializing Sitemap Job")
+        self.bot = bot
+        self.urls: set[str] = set()
+        logger.info("[+] Initializing Sitemap Job")
 
     async def extract_links(self, page: AsyncPage) -> list:
         """Returns normalized, same-domain absolute URLs found on the page."""
@@ -52,7 +52,7 @@ class SitemapJob(Job):
         try:
             links = set()
             for href in await page.evaluate(HREF_EXPRESSION):
-                if parse_domain(href) == self.model.domain:
+                if parse_domain(href) == self.bot.query:
                     parsed = urlparse(href)
                     links.add(
                         f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/")
@@ -75,9 +75,7 @@ class SitemapJob(Job):
                 page = await context.new_page()
                 try:
                     await page.goto(url, wait_until="networkidle", timeout=30000)
-                    scraped_page = await scrape_page(page)
-                    if scraped_page is not None:
-                        self.model.pages.append(scraped_page)
+                    await publish_page(bot=self.bot, page=page)
                     return await self.extract_links(page)
                 except Error as e:
                     if attempt <= self.max_retries:
@@ -95,29 +93,21 @@ class SitemapJob(Job):
             url = await self.queue.get()
             try:
                 async with self.work_lock:
-                    if url in self.model.urls:
+                    if url in self.urls:
                         continue
-                    self.model.urls.add(url)
+                    self.urls.add(url)
 
                 discovered_links = await self.crawl_page(context, url)
 
                 async with self.work_lock:
                     for link in discovered_links:
-                        if link not in self.model.urls:
+                        if link not in self.urls:
                             await self.queue.put(link)
             finally:
                 self.queue.task_done()
 
     async def pre_process(self):
-        await self.queue.put(f"https://{self.model.domain}")
+        await self.queue.put(f"https://{self.bot.query}")
 
     async def post_process(self):
-        async with httpx.AsyncClient() as client:
-            tasks = [
-                put_sitemap_page(client, self.model.id, page)
-                for page in self.model.pages
-            ]
-            tasks.append(put_sitemap(client, self.model))
-            tasks.append(put_bot(client, self.model.bot_id))
-            tasks.append(del_bot(client, self.model.bot_id))
-            await asyncio.gather(*tasks)
+        await publish_sitemap(bot=self.bot, urls=self.urls)

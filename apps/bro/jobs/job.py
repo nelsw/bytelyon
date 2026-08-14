@@ -1,6 +1,5 @@
 import asyncio
-import os
-from abc import ABC, abstractmethod
+from abc import ABC
 from asyncio import Semaphore
 from dataclasses import dataclass, field
 
@@ -42,7 +41,6 @@ class Job(ABC):
                 await browser.close()
         d.stop()
 
-    @abstractmethod
     async def task(self, context: BrowserContext) -> None:
         pass
 
@@ -55,5 +53,4 @@ class Job(ABC):
     async def run(self):
         await self.pre_process()
         await self.process()
-        if os.getenv("APP_ENV") != "testing":
-            await self.post_process()
+        await self.post_process()

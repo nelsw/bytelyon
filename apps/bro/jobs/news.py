@@ -1,19 +1,31 @@
 import asyncio
 import logging
+from dataclasses import dataclass
+from datetime import datetime as dt
+from datetime import tzinfo
 from urllib.parse import quote
 
 import aiohttp
-import httpx
 from aiohttp import ClientSession
 from playwright.async_api import BrowserContext, Error
+from pytz import timezone
 
 from jobs.job import Job
-from models.article import Article, Articles, from_element
 from models.bot import Bot
-from services.http import del_bot, put_article, put_bot
+from services.redis import publish_news
 from utils.fetch import fetch_xml
 
+RFC_1123: str = "%a, %d %b %Y %H:%M:%S %Z"
+UTC: tzinfo = timezone("UTC")
+
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class Article:
+    url: str
+    published_at: dt
+    title: str
 
 
 class NewsJob(Job):
@@ -30,10 +42,7 @@ class NewsJob(Job):
             max_retries,
             retry_backoff,
         )
-        self.bot_id = bot.id
-        self.topic = bot.query
-        self.since = bot.last_ran_at
-        self.articles: Articles = []
+        self.bot = bot
         self.visited_urls: set = set()
 
     async def scrape_page(self, ctx: BrowserContext, a: Article) -> None:
@@ -49,16 +58,25 @@ class NewsJob(Job):
                 page = await ctx.new_page()
                 try:
                     await page.goto(a.url, wait_until="domcontentloaded", timeout=5000)
-                    self.articles.append(await a.with_data(page))
+                    await publish_news(
+                        bot_id=self.bot.id,
+                        published_at=a.published_at,
+                        title=a.title,
+                        page=page,
+                    )
                     logger.info(f"[+] Appended Article: {page.url}")
                     return
                 except Error:
                     if attempt <= self.max_retries:
                         delay = self.retry_backoff * attempt
-                        print(f"[!] {page.url} failed ({last_error}); retrying in {delay:.0f}s")
+                        print(
+                            f"[!] {page.url} failed ({last_error}); retrying in {delay:.0f}s"
+                        )
                         await asyncio.sleep(delay)
                     else:
-                        print(f"[-] Giving up on {page.url} after {self.max_retries + 1} attempts")
+                        print(
+                            f"[-] Giving up on {page.url} after {self.max_retries + 1} attempts"
+                        )
                 finally:
                     await page.close()
 
@@ -80,21 +98,22 @@ class NewsJob(Job):
         xml = await fetch_xml(session, url)
         if xml is not None:
             for e in xml.findall(".//item"):
-                a = from_element(element=e, after=self.since)
-                if a is not None:
-                    await self.queue.put(a)
+                at: dt = dt.strptime(
+                    e.findtext("pubDate", default=""), RFC_1123
+                ).astimezone(tz=UTC)
+                if at < self.bot.last_ran_at:
+                    await self.queue.put(
+                        Article(
+                            url=e.findtext("link", default=""),
+                            published_at=at,
+                            title=e.findtext("title", default=""),
+                        )
+                    )
 
     async def pre_process(self) -> None:
         urls = [
-            f"https://www.bing.com/news/search?format=rss&q={quote(self.topic)}",
-            f"https://news.google.com/rss/search?q={quote(self.topic)}&hl=en-US&gl=US&ceid=US:en",
+            f"https://www.bing.com/news/search?format=rss&q={quote(self.bot.query)}",
+            f"https://news.google.com/rss/search?q={quote(self.bot.query)}&hl=en-US&gl=US&ceid=US:en",
         ]
         async with aiohttp.ClientSession() as session:
             await asyncio.gather(*[self.fetch(session, url) for url in urls])
-
-    async def post_process(self) -> None:
-        async with httpx.AsyncClient() as c:
-            tasks = [put_article(c, self.bot_id, a) for a in self.articles]
-            tasks.append(put_bot(c, self.bot_id))
-            tasks.append(del_bot(c, self.bot_id))
-            await asyncio.gather(*tasks)

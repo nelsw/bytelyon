@@ -5,6 +5,8 @@ LABEL maintainer="Connor Van Elswyk"
 ENV GO111MODULE=on \
     CGO_ENABLED=0
 
+ARG LOG_LEVEL
+
 WORKDIR /app
 
 # Copy and download dependencies (leverages Docker caching)

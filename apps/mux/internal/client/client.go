@@ -15,7 +15,8 @@ import (
 var _client = http.Client{Timeout: 10 * time.Second}
 
 func Get[T any]() (t T) {
-	if out, err := Do(http.MethodGet, os.Getenv("WEB_URL"), nil); err != nil {
+	url := os.Getenv("WEB_URL") + "/bots"
+	if out, err := Do(http.MethodGet, url, nil); err != nil {
 		log.Err(err).Msg("failed to execute request")
 	} else if err = json.Unmarshal(out, &t); err != nil {
 		log.Err(err).Msg("failed to unmarshal response")

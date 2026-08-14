@@ -3,8 +3,6 @@ envf = .secrets/.env.$(mode)
 dock = docker compose -f infra/compose.yml --env-file $(envf)
 web = $(dock) exec web sh -c
 
-all: down build up
-
 lint:
 	$(foreach app,bro mux web,make -C "apps/$(app)" lint;)
 
@@ -19,16 +17,14 @@ build: install
 	@$(dock) build --no-cache
 
 up:
-	@$(dock) --profile $(mode) up
-	@$(web) "npm install && npm run dev && make fresh"
+	@$(dock) up -d
+	# @$(web) "npm install && npm run dev && make fresh"
 
 down:
 	@$(dock) down --remove-orphans --rmi local
 
 test: fresh
 	@make env mode=testing
-	# @$(bro) "make test"
-	# @$(mgr) "make test"
 	@$(web) "make test"
 
 fresh:

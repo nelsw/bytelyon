@@ -2,14 +2,16 @@ FROM python:3.14
 
 LABEL maintainer="Connor Van Elswyk"
 
+ARG BRO_PORT
+
 WORKDIR /code
 
 COPY ./apps/bro/requirements.txt /code/requirements.txt
 
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-EXPOSE 8085
+EXPOSE ${BRO_PORT}
 
 COPY ./apps/bro /code/app
 
-CMD ["fastapi", "run", "app/main.py", "--host", "0.0.0.0", "--port", "8085"]
+ENTRYPOINT ["fastapi"]

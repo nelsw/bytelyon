@@ -7,7 +7,13 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
+
+func Init() {
+	log.Logger = Make(zerolog.InfoLevel)
+	
+}
 
 func Make(lvl zerolog.Level, out ...io.Writer) (logger zerolog.Logger) {
 

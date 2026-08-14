@@ -15,7 +15,7 @@ func init() {
 	var level, host, key, bucket string
 
 	flag.StringVar(&level, "log", "trace", "log level trace->disabled")
-	flag.StringVar(&host, "host", "http://localhost", "web app (web) host name")
+	flag.StringVar(&host, "host", "http://web", "web app (web) host name")
 	flag.StringVar(&key, "key", "my-random-32-character-x-api-key", "web app (web) api key")
 	flag.StringVar(&bucket, "s3", "bytelyon-private", "s3 bucket name")
 	flag.Parse()
@@ -26,6 +26,7 @@ func init() {
 	}
 
 	log.Logger = logger.Make(lvl)
+	_ = os.Setenv("BRO_URL", "http://docker.internal:8085/bots")
 	_ = os.Setenv("WEB_KEY", key)
 	_ = os.Setenv("WEB_URL", fmt.Sprintf("%s/api", host))
 	_ = os.Setenv("S3_BUCKET", bucket)

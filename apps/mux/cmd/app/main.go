@@ -46,7 +46,7 @@ func main() {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			panic(err)
+			log.Err(err).Msg("server failed to listen and serve")
 		}
 	}()
 	log.Info().Msg("listening...")
@@ -65,7 +65,7 @@ func main() {
 		wg.Go(func() {
 			for b := range q.Chan() {
 				if q.Put(b.ID) {
-					client.Post("http://localhost:8085/bots", b)
+					client.Post(os.Getenv("BRO_URL"), b)
 				}
 			}
 		})

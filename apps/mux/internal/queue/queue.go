@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/nelsw/bytelyon/apps/mux/internal/model"
+	"github.com/rs/zerolog/log"
 )
 
 type Queue struct {
@@ -20,6 +21,7 @@ func New() *Queue {
 }
 
 func (q *Queue) Send(bots ...*model.Bot) {
+	log.Info().Int("count", len(bots)).Msg("queueing...")
 	for _, bot := range bots {
 		q.ch <- bot
 	}

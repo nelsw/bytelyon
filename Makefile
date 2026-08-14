@@ -32,7 +32,7 @@ test: fresh
 	@$(web) "make test"
 
 fresh:
-	@$(web) "make fresh"
+	@make -C "apps/web" fresh
 
 migrate:
 	@$(web) "php artisan migrate --graceful --ansi"
@@ -42,3 +42,6 @@ rollback:
 
 seed:
 	@$(web) "php artisan db:seed --ansi"
+
+graph:
+	@tree -a -d -I "node_modules|vendor|__pycache__|.git|.*_cache|lib|.junie|inertia-devtools|views|assets|migrations|.idea|.venv"

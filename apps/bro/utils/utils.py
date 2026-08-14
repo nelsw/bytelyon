@@ -56,6 +56,7 @@ async def async_accept_cookies(page: AsyncPage) -> None:
         except Error as e:
             print("failed to accept cookies", e)
 
+
 def accept_cookies(page: SyncPage) -> None:
     for text in ("Accept", "Accept all", "I agree"):
         button = page.get_by_role("button", name=text)
@@ -64,7 +65,6 @@ def accept_cookies(page: SyncPage) -> None:
                 button.first.click()
         except Error as e:
             print("failed to accept cookies", e)
-
 
 
 def press_escape_key(page: SyncPage) -> None:

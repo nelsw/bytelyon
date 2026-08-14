@@ -1,8 +1,8 @@
 lint:
-	mypy . --fix
-	ty check .
-	ruff format
-	ruff check --fix --unsafe-fixes
+	@.venv/bin/mypy . --fix
+	@.venv/bin/ty check .
+	@ruff format
+	@ruff check --fix --unsafe-fixes
 
 install:
 	@uv run sync

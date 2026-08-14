@@ -1,22 +1,22 @@
 import uuid
-from dataclasses import dataclass, field, InitVar
+from dataclasses import InitVar, dataclass, field
 
-from playwright.sync_api import (
-    Page as SyncPage
-)
+from playwright.sync_api import Page as SyncPage
 
 from models.bot import Bot
 from models.page import Page
-from services.s3 import put_png, put_html
+from services.s3 import put_html, put_png
 from utils.utils import scroll_to_bottom_then_top
 
-NS_URL=uuid.NAMESPACE_URL
+NS_URL = uuid.NAMESPACE_URL
+
 
 @dataclass
 class Link:
     url: str
     idx: int
     kind: str
+
 
 @dataclass
 class Search:
@@ -40,8 +40,8 @@ class Search:
 
         name: str = f"output/google.com/{self.query.replace(' ', '+')}"
 
-        self.screenshot_key =f"{name}.png"
-        self.content_key=f"{name}.html"
+        self.screenshot_key = f"{name}.png"
+        self.content_key = f"{name}.html"
 
         scroll_to_bottom_then_top(page)
 

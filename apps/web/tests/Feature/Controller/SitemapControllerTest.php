@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Controller;
 
-use App\Models\Page;
 use App\Models\Sitemap;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;

@@ -1,15 +1,16 @@
-from services.s3 import put_png
 import uuid
-from typing import Optional
-from dataclasses import dataclass, field
-from dataclasses_json import dataclass_json, Undefined, config
+from dataclasses import dataclass
+
+from dataclasses_json import Undefined, dataclass_json
 from playwright.async_api import Error
 from playwright.async_api import Page as AsyncPage
 
 from models.doc import Doc
+from services.s3 import put_png
 from utils.utils import parse_domain
 
-NS_URL=uuid.NAMESPACE_URL
+NS_URL = uuid.NAMESPACE_URL
+
 
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
@@ -19,13 +20,14 @@ class Page:
     screenshot_key: str
     title: str
     url: str
-    index: Optional[int] = None
-    kind: Optional[str] = None
+    index: int | None = None
+    kind: str | None = None
+
 
 async def scrape_page(
-        page: AsyncPage,
-        index: Optional[int] = None,
-        kind: Optional[str] = None,
+    page: AsyncPage,
+    index: int | None = None,
+    kind: str | None = None,
 ) -> Page | None:
     try:
         url = page.url

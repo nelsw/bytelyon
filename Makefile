@@ -1,22 +1,19 @@
 mode := local
 envf = .secrets/.env.$(mode)
 dock = docker compose -f infra/compose.yml --env-file $(envf)
-bro = $(dock) exec bro sh -c
-mgr = $(dock) exec mgr sh -c
 web = $(dock) exec web sh -c
 
 all: down build up
 
 lint:
-	@$(MAKE) -C apps/bro lint
-	# todo - mgr
-	@$(MAKE) -C apps/web lint
+	$(foreach app,bro mux web,make -C "apps/$(app)" lint;)
+
+env:
+	for app in bro mux web; do cp $(envf) "apps/$$app/.env"; done
 
 # Install dependencies required before building or running apps
-install:
-	@php -r "copy('$(envf)', 'apps/web/.env');"
-	@$(MAKE) -C apps/bro install
-	@$(MAKE) -C apps/web install
+install: env
+	$(foreach app,bro mux web,make -C "apps/$(app)" install;)
 
 build: install
 	@$(dock) build --no-cache
@@ -29,10 +26,9 @@ down:
 	@$(dock) down --remove-orphans --rmi local
 
 test: fresh
-	@rm -rf apps/web/.env
-	@php -r "copy('.secrets/.env.testing', 'apps/web/.env.testing');"
-	@$(bro) "make test"
-	@$(mgr) "make test"
+	@make env mode=testing
+	# @$(bro) "make test"
+	# @$(mgr) "make test"
 	@$(web) "make test"
 
 fresh:

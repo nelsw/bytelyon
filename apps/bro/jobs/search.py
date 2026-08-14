@@ -7,27 +7,31 @@ from playwright.async_api import (
     Error,
 )
 from playwright.sync_api import (
-    sync_playwright,
     Locator as SyncLocator,
-    Page as SyncPage
+)
+from playwright.sync_api import (
+    Page as SyncPage,
+)
+from playwright.sync_api import (
+    sync_playwright,
 )
 from seleniumbase import SB
 
 from jobs.job import Job
 from models.bot import Bot
 from models.page import scrape_page
-from models.search import Search, Link
-from services.http import put_bot, del_bot, put_search_page
+from models.search import Link, Search
+from services.http import del_bot, put_bot, put_search_page
 from utils.utils import accept_cookies
 
 
 class SearchJob(Job):
     def __init__(
-            self,
-            bot: Bot,
-            max_concurrency: int = 5,
-            max_retries: int = 3,
-            retry_backoff: float | int = 3.0,
+        self,
+        bot: Bot,
+        max_concurrency: int = 5,
+        max_retries: int = 3,
+        retry_backoff: float = 3.0,
     ):
         super().__init__(
             headless=bot.headless,
@@ -52,9 +56,7 @@ class SearchJob(Job):
                 await self.queue.put(Link(url=href, idx=idx, kind="sponsored_products"))
                 idx += 1
 
-    async def handle_sponsored_results(
-            self, locators: list[SyncLocator]
-    ) -> None:
+    async def handle_sponsored_results(self, locators: list[SyncLocator]) -> None:
         print(f"[ ] Handling Sponsored Results {len(locators)}")
         idx = 0
         for loc in locators:
@@ -113,8 +115,12 @@ class SearchJob(Job):
             try:
                 async with self.work_lock:
                     page = await context.new_page()
-                    await page.goto(url=link.url, wait_until="domcontentloaded", timeout=30000)
-                    scraped_page = await scrape_page(page=page, kind=link.kind, index=link.idx)
+                    await page.goto(
+                        url=link.url, wait_until="domcontentloaded", timeout=30000
+                    )
+                    scraped_page = await scrape_page(
+                        page=page, kind=link.kind, index=link.idx
+                    )
                     if scraped_page is not None:
                         self.model.pages.append(scraped_page)
             finally:
@@ -168,8 +174,12 @@ class SearchJob(Job):
 
                     await self.handle_organic_products(page)
                     await self.handle_organic_results(page.locator("h3[id]").all())
-                    await self.handle_sponsored_results(page.locator("[data-pcu]").all())
-                    await self.handle_sponsored_products(page.locator("[data-dtld]").all())
+                    await self.handle_sponsored_results(
+                        page.locator("[data-pcu]").all()
+                    )
+                    await self.handle_sponsored_products(
+                        page.locator("[data-dtld]").all()
+                    )
 
                 except Error as e:
                     print(f"Error occurred while running search bot: {e}")
@@ -178,7 +188,9 @@ class SearchJob(Job):
 
     async def post_process(self):
         async with httpx.AsyncClient() as c:
-            tasks = [put_search_page(c, self.model.id, page) for page in self.model.pages]
+            tasks = [
+                put_search_page(c, self.model.id, page) for page in self.model.pages
+            ]
             tasks.append(put_bot(c, self.model.bot_id))
             tasks.append(del_bot(c, self.model.bot_id))
             await asyncio.gather(*tasks)

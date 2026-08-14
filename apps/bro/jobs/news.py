@@ -1,32 +1,28 @@
-from models.bot import Bot
-from dataclasses import asdict
-
-import httpx
-
-from services.http import put_article, put_bot, del_bot
-import logging
-from typing import Optional
 import asyncio
-import datetime
+import logging
 from urllib.parse import quote
 
 import aiohttp
+import httpx
 from aiohttp import ClientSession
 from playwright.async_api import BrowserContext, Error
 
 from jobs.job import Job
-from models.article import Article, from_element, Articles
+from models.article import Article, Articles, from_element
+from models.bot import Bot
+from services.http import del_bot, put_article, put_bot
 from utils.fetch import fetch_xml
 
 logger = logging.getLogger(__name__)
 
+
 class NewsJob(Job):
     def __init__(
-            self,
-            bot: Bot,
-            max_concurrency: int = 5,
-            max_retries: int = 3,
-            retry_backoff: float | int = 3.0,
+        self,
+        bot: Bot,
+        max_concurrency: int = 5,
+        max_retries: int = 3,
+        retry_backoff: float = 3.0,
     ):
         super().__init__(
             bot.headless,
@@ -39,7 +35,6 @@ class NewsJob(Job):
         self.since = bot.last_ran_at
         self.articles: Articles = []
         self.visited_urls: set = set()
-
 
     async def scrape_page(self, ctx: BrowserContext, a: Article) -> None:
         last_error = None
@@ -73,7 +68,7 @@ class NewsJob(Job):
     async def task(self, context: BrowserContext):
         while True:
             a: Article = await self.queue.get()
-            if a.url == 'chrome-error://chromewebdata/':
+            if a.url == "chrome-error://chromewebdata/":
                 continue
             try:
                 async with self.work_lock:

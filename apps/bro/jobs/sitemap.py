@@ -1,6 +1,5 @@
-import logging
 import asyncio
-import os
+import logging
 from urllib.parse import urlparse
 
 import httpx
@@ -14,12 +13,14 @@ from playwright.async_api import (
 
 from jobs.job import Job
 from models.bot import Bot
-from models.page import Page, scrape_page
+from models.page import scrape_page
 from models.sitemap import Sitemap
-from services.http import put_bot, put_sitemap, put_sitemap_page, del_bot
+from services.http import del_bot, put_bot, put_sitemap, put_sitemap_page
 from utils.utils import parse_domain
 
-HREF_EXPRESSION = "() => Array.from(document.querySelectorAll('a[href]')).map(a => a.href)"
+HREF_EXPRESSION = (
+    "() => Array.from(document.querySelectorAll('a[href]')).map(a => a.href)"
+)
 
 
 class SitemapJob(Job):
@@ -30,11 +31,11 @@ class SitemapJob(Job):
     """
 
     def __init__(
-            self,
-            bot: Bot,
-            max_concurrency: int = 5,
-            max_retries: int = 3,
-            retry_backoff: float | int = 3.0,
+        self,
+        bot: Bot,
+        max_concurrency: int = 5,
+        max_retries: int = 3,
+        retry_backoff: float = 3.0,
     ):
         super().__init__(
             headless=bot.headless,
@@ -53,7 +54,9 @@ class SitemapJob(Job):
             for href in await page.evaluate(HREF_EXPRESSION):
                 if parse_domain(href) == self.model.domain:
                     parsed = urlparse(href)
-                    links.add(f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/"))
+                    links.add(
+                        f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/")
+                    )
             print(f"[+] Extracted {len(links)} links from page: {page.url}")
             return list(links)
         except Error as e:
@@ -110,7 +113,10 @@ class SitemapJob(Job):
 
     async def post_process(self):
         async with httpx.AsyncClient() as client:
-            tasks = [put_sitemap_page(client, self.model.id, page) for page in self.model.pages]
+            tasks = [
+                put_sitemap_page(client, self.model.id, page)
+                for page in self.model.pages
+            ]
             tasks.append(put_sitemap(client, self.model))
             tasks.append(put_bot(client, self.model.bot_id))
             tasks.append(del_bot(client, self.model.bot_id))

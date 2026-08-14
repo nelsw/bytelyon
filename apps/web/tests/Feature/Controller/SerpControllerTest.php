@@ -2,11 +2,9 @@
 
 namespace Tests\Feature\Controller;
 
-use App\Models\Page;
 use App\Models\Serp;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
-use Str;
 use Tests\TestCase;
 
 class SerpControllerTest extends TestCase

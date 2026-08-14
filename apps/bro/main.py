@@ -1,5 +1,3 @@
-import asyncio
-
 from fastapi import FastAPI, status
 
 from jobs.job import Job
@@ -17,8 +15,9 @@ app = FastAPI()
 async def index():
     return {"message": "🤖"}
 
+
 @app.post(path="/bots", status_code=status.HTTP_200_OK)
-async def post_bots(bot:Bot):
+async def post_bots(bot: Bot):
     job: Job
     match bot.type:
         case Type.news:

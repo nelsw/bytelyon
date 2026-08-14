@@ -1,19 +1,19 @@
+import asyncio
 import os
 from abc import ABC, abstractmethod
-import asyncio
 from asyncio import Semaphore
 from dataclasses import dataclass, field
 
 from playwright.async_api import BrowserContext, async_playwright
 from seleniumbase import cdp_driver
 
+
 @dataclass
 class Job(ABC):
-
     headless: bool
     max_concurrency: int
     max_retries: int
-    retry_backoff: float|int
+    retry_backoff: float | int
 
     bounder: Semaphore = field(init=False)
     queue: asyncio.Queue = field(init=False)
@@ -41,7 +41,6 @@ class Job(ABC):
             finally:
                 await browser.close()
         d.stop()
-
 
     @abstractmethod
     async def task(self, context: BrowserContext) -> None:

@@ -1,14 +1,12 @@
-import json
-from dataclasses import dataclass, asdict
-import dataclasses
 import asyncio
+from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from datetime import datetime as dt
 from xml.etree.ElementTree import Element
 
-from pydantic import BaseModel
-from pytz import timezone
 from playwright.async_api import Page as AsyncPage
+from pytz import timezone
+
 from models.doc import Doc
 from utils.utils import parse_domain
 
@@ -16,6 +14,7 @@ RFC_1123: str = "%a, %d %b %Y %H:%M:%S %Z"
 UTC: tzinfo = timezone("UTC")
 
 type Articles = list[Article]
+
 
 @dataclass
 class Article:
@@ -73,5 +72,3 @@ def from_element(element: Element, after: datetime | None) -> Article | None:
         source=src,
         title=element.findtext("body", default=""),
     )
-
-

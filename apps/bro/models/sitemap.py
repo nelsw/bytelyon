@@ -1,12 +1,11 @@
-from typing import Optional
+from dataclasses import InitVar, dataclass, field
+
 from models.bot import Bot
 from models.page import Page
-from dataclasses import dataclass, InitVar, field
 
 
 @dataclass
 class Sitemap:
-
     # Argument only used during construction, not saved as an attribute
     bot: InitVar[Bot]
 
@@ -19,8 +18,7 @@ class Sitemap:
     bot_id: int = field(init=False)
     domain: str = field(init=False)
 
-    def __post_init__(self, bot:Bot) -> None:
+    def __post_init__(self, bot: Bot) -> None:
         self.id = bot.sitemap_id
         self.bot_id = bot.id
         self.domain = bot.query
-

@@ -1,14 +1,20 @@
+from dataclasses import dataclass, field
 from datetime import datetime
-
-from pydantic import BaseModel
-
-from models import bot_type
-
-# from models import bot_type
+from enum import Enum
 
 
-class Bot(BaseModel):
+class Type(str, Enum):
+    news = "news"
+    search = "search"
+    sitemap = "sitemap"
+
+
+@dataclass
+class Bot:
     id: int
     query: str
-    ran_at: datetime | None = None
-    type: bot_type.BotType
+    last_ran_at: datetime
+    type: Type
+    headless: bool
+    serp_id: int = field(default_factory=int)
+    sitemap_id: int = field(default_factory=int)

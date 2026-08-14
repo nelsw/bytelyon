@@ -1,9 +1,12 @@
-from datetime import datetime
+from dotenv import load_dotenv
+from fastapi import FastAPI, status
 
-from fastapi import FastAPI
+from jobs.news import NewsJob
+from jobs.search import SearchJob
+from jobs.sitemap import SitemapJob
+from models.bot import Bot, Type
 
-import services.news
-from models import bot
+load_dotenv()
 
 app = FastAPI()
 
@@ -13,13 +16,12 @@ async def index():
     return {"message": "🤖"}
 
 
-@app.post("/bot")
-async def post_bot(b: bot.Bot):
-    return b
-
-
-@app.put("/news/{id}/query/{query}/since/{since}")
-async def put_news(id: int, query: str, since: datetime):
-    b = services.news.NewsBot(id, query, since, 5, 200)
-    await b.run()
-    return b.articles
+@app.post(path="/bots", status_code=status.HTTP_200_OK)
+async def post_bots(bot: Bot):
+    match bot.type:
+        case Type.news:
+            await NewsJob(bot).run()
+        case Type.search:
+            await SearchJob(bot).run()
+        case Type.sitemap:
+            await SitemapJob(bot).run()

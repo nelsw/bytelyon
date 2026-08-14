@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 from playwright.async_api import Page as AsyncPage
 from playwright.sync_api import (
     Error,
@@ -24,11 +26,10 @@ SCROLL_PAGE_JS = """async () => {
     }"""
 
 
-from datetime import UTC, datetime
-
-
-def get_datetime_utc() -> datetime:
-    return datetime.now(UTC)
+def parse_domain(url: str) -> str:
+    if not url:
+        return ""
+    return str(urlparse(url).netloc).removeprefix("www.")
 
 
 async def async_scroll_to_bottom_then_top(page: AsyncPage):
@@ -39,35 +40,24 @@ def scroll_to_bottom_then_top(page: SyncPage):
     page.evaluate(SCROLL_PAGE_JS)
 
 
+async def async_accept_cookies(page: AsyncPage) -> None:
+    for text in ("Accept", "Accept all", "I agree"):
+        button = page.get_by_role("button", name=text)
+        try:
+            if await button.count() > 0 and await button.first.is_visible():
+                await button.first.click()
+        except Error as e:
+            print("failed to accept cookies", e)
+
+
 def accept_cookies(page: SyncPage) -> None:
-    for text in ("Accept all", "I agree", "Reject all"):
+    for text in ("Accept", "Accept all", "I agree"):
         button = page.get_by_role("button", name=text)
         try:
             if button.count() > 0 and button.first.is_visible():
                 button.first.click()
         except Error as e:
             print("failed to accept cookies", e)
-
-
-def handle_press_and_hold(page: SyncPage) -> None:
-    if "westmarine.com" not in page.url:
-        return
-    print(page.content())
-    print("[ ] handle_press_and_hold", page.url)
-
-    img = page.locator("img[class=px-captcha]")
-    if img.count() and img.first.is_visible():
-        img.first.click(delay=5000)
-        return
-
-    for text in ("PRESS AND HOLD", "press and hold"):
-        locator = page.get_by_role("button", name=text)
-        try:
-            if locator.count() and locator.first.is_visible():
-                locator.first.click(delay=5_000)
-                print("[+] handle_press_and_hold", text)
-        except Error as e:
-            print("[!] handle_press_and_hold", text, e)
 
 
 def press_escape_key(page: SyncPage) -> None:

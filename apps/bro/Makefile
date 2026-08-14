@@ -1,8 +1,8 @@
 lint:
-	mypy . --fix
-	ty check .
-	ruff check . --fix
-	ruff format . --check
+	@.venv/bin/mypy . --fix
+	@.venv/bin/ty check .
+	@ruff format
+	@ruff check --fix --unsafe-fixes
 
 install:
 	@uv run sync
@@ -15,4 +15,8 @@ test:
 	coverage html --title "${@-coverage}"
 
 up:
-	uv run fastapi dev --port 8085
+	uvicorn main:app --log-config log_config.yml --env-file .env
+
+upgrade:
+	uv lock --upgrade
+	uv sync

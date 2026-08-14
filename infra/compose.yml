@@ -1,4 +1,4 @@
-name: bytelyon_dev
+name: bytelyon
 
 services:
   bro:
@@ -6,24 +6,36 @@ services:
     build:
       context: ..
       dockerfile: infra/docker/bro.Dockerfile
+      args:
+        BRO_PORT: ${BRO_PORT:-8085}
+    command:
+      ["run", "app/main.py", "--host", "0.0.0.0", "--port", "${BRO_PORT}"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "${BRO_PORT:-8000}:${BRO_PORT:-8000}"
+      - "${BRO_PORT}:${BRO_PORT}"
     networks:
       - sail
-  mgr:
-    image: "bytelyon/mgr:latest"
+    depends_on:
+      - mux
+  mux:
+    image: "bytelyon/mux"
     build:
       context: ..
-      dockerfile: infra/docker/mgr.Dockerfile
+      dockerfile: infra/docker/mux.Dockerfile
+      args:
+        MUX_PORT: ${MUX_PORT:-3000}
+    command: ["--log=$LOG_LEVEL"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "3000:3000"
+      - "${MUX_PORT}:${MUX_PORT}"
     networks:
       - sail
-
+    depends_on:
+      - web
   web:
-    # image: "bytelyon/web:latest"
     image: "sail-8.5/app"
-    profiles: ["local", "testing"]
     build:
       context: ..
       dockerfile: infra/docker/web.Dockerfile
@@ -47,10 +59,8 @@ services:
     depends_on:
       - pgsql
       - redis
-
   pgsql:
     image: "postgres:18-alpine"
-    profiles: ["local", "testing"]
     ports:
       - "${FORWARD_DB_PORT:-5432}:5432"
     environment:
@@ -75,10 +85,8 @@ services:
         ]
       retries: 3
       timeout: 5s
-
   redis:
     image: "redis:alpine"
-    profiles: ["local", "testing"]
     ports:
       - "${FORWARD_REDIS_PORT:-6379}:6379"
     volumes:
@@ -89,11 +97,9 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       retries: 3
       timeout: 5s
-
 networks:
   sail:
     driver: bridge
-
 volumes:
   sail-pgsql:
     driver: local

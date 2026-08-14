@@ -6,7 +6,7 @@ install:
 
 fresh:
 	@truncate -s 0 storage/logs/browser.log storage/logs/laravel.log
-	@rm -rf bootstrap/cache/* reports/*
+	@rm -rf bootstrap/cache/* reports/* storage/framework/sessions/*
 	@php artisan optimize:clear && php artisan optimize
 	@composer dump-autoload
 

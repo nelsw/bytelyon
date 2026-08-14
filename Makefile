@@ -1,42 +1,34 @@
 mode := local
 envf = .secrets/.env.$(mode)
 dock = docker compose -f infra/compose.yml --env-file $(envf)
-bro = $(dock) exec bro sh -c
-mgr = $(dock) exec mgr sh -c
 web = $(dock) exec web sh -c
 
-all: down build up
-
 lint:
-	@$(MAKE) -C apps/bro lint
-	# todo - mgr
-	@$(MAKE) -C apps/web lint
+	$(foreach app,bro mux web,make -C "apps/$(app)" lint;)
+
+env:
+	for app in bro mux web; do cp $(envf) "apps/$$app/.env"; done
 
 # Install dependencies required before building or running apps
-install:
-	@php -r "copy('$(envf)', 'apps/web/.env');"
-	@$(MAKE) -C apps/bro install
-	@$(MAKE) -C apps/web install
+install: env
+	$(foreach app,bro mux web,make -C "apps/$(app)" install;)
 
 build: install
 	@$(dock) build --no-cache
 
 up:
 	@$(dock) up -d
-	@$(web) "npm run dev && make fresh"
+	# @$(web) "npm install && npm run dev && make fresh"
 
 down:
 	@$(dock) down --remove-orphans --rmi local
 
 test: fresh
-	@rm -rf apps/web/.env
-	@php -r "copy('.secrets/.env.testing', 'apps/web/.env.testing');"
-	@$(bro) "make test"
-	@$(mgr) "make test"
+	@make env mode=testing
 	@$(web) "make test"
 
 fresh:
-	@$(web) "make fresh"
+	@make -C "apps/web" fresh
 
 migrate:
 	@$(web) "php artisan migrate --graceful --ansi"
@@ -46,3 +38,6 @@ rollback:
 
 seed:
 	@$(web) "php artisan db:seed --ansi"
+
+graph:
+	@tree -a -d -I "node_modules|vendor|__pycache__|.git|.*_cache|lib|.junie|inertia-devtools|views|assets|migrations|.idea|.venv"

@@ -1,0 +1,1 @@
+curl -X PUT --location "http://127.0.0.1:8000/sitemap/bytelyon.com" -H "Accept: application/json"

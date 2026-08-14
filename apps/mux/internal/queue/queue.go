@@ -1,4 +1,4 @@
-package job
+package queue
 
 import (
 	"sync"
@@ -12,7 +12,7 @@ type Queue struct {
 	ch chan *model.Bot
 }
 
-func NewQueue() *Queue {
+func New() *Queue {
 	return &Queue{
 		ip: make(map[int]bool),
 		ch: make(chan *model.Bot),

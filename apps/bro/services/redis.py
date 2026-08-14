@@ -21,8 +21,11 @@ async def async_screenshot(page: AsyncPage) -> bytes:
     return gzip.compress(await page.screenshot(full_page=True))
 
 
-async def publish_bot(bot: Bot) -> None:
-    client.publish("bots", json.dumps(asdict(bot)))
+async def publish_bot(bot: Bot, result:str = 'ok') -> None:
+    client.publish("bots", json.dumps({
+        'bot_id': bot.id,
+        'result': result,
+    }))
 
 
 async def publish_page(
@@ -35,13 +38,16 @@ async def publish_page(
         "pages",
         json.dumps(
             {
-                "bot": asdict(bot),
-                "url": page.url,
-                "title": page.title(),
-                "screenshot": async_screenshot(page),
+                "bot_id": bot.id,
+                "bot_type": bot.type,
                 "content": async_content(page),
                 "index": index,
                 "kind": kind,
+                "screenshot": async_screenshot(page),
+                "search_id": bot.serp_id,
+                "sitemap_id": bot.sitemap_id,
+                "title": page.title(),
+                "url": page.url,
             }
         ),
     )
@@ -58,7 +64,6 @@ async def publish_news(
                 "title": title,
                 "url": page.url,
                 "published_at": published_at,
-                "screenshot": async_screenshot(page),
                 "content": async_content(page),
             }
         ),

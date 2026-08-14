@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -13,8 +14,8 @@ import (
 
 var _client = http.Client{Timeout: 10 * time.Second}
 
-func Get[T any](url string, header http.Header) (t T) {
-	if out, err := Do(http.MethodGet, url, header, nil); err != nil {
+func Get[T any]() (t T) {
+	if out, err := Do(http.MethodGet, os.Getenv("WEB_URL"), nil); err != nil {
 		log.Err(err).Msg("failed to execute request")
 	} else if err = json.Unmarshal(out, &t); err != nil {
 		log.Err(err).Msg("failed to unmarshal response")
@@ -22,19 +23,19 @@ func Get[T any](url string, header http.Header) (t T) {
 	return
 }
 
-func Put(url string, header http.Header, body any) {
-	if _, err := Do(http.MethodPut, url, header, body); err != nil {
+func Put(url string, body any) {
+	if _, err := Do(http.MethodPut, url, body); err != nil {
 		log.Err(err).Msg("failed to execute request")
 	}
 }
 
 func Post(url string, body any) {
-	if _, err := Do(http.MethodPost, url, nil, body); err != nil {
+	if _, err := Do(http.MethodPost, url, body); err != nil {
 		log.Err(err).Msg("failed to execute request")
 	}
 }
 
-func Do(method, url string, header http.Header, body any) (b []byte, err error) {
+func Do(method, url string, body any) (b []byte, err error) {
 
 	l := log.With().Str("method", method).Str("url", url).Logger()
 
@@ -53,11 +54,15 @@ func Do(method, url string, header http.Header, body any) (b []byte, err error) 
 		return
 	}
 
-	if header != nil {
-		req.Header = header
+	req.Header = http.Header{
+		"x-api-key": []string{os.Getenv("WEB_KEY")},
 	}
 	if method == http.MethodPut {
 		req.Header.Set("Content-Type", "application/json")
+	}
+
+	if os.Getenv("APP_ENV") == "testing" {
+		return nil, nil
 	}
 
 	var res *http.Response

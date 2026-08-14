@@ -28,12 +28,11 @@ class SearchJob(Job):
         retry_backoff: float = 3.0,
     ):
         super().__init__(
-            headless=bot.headless,
+            bot=bot,
             max_concurrency=max_concurrency,
             max_retries=max_retries,
             retry_backoff=retry_backoff,
         )
-        self.bot = bot
         self.similar_queries: set[str] = set()
 
     async def handle_sponsored_products(

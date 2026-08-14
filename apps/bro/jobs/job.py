@@ -1,3 +1,4 @@
+from services.redis import publish_bot
 import asyncio
 from abc import ABC
 from asyncio import Semaphore
@@ -6,10 +7,13 @@ from dataclasses import dataclass, field
 from playwright.async_api import BrowserContext, async_playwright
 from seleniumbase import cdp_driver
 
+from models.bot import Bot
+
 
 @dataclass
 class Job(ABC):
-    headless: bool
+
+    bot: Bot
     max_concurrency: int
     max_retries: int
     retry_backoff: float | int
@@ -24,7 +28,7 @@ class Job(ABC):
         self.work_lock = asyncio.Lock()
 
     async def process(self) -> None:
-        d = await cdp_driver.start_async(headless=self.headless)
+        d = await cdp_driver.start_async(headless=self.bot.headless)
         url = d.get_endpoint_url()
         async with async_playwright() as p:
             browser = await p.chromium.connect_over_cdp(endpoint_url=url)
@@ -54,3 +58,4 @@ class Job(ABC):
         await self.pre_process()
         await self.process()
         await self.post_process()
+        await publish_bot(bot=self.bot)

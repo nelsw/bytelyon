@@ -28,6 +28,16 @@ func (b *Bot) MarshalZerologObject(evt *zerolog.Event) {
 
 type BotType string
 
+const (
+	NewsBot    BotType = "news"
+	SearchBot  BotType = "search"
+	SitemapBot BotType = "sitemap"
+)
+
+func (t *BotType) String() string {
+	return string(*t)
+}
+
 func (t *BotType) UnmarshalJSON(payload []byte) error {
 	if text := string(payload); text == `"news"` || text == `"search"` || text == `"sitemap"` {
 		*t = BotType(strings.ReplaceAll(text, `"`, ""))

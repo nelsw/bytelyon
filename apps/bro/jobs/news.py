@@ -37,7 +37,7 @@ class NewsJob(Job):
         retry_backoff: float = 3.0,
     ):
         super().__init__(
-            bot.headless,
+            bot,
             max_concurrency,
             max_retries,
             retry_backoff,

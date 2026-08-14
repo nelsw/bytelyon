@@ -2,12 +2,15 @@ package subscriber
 
 import (
 	"encoding/json"
+	"os"
 	"sync"
 	"time"
 
+	"github.com/nelsw/bytelyon/apps/mux/internal/client"
 	"github.com/nelsw/bytelyon/apps/mux/internal/db"
 	"github.com/nelsw/bytelyon/apps/mux/internal/model"
-	"github.com/nelsw/bytelyon/apps/mux/internal/service"
+	"github.com/nelsw/bytelyon/apps/mux/internal/s3"
+	"github.com/nelsw/bytelyon/apps/mux/internal/trait"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
@@ -62,58 +65,38 @@ func (s *Subscriber) Stop() {
 
 func (s *Subscriber) do(c channel, payload []byte) {
 
-	log.Info().
-		Stringer("channel", c).
-		Bytes("payload", payload).
-		Msg("handling message")
+	log.Info().Stringer("channel", c).Msg("handling payload")
+
+	var r trait.HasRoute
 
 	switch c {
 	case bots:
-		s.doBot(payload)
+		r = &model.Result{}
 	case news:
-		s.doNews(payload)
+		r = &model.News{}
 	case pages:
-		s.doPages(payload)
+		r = &model.Page{}
 	case sitemaps:
-		s.doSitemaps(payload)
+		r = &model.Sitemap{}
 	case searches:
-		s.doSearches(payload)
+		r = &model.Search{}
 	default:
 		log.Warn().Msgf("unknown channel [%s]", c)
-	}
-}
-
-func (s *Subscriber) doBot(payload []byte) {
-
-	var b model.Bot
-	if err := json.Unmarshal(payload, &b); err != nil {
-		log.Err(err).
-			Bytes("payload", payload).
-			Msg("failed to unmarshal bot")
 		return
 	}
 
-	service.PutBot(&b, map[string]any{
-		"result": "ok",
-	})
+	if err := json.Unmarshal(payload, r); err != nil {
+		return
+	}
+
+	switch c {
+	case searches:
+		s3.Put(r.(trait.HasContent).Content())
+		s3.Put(r.(trait.HasScreenshot).Screenshot())
+	case pages:
+		s3.Put(r.(trait.HasScreenshot).Screenshot())
+	default:
+	}
+
+	client.Put(os.Getenv("WEB_URL")+r.Route(), r)
 }
-
-func (s *Subscriber) doNews(payload []byte) {
-
-}
-
-func (s *Subscriber) doPages(payload []byte) {
-
-}
-
-
-func (s *Subscriber) doSearches(payload []byte) {
-
-}
-
-func (s *Subscriber) doSitemaps(payload []byte) {
-
-}
-
-
-

@@ -11,10 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/nelsw/bytelyon/apps/mux/internal/client"
 	"github.com/nelsw/bytelyon/apps/mux/internal/config"
-	"github.com/nelsw/bytelyon/apps/mux/internal/job"
 	"github.com/nelsw/bytelyon/apps/mux/internal/model"
-	"github.com/nelsw/bytelyon/apps/mux/internal/service"
+	"github.com/nelsw/bytelyon/apps/mux/internal/queue"
 	"github.com/rs/zerolog/log"
 )
 
@@ -22,7 +22,7 @@ func main() {
 
 	config.Print()
 
-	q := job.NewQueue()
+	q := queue.New()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("PUT /bot", func(w http.ResponseWriter, r *http.Request) {
@@ -54,9 +54,9 @@ func main() {
 	t := time.NewTicker(5 * time.Minute)
 	go func() {
 		log.Info().Msg("polling...")
-		q.Send(service.GetBots()...)
+		q.Send(client.Get[model.Bots]()...)
 		for range t.C {
-			q.Send(service.GetBots()...)
+			q.Send(client.Get[model.Bots]()...)
 		}
 	}()
 
@@ -65,7 +65,7 @@ func main() {
 		wg.Go(func() {
 			for b := range q.Chan() {
 				if q.Put(b.ID) {
-					service.PostJob(b)
+					client.Post("http://localhost:8085/bots", b)
 				}
 			}
 		})

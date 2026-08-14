@@ -1,22 +1,36 @@
-FROM golang:alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 LABEL maintainer="Connor Van Elswyk"
 
 ENV GO111MODULE=on \
     CGO_ENABLED=0
 
-WORKDIR /build
+WORKDIR /app
 
-COPY ./apps/mux .
+# Copy and download dependencies (leverages Docker caching)
+COPY apps/mux/go.mod apps/mux/go.sum ./
+RUN go mod download
 
-RUN go mod tidy
-RUN go build --ldflags "-s -w -extldflags -static" -o main .
+# Copy the rest of the source code
+COPY apps/mux/ .
 
-FROM alpine:latest
+# Build a statically linked binary for Linux
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o myapp ./cmd/app/main.go
 
-WORKDIR /www
+# --- Stage 2: Final runtime image ---
+FROM alpine:3.20
 
-COPY --from=builder /build/main /www/
-COPY --from=builder /build/.env /www/.env
+# Add a non-root user for security
+RUN adduser -D appuser
+USER appuser
 
-ENTRYPOINT ["/www/main"]
+WORKDIR /app
+
+# Copy the compiled binary from the builder stage
+COPY --from=builder /app/myapp .
+
+# Expose your application port (change 8080 if needed)
+EXPOSE 3000
+
+# Run the binary
+ENTRYPOINT ["./myapp"]

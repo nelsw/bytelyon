@@ -12,15 +12,15 @@ services:
       - "${BRO_PORT}:${BRO_PORT}"
     networks:
       - sail
-  # mux:
-  #   image: "bytelyon/mux:latest"
-  #   build:
-  #     context: ..
-  #     dockerfile: infra/docker/mux.Dockerfile
-  #   ports:
-  #     - "3000:3000"
-  #   networks:
-  #     - sail
+  mux:
+    image: "bytelyon/mux"
+    build:
+      context: ..
+      dockerfile: infra/docker/mux.Dockerfile
+    ports:
+      - "3000:3000"
+    networks:
+      - sail
 
   web:
     # image: "bytelyon/web:latest"

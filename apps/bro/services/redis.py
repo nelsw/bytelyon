@@ -1,6 +1,5 @@
 import gzip
 import json
-from dataclasses import asdict
 from datetime import datetime
 
 import redis
@@ -21,11 +20,16 @@ async def async_screenshot(page: AsyncPage) -> bytes:
     return gzip.compress(await page.screenshot(full_page=True))
 
 
-async def publish_bot(bot: Bot, result:str = 'ok') -> None:
-    client.publish("bots", json.dumps({
-        'bot_id': bot.id,
-        'result': result,
-    }))
+async def publish_bot(bot: Bot, result: str = "ok") -> None:
+    client.publish(
+        "bots",
+        json.dumps(
+            {
+                "bot_id": bot.id,
+                "result": result,
+            }
+        ),
+    )
 
 
 async def publish_page(

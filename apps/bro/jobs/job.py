@@ -1,4 +1,3 @@
-from services.redis import publish_bot
 import asyncio
 from abc import ABC
 from asyncio import Semaphore
@@ -8,11 +7,11 @@ from playwright.async_api import BrowserContext, async_playwright
 from seleniumbase import cdp_driver
 
 from models.bot import Bot
+from services.redis import publish_bot
 
 
 @dataclass
 class Job(ABC):
-
     bot: Bot
     max_concurrency: int
     max_retries: int

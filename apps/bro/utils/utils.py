@@ -31,6 +31,7 @@ def parse_domain(url: str) -> str:
         return ""
     return str(urlparse(url).netloc).removeprefix("www.")
 
+
 async def async_scroll_to_bottom_then_top(page: AsyncPage):
     await page.evaluate(SCROLL_PAGE_JS)
 

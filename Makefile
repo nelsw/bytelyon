@@ -19,7 +19,7 @@ build: install
 	@$(dock) build --no-cache
 
 up:
-	@$(dock) --profile $(mode) up -d
+	@$(dock) --profile $(mode) up
 	@$(web) "npm install && npm run dev && make fresh"
 
 down:

@@ -6,19 +6,21 @@ services:
     build:
       context: ..
       dockerfile: infra/docker/bro.Dockerfile
+      args:
+        BRO_PORT: ${BRO_PORT}
     ports:
-      - "${BRO_PORT:-8000}:${BRO_PORT:-8000}"
+      - "${BRO_PORT}:${BRO_PORT}"
     networks:
       - sail
-  mgr:
-    image: "bytelyon/mgr:latest"
-    build:
-      context: ..
-      dockerfile: infra/docker/mgr.Dockerfile
-    ports:
-      - "3000:3000"
-    networks:
-      - sail
+  # mux:
+  #   image: "bytelyon/mux:latest"
+  #   build:
+  #     context: ..
+  #     dockerfile: infra/docker/mux.Dockerfile
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - sail
 
   web:
     # image: "bytelyon/web:latest"

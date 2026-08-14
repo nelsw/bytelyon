@@ -45,25 +45,22 @@ class NewsJob(Job):
                     if attempt > 1
                     else ""
                 )
-                logging.info(f"[+] Scraping: {a.url}{suffix}")
+                logger.info(f"[+] Scraping: {a.url}{suffix}")
                 page = await ctx.new_page()
                 try:
                     await page.goto(a.url, wait_until="domcontentloaded", timeout=5000)
                     self.articles.append(await a.with_data(page))
-                    logging.info(f"[+] Appended Article: {page.url}")
+                    logger.info(f"[+] Appended Article: {page.url}")
                     return
-                except Error as e:
-                    last_error = e
+                except Error:
+                    if attempt <= self.max_retries:
+                        delay = self.retry_backoff * attempt
+                        print(f"[!] {page.url} failed ({last_error}); retrying in {delay:.0f}s")
+                        await asyncio.sleep(delay)
+                    else:
+                        print(f"[-] Giving up on {page.url} after {self.max_retries + 1} attempts")
                 finally:
                     await page.close()
-
-            if attempt <= self.max_retries:
-                delay = self.retry_backoff * attempt
-                print(f"[!] {page.url} failed ({last_error}); retrying in {delay:.0f}s")
-                await asyncio.sleep(delay)
-
-        print(f"[-] Giving up on {page.url} after {self.max_retries + 1} attempts")
-        return
 
     async def task(self, context: BrowserContext):
         while True:

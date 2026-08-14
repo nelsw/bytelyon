@@ -21,15 +21,15 @@ class Job(ABC):
 
     def __post_init__(self):
         self.bounder = asyncio.Semaphore(self.max_concurrency)
-        self.queue: asyncio.Queue = asyncio.Queue()
+        self.queue = asyncio.Queue()
         self.work_lock = asyncio.Lock()
 
     async def process(self) -> None:
         d = await cdp_driver.start_async(headless=self.headless)
         url = d.get_endpoint_url()
         async with async_playwright() as p:
+            browser = await p.chromium.connect_over_cdp(endpoint_url=url)
             try:
-                browser = await p.chromium.connect_over_cdp(endpoint_url=url)
                 workers = [
                     asyncio.create_task(coro=self.task(context=browser.contexts[0]))
                     for _ in range(self.max_concurrency)

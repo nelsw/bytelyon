@@ -7,7 +7,7 @@ ENV GO111MODULE=on \
 
 WORKDIR /build
 
-COPY ./apps/mgr .
+COPY ./apps/mux .
 
 RUN go mod tidy
 RUN go build --ldflags "-s -w -extldflags -static" -o main .

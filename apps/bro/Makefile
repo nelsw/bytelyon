@@ -15,7 +15,7 @@ test:
 	coverage html --title "${@-coverage}"
 
 up:
-	uvicorn main:app --log-config log_config.yml --env-file '.env'
+	uvicorn main:app --log-config log_config.yml --env-file .env
 
 upgrade:
 	uv lock --upgrade

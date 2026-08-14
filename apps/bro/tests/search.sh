@@ -1,0 +1,1 @@
+curl -X PUT --location "http://127.0.0.1:8000/search/foo" -H "Accept: application/json"

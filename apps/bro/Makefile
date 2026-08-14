@@ -15,4 +15,8 @@ test:
 	coverage html --title "${@-coverage}"
 
 up:
-	uv run fastapi dev --port 8085
+	uvicorn main:app --log-config log_config.yml --env-file '.env'
+
+upgrade:
+	uv lock --upgrade
+	uv sync

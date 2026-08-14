@@ -1,22 +1,28 @@
-import argparse
+import logging
 import asyncio
+import os
 from urllib.parse import urlparse
 
+import httpx
 from playwright.async_api import (
     BrowserContext,
     Error,
-    async_playwright,
 )
 from playwright.async_api import (
     Page as AsyncPage,
 )
-from seleniumbase import cdp_driver
 
-from models.page import Page, from_playwright
+from jobs.job import Job
+from models.bot import Bot
+from models.page import Page, scrape_page
+from models.sitemap import Sitemap
+from services.http import put_bot, put_sitemap, put_sitemap_page, del_bot
 from utils.utils import parse_domain
 
+HREF_EXPRESSION = "() => Array.from(document.querySelectorAll('a[href]')).map(a => a.href)"
 
-class SitemapJob:
+
+class SitemapJob(Job):
     """Crawls a domain-breadth-first, fetching multiple pages concurrently.
 
     Chrome is launched via SeleniumBase's undetected cdp_driver (to reduce
@@ -24,61 +30,37 @@ class SitemapJob:
     """
 
     def __init__(
-        self,
-        domain: str,
-        bot_id: int | None = None,
-        max_concurrency: int = 5,
-        max_pages: int = 200,
-        max_retries: int = 3,
-        retry_backoff: float = 3.0,
+            self,
+            bot: Bot,
+            max_concurrency: int = 5,
+            max_retries: int = 3,
+            retry_backoff: float | int = 3.0,
     ):
-        self.bot_id = bot_id
-        self.domain = domain
-        self.max_concurrency = max_concurrency
-        self.bounder = asyncio.Semaphore(max_concurrency)
-        self.queue: asyncio.Queue = asyncio.Queue()
-        self.visited_urls: set = set()
-        self.pages: list[Page] = []
-        self.visited_lock = asyncio.Lock()
-        self.pages_crawled = 0
-        self.max_pages = max_pages
-        self.max_retries = max_retries
-        self.retry_backoff = retry_backoff
-
-    def _same_domain(self, url: str) -> bool:
-        return parse_domain(url) == self.domain
+        super().__init__(
+            headless=bot.headless,
+            max_concurrency=max_concurrency,
+            max_retries=max_retries,
+            retry_backoff=retry_backoff,
+        )
+        self.model = Sitemap(bot)
+        logging.info("[+] Initializing Sitemap Job")
 
     async def extract_links(self, page: AsyncPage) -> list:
         """Returns normalized, same-domain absolute URLs found on the page."""
+        print(f"[ ] Extracting links from page: {page.url}")
         try:
-            hrefs = await page.evaluate(
-                "() => Array.from(document.querySelectorAll('a[href]')).map(a => a.href)"
-            )
+            links = set()
+            for href in await page.evaluate(HREF_EXPRESSION):
+                if parse_domain(href) == self.model.domain:
+                    parsed = urlparse(href)
+                    links.add(f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/"))
+            print(f"[+] Extracted {len(links)} links from page: {page.url}")
+            return list(links)
         except Error as e:
             print(f"[-] Error extracting links from {page.url}: {e}")
             return []
 
-        links = set()
-        for href in hrefs:
-            if not href or not self._same_domain(href):
-                continue
-            parsed = urlparse(href)
-            links.add(f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/"))
-        return list(links)
-
-    async def scrape_page(self, page: AsyncPage, url: str):
-        """Saves the rendered HTML and a full-page screenshot for a URL."""
-        p = await from_playwright(page)
-        if p is not None:
-            self.pages.append(p)
-
     async def crawl_page(self, context: BrowserContext, url: str) -> list:
-        """Fetches and scrapes one URL, retrying on failure with backoff.
-
-        Each attempt gets a fresh page/tab, since a failed goto or a crashed
-        page can leave the old one in a broken state.
-        """
-        last_error = None
         for attempt in range(1, self.max_retries + 2):
             async with self.bounder:
                 suffix = (
@@ -90,115 +72,46 @@ class SitemapJob:
                 page = await context.new_page()
                 try:
                     await page.goto(url, wait_until="networkidle", timeout=30000)
-                    await self.scrape_page(page, url)
+                    scraped_page = await scrape_page(page)
+                    if scraped_page is not None:
+                        self.model.pages.append(scraped_page)
                     return await self.extract_links(page)
                 except Error as e:
-                    last_error = e
+                    if attempt <= self.max_retries:
+                        delay = self.retry_backoff * attempt
+                        print(f"[!] {url} failed ({e}); retrying in {delay:.0f}s")
+                        await asyncio.sleep(delay)
                 finally:
                     await page.close()
-
-            if attempt <= self.max_retries:
-                delay = self.retry_backoff * attempt
-                print(f"[!] {url} failed ({last_error}); retrying in {delay:.0f}s")
-                await asyncio.sleep(delay)
 
         print(f"[-] Giving up on {url} after {self.max_retries + 1} attempts")
         return []
 
-    async def worker(self, context: BrowserContext):
-        """Pulls URLs off the queue and processes them until the queue drains.
-
-        Once max_pages is hit, remaining queued URLs are drained (marked done,
-        not visited) rather than left in place, so queue.join() can still
-        complete instead of waiting forever on entries nobody will process.
-        """
+    async def task(self, context: BrowserContext):
         while True:
             url = await self.queue.get()
             try:
-                async with self.visited_lock:
-                    if url in self.visited_urls or self.pages_crawled >= self.max_pages:
+                async with self.work_lock:
+                    if url in self.model.urls:
                         continue
-                    self.visited_urls.add(url)
-                    self.pages_crawled += 1
+                    self.model.urls.add(url)
 
                 discovered_links = await self.crawl_page(context, url)
 
-                async with self.visited_lock:
+                async with self.work_lock:
                     for link in discovered_links:
-                        if link not in self.visited_urls:
+                        if link not in self.model.urls:
                             await self.queue.put(link)
             finally:
                 self.queue.task_done()
 
-    async def run(self):
-        await self.queue.put(f"https://{self.domain}")
-        driver = await cdp_driver.start_async()
-        endpoint_url = driver.get_endpoint_url()
-        async with async_playwright() as p:
-            browser = await p.chromium.connect_over_cdp(endpoint_url)
-            context = browser.contexts[0]
+    async def pre_process(self):
+        await self.queue.put(f"https://{self.model.domain}")
 
-            workers = [
-                asyncio.create_task(self.worker(context))
-                for _ in range(self.max_concurrency)
-            ]
-
-            await self.queue.join()
-
-            for worker_task in workers:
-                worker_task.cancel()
-            await asyncio.gather(*workers, return_exceptions=True)
-
-            await browser.close()
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Crawl a domain and scrape (HTML + screenshot) each page, in parallel."
-    )
-    parser.add_argument("bot_id", help="ID of the sitemap bot")
-    parser.add_argument("domain", help="Domain to crawl, e.g. example.com")
-    parser.add_argument(
-        "--max-concurrency", type=int, default=10, help="Concurrent pages (default: 10)"
-    )
-    parser.add_argument(
-        "--max-pages",
-        type=int,
-        default=100,
-        help="Hard stop on pages crawled (default: 100)",
-    )
-    parser.add_argument(
-        "--out-dir", default="output", help="Output directory (default: output)"
-    )
-    parser.add_argument(
-        "--max-retries",
-        type=int,
-        default=2,
-        help="Retries per failed page, beyond the first attempt (default: 2)",
-    )
-    parser.add_argument(
-        "--retry-backoff",
-        type=float,
-        default=2.0,
-        help="Base seconds to wait before a retry, multiplied by attempt number (default: 2.0)",
-    )
-    args = parser.parse_args()
-
-    bot = SitemapJob(
-        bot_id=args.bot_id,
-        domain=args.domain,
-        max_concurrency=args.max_concurrency,
-        max_pages=args.max_pages,
-        max_retries=args.max_retries,
-        retry_backoff=args.retry_backoff,
-    )
-
-    print(
-        f"Starting parallel crawl of {bot.domain} (max {bot.max_pages} pages, concurrency {bot.max_concurrency})"
-    )
-    asyncio.run(bot.run())
-    print(f"Finished. Pages visited: {len(bot.visited_urls)}.")
-
-
-if __name__ == "__main__":
-    main()
+    async def post_process(self):
+        async with httpx.AsyncClient() as client:
+            tasks = [put_sitemap_page(client, self.model.id, page) for page in self.model.pages]
+            tasks.append(put_sitemap(client, self.model))
+            tasks.append(put_bot(client, self.model.bot_id))
+            tasks.append(del_bot(client, self.model.bot_id))
+            await asyncio.gather(*tasks)

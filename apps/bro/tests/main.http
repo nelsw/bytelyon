@@ -1,10 +1,29 @@
 ###
 
-@query = situation in iran
-@id = 1
-@since = 2025-01-01T05:00:00Z
-
-PUT 127.0.0.1:8085/news/{{id}}/query/{{query}}/since/{{since}}
+@topic = situation in iran
+@since = 2026-01-01T05:00:00Z
+PUT 127.0.0.1:8085/news/{{topic}}/since/{{since}}
 Accept: application/json
+
+###
+
+@domain = bytelyon.com
+@headless = true
+PUT 127.0.0.1:8085/sitemap/{{domain}}?headless={{headless}}
+Accept: application/json
+
+###
+
+POST http://localhost:8000/bots
+Accept: application/json
+Content-Type: application/json
+
+{
+  "id": 1,
+  "type": "news",
+  "query": "situation in iran",
+  "last_ran_at": "2026-01-01T05:00:00Z",
+  "headless": false
+}
 
 ###

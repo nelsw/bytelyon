@@ -1,9 +1,14 @@
-from datetime import datetime
+import asyncio
 
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 
-from jobs.news import NewsBot
-from models.bot import Bot
+from jobs.job import Job
+from jobs.news import NewsJob
+from jobs.sitemap import SitemapJob
+from models.bot import Bot, Type
+
+# load_dotenv('../../.secrets/.env.local')
+
 
 app = FastAPI()
 
@@ -12,17 +17,15 @@ app = FastAPI()
 async def index():
     return {"message": "🤖"}
 
-
-@app.put("/news/{id}/query/{q}/since/{dt}")
-async def put_news(id: int, q: str, dt: datetime):
-    b = NewsBot(bot_id=id, query=q, since=dt, max_concurrency=5, max_pages=200)
-    await b.run()
-    return b.articles # todo - create task
-
-@app.put("/search/{id}/query/{q}")
-async def put_search(id: int, q: str):
-    return None
-
-@app.put("/sitemap/{id}/domain/{q}")
-async def put_news(id: int, q: str):
-    return None
+@app.post(path="/bots", status_code=status.HTTP_200_OK)
+async def post_bots(bot:Bot):
+    job: Job
+    match bot.type:
+        case Type.news:
+            job = NewsJob(bot)
+        # case Type.search:
+        case Type.sitemap:
+            job = SitemapJob(bot)
+        case _:
+            return
+    await job.run()

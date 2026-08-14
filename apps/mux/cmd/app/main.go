@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,24 +11,59 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nelsw/bytelyon/apps/mux/internal/config"
 	"github.com/nelsw/bytelyon/apps/mux/internal/job"
+	"github.com/nelsw/bytelyon/apps/mux/internal/logger"
 	"github.com/nelsw/bytelyon/apps/mux/internal/service"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
-func main() {
+func init() {
+	var logLvl, webHost string
+	var broPort int
+	flag.StringVar(&logLvl, "log", zerolog.TraceLevel.String(), "log level trace->disabled")
+	flag.IntVar(&broPort, "bro", 8085, "bro app port")
+	flag.StringVar(&webHost, "web", "http://localhost", "web app (web) host name")
+	flag.Parse()
 
-	config.Print()
+	lvl, err := zerolog.ParseLevel(logLvl)
+	if err != nil {
+		panic(err)
+	}
+
+	log.Logger = logger.Make(lvl)
+	service.BroApiUrl = fmt.Sprintf("http://localhost:%d/bots", broPort)
+	service.WebApiUrl = fmt.Sprintf("%s/api/bots", webHost)
+
+	log.Log().Msgf("🦁")
+	log.Log().Msg(`🦁  ByteLyon Mux (config)`)
+	log.Log().Str("bro", service.BroApiUrl).Msg(`🦁 `)
+	log.Log().Str("web", service.WebApiUrl).Msg(`🦁 `)
+	log.Log().Stringer("log", log.Logger.GetLevel()).Msg(`🦁 `)
+	log.Log().Msgf("🦁\n")
+}
+
+func main() {
 
 	q := job.NewQueue()
 
-	svr := &http.Server{Addr: ":" + os.Getenv("MUX_PORT")}
-	http.HandleFunc("PUT /bot", job.WebHandler(q))
-	http.HandleFunc("DELETE /bot/{id}", job.BroHandler(q))
-	if err := svr.ListenAndServe(); err != nil {
-		panic(err)
-	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("PUT /bot", job.WebHandler(q))
+	mux.HandleFunc("DELETE /bot/{id}", job.BroHandler(q))
+
+	server := &http.Server{
+        Addr:         ":3000",
+        Handler:      mux,
+        ReadTimeout:  10 * time.Second,
+        WriteTimeout: 10 * time.Second,
+        IdleTimeout:  120 * time.Second,
+    }
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			panic(err)
+		}
+	}()
 	log.Info().Msg("listening...")
 
 	t := time.NewTicker(5 * time.Minute)
@@ -55,7 +91,7 @@ func main() {
 
 	<-quit
 
-	if err := svr.Shutdown(context.Background()); err != nil {
+	if err := server.Shutdown(context.Background()); err != nil {
 		log.Err(err).Msg("failed to gracefully shutdown server")
 	}
 

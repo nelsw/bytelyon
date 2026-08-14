@@ -67,9 +67,10 @@ func main() {
 	log.Info().Msg("listening...")
 
 	t := time.NewTicker(5 * time.Minute)
-	go func() {
+	go func() {		
+		log.Info().Msg("polling...")
+		q.Send(service.GetWebBots()...)
 		for range t.C {
-			log.Info().Msg("polling...")
 			q.Send(service.GetWebBots()...)
 		}
 	}()

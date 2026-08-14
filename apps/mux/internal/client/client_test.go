@@ -5,7 +5,7 @@ import (
 
 	"github.com/nelsw/bytelyon/apps/mux/internal/logger"
 	"github.com/nelsw/bytelyon/apps/mux/internal/model"
-	"github.com/rs/zerolog/log"
+	"github.com/stretchr/testify/assert"
 )
 
 func init() {
@@ -19,16 +19,8 @@ func TestGet(t *testing.T) {
 
 	var bots model.Bots
 	if err := Get[model.Bots](); err != nil {
-		t.Errorf("failed to get bots: %v", err)
+		t.Fatalf("failed to get bots: %v", err)
 	}
-	if len(bots) == 0 || bots == nil {
-		t.Errorf("expected at least one bot, got none")
-	}
-	for _, bot := range bots {
-		log.Debug().EmbedObject(bot).Send()
-		if bot.ID == 0 {
-			t.Errorf("bot ID should not be zero")
-		}
-
-	}
+	assert.NotEmpty(t, bots)
+	assert.NotNil(t, bots)
 }

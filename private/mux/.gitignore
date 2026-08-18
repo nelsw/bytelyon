@@ -1,9 +1,0 @@
-*.claude/
-*.idea/
-*.junie/
-*.ruff_cache/
-*.venv/
-*.zed/
-*__pycache__
-*downloaded_files/
-*output/

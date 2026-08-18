@@ -91,12 +91,12 @@ class Article:
 class Bot:
     id: int
     type: Type
-    blacklist: set[str]
     query: str
     last_run_at: datetime
     headless: bool
     search_id: int = field(default_factory=int)
     sitemap_id: int = field(default_factory=int)
+    blacklist: set[str] = field(default_factory=set)
 
     def object_key(self, url: str, ext: str = 'png') -> str:
         if self.type == Type.search and url.startswith("https://www.google.com"):

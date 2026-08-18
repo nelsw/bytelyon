@@ -6,6 +6,7 @@
 #   "aioboto3",
 #   "aiofiles",
 #   "beautifulsoup4",
+#   "httpx",
 #   "playwright",
 #   "python-dotenv",
 #   "pytz",
@@ -20,15 +21,17 @@ import sys
 import uuid
 from abc import ABC, abstractmethod
 from asyncio import Semaphore
-from dataclasses import dataclass, field, InitVar
+from dataclasses import dataclass, field, InitVar, asdict
 from datetime import datetime
 from enum import Enum
 from typing import Any
 from urllib.parse import quote, urlparse
-from xml.etree.ElementTree import fromstring
+from xml.etree.ElementTree import Element, fromstring
 
 import aioboto3
 import aiohttp
+import httpx
+from aiohttp import ClientSession
 from bs4 import BeautifulSoup, NavigableString, Tag
 from dotenv import load_dotenv
 from playwright.async_api import (
@@ -37,7 +40,7 @@ from playwright.async_api import (
     Page as AsyncPage,
     Locator as AsyncLocator,
 )
-from pytz import utc
+from pytz import timezone
 from seleniumbase import cdp_driver, SB
 
 
@@ -48,16 +51,47 @@ class Type(str, Enum):
 
 
 @dataclass
-class Article:
+class Headline:
     url: str
-    published_at: datetime
+    published_at: str
     title: str
 
+@dataclass
+class Article:
+    headline: InitVar[Headline]
+    doc: InitVar[Doc]
+    url: str
+
+    published_at: str = field(init=False)
+    title: str = field(init=False)
+
+    body: str = field(init=False)
+    description: str = field(init=False)
+    keywords: list[str] = field(init=False)
+    img_url: str = field(init=False)
+    img_alt: str = field(init=False)
+    source: str = field(init=False)
+    publisher: str = field(init=False)
+
+    def __post_init__(self, headline: Headline, doc: Doc) -> None:
+        source = "Bing"
+        if headline.url.startswith("https://news.google"):
+            source = "Google"
+        self.published_at = headline.published_at
+        self.title = headline.title
+        self.source = source
+        self.publisher = doc.source()
+        self.img_url = doc.img_url()
+        self.img_alt = doc.img_alt()
+        self.body = doc.body()
+        self.keywords = doc.keywords()
+        self.description = doc.description()
 
 @dataclass
 class Bot:
     id: int
     type: Type
+    blacklist: set[str]
     query: str
     last_run_at: datetime
     headless: bool
@@ -79,7 +113,6 @@ class Doc:
         self.meta = dict[str, list[str]]()
         self.soup = BeautifulSoup(html, "html.parser")
         for tag in self.soup.find_all("meta"):
-
             k = tag.get("name") or tag.get("property")
             if not isinstance(k, str):
                 continue
@@ -93,11 +126,12 @@ class Doc:
             if k in self.meta:
                 vals = set(self.meta[k])
 
-            for val in set(vv):
-                for v in set(val.split(",")):
-                    vals.add(v.strip())
+            for v in set(vv):
+                for val in set(v.split(",")):
+                    vals.add(val.strip())
 
             self.meta[k] = list(vals)
+        print('made doc')
 
     def value(self, *keys: str) -> str:
         for k in keys:
@@ -212,15 +246,14 @@ class Job(ABC):
         return str(urlparse(s).netloc).removeprefix("www.")
 
     @staticmethod
-    async def put(route: str, json_data: dict[str, Any]) -> None:
-        async with aiohttp.ClientSession() as session:
-            await session.put(
-                url=f"{os.getenv("APP_URL", default="http://localhost:80")}/api/{route}",
-                json=json_data,
-                headers={
-                    "Content-Type": "application/json",
-                    "x-api-key": os.getenv("API_KEY"),
-                })
+    async def put(session: aiohttp.ClientSession, route: str, json_data: dict[str, Any]) -> None:
+        await session.put(
+            url=f"{os.getenv("APP_URL", default="http://localhost:80")}/api/{route}",
+            json=json_data,
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": os.getenv("API_KEY"),
+            })
 
     @staticmethod
     async def content(page: AsyncPage) -> bytes:
@@ -265,6 +298,9 @@ class Job(ABC):
     async def pre_process(self) -> None:
         pass
 
+    async def post_process(self) -> None:
+        pass
+
     async def process(self):
         d = await cdp_driver.start_async(headless=self.bot.headless)
         url = d.get_endpoint_url()
@@ -285,11 +321,17 @@ class Job(ABC):
 
     async def run(self) -> None:
         try:
+            print('pre_process...')
             await self.pre_process()
+            print('process...')
             await self.process()
-            await self.put(f"bots/{self.bot.id}", {"result": "ok"})
+            print('post_process...')
+            await self.post_process()
+            print('put ok...')
+            await put(f"bots/{self.bot.id}", {"result": "ok"})
         except Exception as err:
-            await self.put(f"bots/{self.bot.id}", {"result": str(err)})
+            print(f"put error: {str(err)}")
+            await put(f"bots/{self.bot.id}", {"result": str(err)})
 
     async def send_page(self,
                         page: AsyncPage,
@@ -309,78 +351,83 @@ class Job(ABC):
             ),
         }
         if self.bot.type == Type.sitemap:
-            await self.put(f"sitemaps/{self.bot.sitemap_id}/page", json_data)
+            await put(f"sitemaps/{self.bot.sitemap_id}/page", json_data)
         else:
-            await self.put(f"searches/{self.bot.search_id}/page", json_data)
+            await put(f"searches/{self.bot.search_id}/page", json_data)
 
 
 @dataclass
 class News(Job):
     visited_urls: set = field(default_factory=set)
-
-    async def upsert(self, article: Article, page: AsyncPage) -> None:
-        doc = Doc(await page.content())
-        source = "Bing"
-        if article.url.startswith("https://news.google"):
-            source = "Google"
-        await self.put(f"bots/{self.bot.id}/articles", {
-            "body": doc.body(),
-            "bot_id": self.bot.id,
-            "content": self.content(page),
-            "description": doc.description(),
-            "img_alt": doc.img_alt(),
-            "img_url": doc.img_url(),
-            "keywords": doc.keywords(),
-            "published_at": article.published_at,
-            "publisher": doc.source(),
-            "source": f"{source} News",
-            "title": article.title,
-            "url": page.url,
-        })
+    articles: list = field(default_factory=list)
 
     async def task(self, context: BrowserContext):
         while True:
+            a: Headline = await self.queue.get()
+            if a.url == "chrome-error://chromewebdata/":
+                continue
             try:
                 async with self.lock:
-                    a: Article = await self.queue.get()
-                    if a.url not in self.visited_urls and a.url != "chrome-error://chromewebdata/":
-                        self.visited_urls.add(a.url)
-                    await self.scrape(context, a)
+                    if a.url in self.visited_urls:
+                        continue
+                    self.visited_urls.add(a.url)
+                await self.scrape(context, a)
             finally:
                 self.queue.task_done()
 
-    async def scrape(self, ctx: BrowserContext, a: Article) -> None:
+    async def scrape(self, ctx: BrowserContext, headline: Headline) -> None:
         for attempt in range(1, self.max_retries + 2):
+            print(f'scrape... {attempt}')
             async with self.bounder:
                 page = await ctx.new_page()
                 try:
-                    await page.goto(a.url, wait_until="domcontentloaded", timeout=5000)
-                    await self.upsert(a, page)
+                    await page.goto(headline.url, wait_until="domcontentloaded", timeout=5000)
+                    content = await page.content()
+                    self.articles.append(Article(
+                        headline, Doc(content), page.url
+                    ))
+                    await page.close()
                     return
-                except Error:
+                except Error as e:
+                    print(f"[!] upsert error: {str(e)}")
                     if attempt <= self.max_retries:
                         delay = self.retry_backoff * attempt
                         await asyncio.sleep(delay)
                 finally:
                     await page.close()
 
-    async def fetch(self, session: aiohttp.ClientSession, url: str) -> None:
+    @staticmethod
+    async def fetch_xml(session: aiohttp.ClientSession, url: str) -> Element[str] | None:
+        print(f"[ ] fetch_xml {url}")
         async with session.get(url) as response:
-            if response.status < 300:
-                xml = fromstring(text=await response.text(encoding="utf-8"))
-                for e in xml.findall(".//item"):
-                    at: datetime = datetime.strptime(
-                        e.findtext("pubDate", default=""), "%a, %d %b %Y %H:%M:%S %Z"
-                    ).astimezone(utc)
-                    if at > self.bot.last_run_at:
-                        await self.queue.put(
-                            Article(
-                                url=e.findtext("link", default=""),
-                                published_at=at,
-                                title=e.findtext("title", default=""),
-                            )
-                        )
+            if response.status >= 300:
+                print(f"[!] fetch_xml {url} - {response.status}")
+                return None
+
+            print(f"[+] fetch_xml {url}")
+            return fromstring(text=await response.text(encoding="utf-8"))
+
+    async def fetch(self, session: aiohttp.ClientSession, url: str) -> None:
+        xml = await self.fetch_xml(session, url)
+        if xml is None:
             return None
+
+        for e in xml.findall(".//item"):
+            at: datetime = datetime.strptime(
+                e.findtext("pubDate", default=""), "%a, %d %b %Y %H:%M:%S %Z"
+            ).astimezone(tz=timezone("UTC"))
+            if at > self.bot.last_run_at:
+                print('found article')
+                await self.queue.put(
+                    Headline(
+                        url=e.findtext("link", default=""),
+                        published_at=e.findtext("pubDate", default=""),
+                        title=e.findtext("title", default=""),
+                    )
+                )
+        return None
+
+
 
     async def pre_process(self) -> None:
         urls = [
@@ -389,6 +436,11 @@ class News(Job):
         ]
         async with aiohttp.ClientSession() as session:
             await asyncio.gather(*[self.fetch(session, url) for url in urls])
+
+    async def post_process(self) -> None:
+        async with aiohttp.ClientSession() as session:
+            await asyncio.gather(*[self.put(session, f"bots/{self.bot.id}/articles", asdict(a)) for a in self.articles ])
+
 
 
 @dataclass
@@ -520,7 +572,7 @@ class Search(Job):
 
                     await page.wait_for_selector("#search", timeout=20000)
                     await self.handle_similar_queries(page)
-                    await self.put(f"bots/{self.bot.id}/searches", {
+                    await put(f"bots/{self.bot.id}/searches", {
                         "data": {
                             "similar_queries": list(self.similar_queries),
                         },
@@ -622,9 +674,18 @@ class Sitemap(Job):
         await self.queue.put(f"https://{self.bot.query}")
 
     async def post_process(self):
-        await self.put(f"bots/{self.bot.id}/sitemaps", {
+        await put(f"bots/{self.bot.id}/sitemaps", {
             "urls": sorted(self.urls),
         })
+
+async def put(route: str, json_data: dict[str, Any]) -> None:
+
+    url = f"{os.getenv("APP_URL", default="http://localhost:80")}/api/{route}"
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": os.getenv("API_KEY", default=""),
+    }
+    return
 
 
 if __name__ == "__main__":

@@ -26,8 +26,47 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read Serp|null $serp
  * @property-read Sitemap|null $sitemap
  * @property-read User|null $user
+ * @method static BotBuilder query()
+ * @property int $id
+ * @property string|null $blacklist
+ * @property bool $enabled
+ * @property bool $headless
+ * @property FrequencyType $frequency
+ * @property string $query
+ * @property BotType $type
+ * @property \Carbon\CarbonImmutable|null $last_run_at
+ * @property \Carbon\CarbonImmutable|null $created_at
+ * @property \Carbon\CarbonImmutable|null $updated_at
+ * @property \Carbon\CarbonImmutable|null $deleted_at
+ * @property int $user_id
+ * @property string|null $last_run_result
+ * @property-read int|null $articles_count
+ * @method static BotBuilder<static>|Bot enabled(bool $b = true)
+ * @method static \Database\Factories\BotFactory factory($count = null, $state = [])
+ * @method static BotBuilder<static>|Bot headless(bool $b = true)
+ * @method static BotBuilder<static>|Bot newModelQuery()
+ * @method static BotBuilder<static>|Bot newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Bot onlyTrashed()
+ * @method static BotBuilder<static>|Bot ready()
+ * @method static BotBuilder<static>|Bot type(\App\Enums\BotType|string $type)
+ * @method static BotBuilder<static>|Bot whereBlacklist($value)
+ * @method static BotBuilder<static>|Bot whereCreatedAt($value)
+ * @method static BotBuilder<static>|Bot whereDeletedAt($value)
+ * @method static BotBuilder<static>|Bot whereEnabled($value)
+ * @method static BotBuilder<static>|Bot whereFrequency($value)
+ * @method static BotBuilder<static>|Bot whereHeadless($value)
+ * @method static BotBuilder<static>|Bot whereId($value)
+ * @method static BotBuilder<static>|Bot whereLastRunAt($value)
+ * @method static BotBuilder<static>|Bot whereLastRunResult($value)
+ * @method static BotBuilder<static>|Bot whereQuery($value)
+ * @method static BotBuilder<static>|Bot whereType($value)
+ * @method static BotBuilder<static>|Bot whereUpdatedAt($value)
+ * @method static BotBuilder<static>|Bot whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Bot withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Bot withoutTrashed()
+ * @mixin \Eloquent
  */
-#[Fillable('enabled', 'frequency', 'query', 'type', 'last_run_at')]
+#[Fillable('enabled', 'frequency', 'query', 'type', 'last_run_at', 'headless')]
 #[UseFactory(BotFactory::class)]
 #[UsePolicy(BotPolicy::class)]
 #[UseEloquentBuilder(BotBuilder::class)]

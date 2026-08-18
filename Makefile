@@ -5,6 +5,14 @@ exec = docker compose exec laravel.test sh -c
 
 it: down build up
 
+clean:
+	@truncate -s 0 storage/logs/browser.log storage/logs/laravel.log
+	@rm -rf bootstrap/cache/* reports/* storage/framework/sessions/*
+
+install:
+	@composer install
+	@npm install
+
 build:
 	@$(sail) build --no-cache
 

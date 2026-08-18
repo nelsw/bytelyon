@@ -1,45 +1,42 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-
-# Test binary, built with `go test -c`
-*.test
-
-# Code coverage profiles and other test artifacts
-*.out
-coverage.*
-*.coverprofile
-profile.cov
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
-go.work
-go.work.sum
-
-# env files
+/.phpunit.cache
+/bootstrap/ssr
+/node_modules
+/public/build
+/public/fonts-manifest.dev.json
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/resources/js/actions
+/resources/js/routes
+/resources/js/wayfinder
+/vendor
+.DS_Store
 .env
-.env.local
-.env.prod
-.env.testing
+.env.backup
+.env.production
+.phpactor.json
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+/auth.json
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
 
-# Editor/IDE
-.idea/
-.zed/
-
-# Python workspace files
-*__pycache__/
-*.mypy_cache/
-*.ruff_cache/
-*.requirements.txt
-*.pytest_cache/
-
-# Mono repo files
-.secrets/
+# Project exclude paths
+/bootstrap/cache/
+/storage/app/
+/storage/framework/
+/.scripts/
+/.env.prod
+/.env.testing
+/testing
+/.claude/
+/.junie/
+/_ide_helper.php
+/reports/

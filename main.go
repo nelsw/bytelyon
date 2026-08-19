@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -16,21 +15,35 @@ import (
 	"time"
 )
 
+type Bot struct {
+	ID        int       `json:"id"`
+	Type      string    `json:"type"`
+	Query     string    `json:"query"`
+	Headless  bool      `json:"headless"`
+	LastRunAt time.Time `json:"last_run_at"`
+	SitemapID int       `json:"sitemap_id"`
+	SearchID  int       `json:"serp_id"`
+	Blacklist []string  `json:"blacklist"`
+}
+
 var url string
+var key string
 
 func init() {
 	flag.StringVar(&url, "url", "http://localhost:80", "URL to poll")
+	flag.StringVar(&key, "key", "my-random-32-character-x-api-key", "API key for authentication")
+	flag.Parse()
 }
 
 func main() {
 	log.Println("starting...")
 
-	full, less := make(chan []byte), make(chan []byte)
+	full, less := make(chan *Bot), make(chan *Bot)
 
 	var wg sync.WaitGroup
 	work(&wg, full, less)
 
-	tick := time.NewTicker(15 * time.Second)
+	tick := time.NewTicker(5 * time.Second)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -51,10 +64,13 @@ func main() {
 	}
 }
 
-func poll(full, less chan []byte) {
+func poll(full, less chan *Bot) {
 	log.Println("polling...")
 
-	res, err := http.Get(url + "/api/bots")
+	req, _ := http.NewRequest("GET", url+"/api/bots", nil)
+	req.Header.Set("x-api-key", key)
+
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Printf("Failed to get bots: %v", err)
 	}
@@ -67,16 +83,7 @@ func poll(full, less chan []byte) {
 		log.Printf("Failed to read response body: %v", err)
 	}
 
-	var bots []struct {
-		ID        int       `json:"id"`
-		Type      string    `json:"type"`
-		Query     string    `json:"query"`
-		Headless  bool      `json:"headless"`
-		LastRunAt time.Time `json:"last_run_at"`
-		SitemapID int       `json:"sitemap_id"`
-		SearchID  int       `json:"serp_id"`
-		Blacklist []string  `json:"blacklist"`
-	}
+	var bots []Bot
 	fmt.Println("Bots:", string(body))
 	if err = json.Unmarshal(body, &bots); err != nil {
 		log.Printf("Failed to unmarshal bots: %v", err)
@@ -84,42 +91,46 @@ func poll(full, less chan []byte) {
 
 	for _, b := range bots {
 		if b.Headless {
-			less <- body
+			less <- &b
 		} else {
-			full <- body
+			full <- &b
 		}
 	}
 }
 
-func work(wg *sync.WaitGroup, full, less chan []byte) {
+func work(wg *sync.WaitGroup, full, less chan *Bot) {
 
-	ƒ := func(c chan []byte) func() {
+	ƒ := func(c chan *Bot) func() {
 		return func() {
 			for b := range c {
 
-				cmd := exec.Command("./main.py", string(b))
+				combined(b)
 
-				stdout, err := cmd.StdoutPipe()
-				if err != nil {
-					log.Printf("Failed to create stdout pipe: %v\n", err)
-					return
-				}
-
-				if err = cmd.Start(); err != nil {
-					log.Printf("Failed to start command: %v\n", err)
-					return
-				}
-
-				scanner := bufio.NewScanner(stdout)
-				for scanner.Scan() {
-					fmt.Printf("%s\n", scanner.Text())
-				}
-
-				if err = scanner.Err(); err != nil {
-					log.Printf("scanner err: %v\n", err)
-				} else if err = cmd.Wait(); err != nil {
-					log.Printf("Command finished with error: %v\n", err)
-				}
+				//data, _ := json.Marshal(b)
+				//
+				//cmd := exec.Command("./main.py", string(data))
+				//
+				//stdout, err := cmd.StdoutPipe()
+				//if err != nil {
+				//	log.Printf("Failed to create stdout pipe: %v\n", err)
+				//	return
+				//}
+				//
+				//if err = cmd.Start(); err != nil {
+				//	log.Printf("Failed to start command: %v\n", err)
+				//	return
+				//}
+				//
+				//scanner := bufio.NewScanner(stdout)
+				//for scanner.Scan() {
+				//	fmt.Printf("%s\n", scanner.Text())
+				//}
+				//
+				//if err = scanner.Err(); err != nil {
+				//	log.Printf("scanner err: %v\n", err)
+				//} else if err = cmd.Wait(); err != nil {
+				//	log.Printf("Command finished with error: %v\n", err)
+				//}
 			}
 		}
 	}
@@ -129,4 +140,17 @@ func work(wg *sync.WaitGroup, full, less chan []byte) {
 		wg.Go(ƒ(less))
 	}
 	log.Println("working...")
+}
+
+func combined(b *Bot) {
+	data, _ := json.Marshal(b)
+	cmd := exec.Command("./main.py", string(data))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("Command finished with error: %v\n", err)
+	} else {
+		fmt.Println(string(out))
+	}
+	fmt.Println(string(out))
+
 }

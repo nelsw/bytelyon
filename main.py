@@ -94,7 +94,7 @@ class Bot:
     query: str
     last_run_at: datetime
     headless: bool
-    search_id: int = field(default_factory=int)
+    serp_id: int = field(default_factory=int)
     sitemap_id: int = field(default_factory=int)
     blacklist: set[str] = field(default_factory=set)
 
@@ -353,7 +353,7 @@ class Job(ABC):
         if self.bot.type == Type.sitemap:
             await put(f"sitemaps/{self.bot.sitemap_id}/page", json_data)
         else:
-            await put(f"searches/{self.bot.search_id}/page", json_data)
+            await put(f"searches/{self.bot.serp_id}/page", json_data)
 
 
 @dataclass

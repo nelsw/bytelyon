@@ -30,71 +30,15 @@ class BotJob implements ShouldBeUnique, ShouldQueue
     public function handle(): void
     {
 
-        if (! $this->check()) {
+        if ($this->bot->isNotRunnable()) {
             return;
         }
 
-        $payload = $this->prepare();
-
-        $result = $this->run($payload);
-
-        Log::info('BotJob::handle - worked', [
-            ...$payload,
-            ...['result' => $result],
-        ]);
-
-        if ($result !== 'ok') {
-            $this->fail($result);
-        }
-    }
-
-    private function check(): bool
-    {
-        if (! $this->bot->enabled) {
-            Log::info('BotJob::handle - bot disabled', ['id' => $this->bot->id]);
-            return false;
-        }
-
-        if ($this->bot->last_run_at === null) {
-            return true;
-        }
-
-        $nextRunAt = $this->bot->last_run_at->add($this->bot->frequency->interval());
-        if ($nextRunAt->isFuture()) {
-            Log::info('BotJob::handle - too soon', [
-                'id' => $this->bot->id,
-                'nextRunAt' => $nextRunAt,
-            ]);
-            return false;
-        }
-
-        return true;
-    }
-
-    private function prepare(): array
-    {
-        $payload = [
-            'id' => $this->bot->id,
-            'type' => $this->bot->type,
-            'query' => $this->bot->query,
-            'headless' => $this->bot->headless,
-            'last_run_at' => ($this->bot->last_run_at ?? now()->subYear()),
-        ];
-
-        if ($this->bot->type === BotType::Sitemap) {
-            $payload['sitemap_id'] = $this->bot->sitemap()->firstOrCreate(['domain' => $payload['query']])->id;
-        } elseif ($this->bot->type === BotType::Search) {
-            $payload['serp_id'] = $this->bot->serp()->firstOrCreate(['query' => $payload['query']])->id;
-        }
-
-        return $payload;
-    }
-
-    private function run(array $payload): string
-    {
         $bro = Redis::connection('broker');
+
         $bro->del("bot:{$this->bot->id}:done");
-        $bro->set("bot:{$this->bot->id}:ready", json_encode($payload));
+        $bro->set("bot:{$this->bot->id}:ready", $this->bot->toJson());
+
         while ($bro->get("bot:{$this->bot->id}:done") === null) {
             if ($bro->exists("bot:{$this->bot->id}:ready")) {
                 Log::debug('BotJob::handle - waiting...');
@@ -104,7 +48,18 @@ class BotJob implements ShouldBeUnique, ShouldQueue
                 sleep(60);
             }
         }
-        return $bro->getDel("bot:{$this->bot->id}:done");
+
+        $result = $bro->getDel("bot:{$this->bot->id}:done");
+
+        Log::info('BotJob::handle - worked', [
+            'type' => $this->bot->type,
+            'query' => $this->bot->query,
+            'result' => $result
+        ]);
+
+        if ($result !== 'ok') {
+            $this->fail($result);
+        }
     }
 
     public function failed(?Throwable $e): void

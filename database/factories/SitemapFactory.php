@@ -30,4 +30,14 @@ class SitemapFactory extends Factory
             'deleted_at' => now(),
         ]);
     }
+
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Sitemap $sitemap) {
+            Sitemap::withTrashed()
+                ->where('bot_id', $sitemap->bot_id)
+                ->whereKeyNot($sitemap->id)
+                ->forceDelete();
+        });
+    }
 }

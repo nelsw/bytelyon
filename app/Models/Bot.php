@@ -119,8 +119,8 @@ class Bot extends Model
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
             'childId' => match ($this->type) {
-                BotType::Search => $this->serp?->id ?? 0,
-                BotType::Sitemap => $this->sitemap?->id ?? 0,
+                BotType::Search => $this->serp->id ?? 0,
+                BotType::Sitemap => $this->sitemap->id ?? 0,
                 default => -1,
             },
             'pageCount' => match ($this->type) {
@@ -133,14 +133,14 @@ class Bot extends Model
 
     public function toJson($options = 0): string
     {
-        return json_encode([
+        return collect([
             'id' => $this->id,
             'type' => $this->type,
             'query' => $this->query,
             'blacklist' => explode("\n", $this->blacklist),
             'headless' => $this->headless,
             'last_run_at' => ($this->last_run_at ?? now()->subYear()),
-        ], $options);
+        ])->toJson($options);
     }
 
     public function isRunnable(): bool

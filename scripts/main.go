@@ -23,10 +23,10 @@ import (
 type Queue struct {
 	sync.Mutex
 	sync.WaitGroup
+	*time.Ticker
 	wip  map[int]bool
 	less chan *Bot
 	full chan *Bot
-	tick *time.Ticker
 }
 
 func Start(
@@ -35,85 +35,77 @@ func Start(
 	pollingInterval int,
 ) *Queue {
 	q := &Queue{
-		wip:  make(map[int]bool),
-		less: make(chan *Bot),
-		full: make(chan *Bot),
-		tick: time.NewTicker(time.Second * time.Duration(pollingInterval)),
+		wip:    make(map[int]bool),
+		less:   make(chan *Bot),
+		full:   make(chan *Bot),
+		Ticker: time.NewTicker(time.Second * time.Duration(pollingInterval)),
 	}
-	q.work(q.full, headfullWorkers)
-	q.work(q.less, headfullWorkers)
-	go q.Poll()
+
+	ƒ := func(count int, c chan *Bot) {
+        for range count {
+      		q.Go(func() {
+     			for b := range c {
+    				if cb, ok := q.check(b); ok {
+       					b.Run(cb)
+    				}
+     			}
+      		})
+       	}
+	}
+
+	ƒ(headfullWorkers, q.full)
+	ƒ(headlessWorkers, q.less)
+	
 	return q
 }
 
 func (q *Queue) MarshalZerologObject(evt *zerolog.Event) {
-	evt.Str("name", "queue").
-		Int("wip", len(q.wip)).
+	evt.Int("wip", len(q.wip)).
 		Int("less", len(q.less)).
 		Int("full", len(q.full))
 }
 
-func (q *Queue) Quit() {
-	q.tick.Stop()
-	close(q.less)
-	close(q.full)
-	q.Wait()
-}
-
-func (q *Queue) check(b *Bot) (cb func(b *Bot), ok bool) {
+func (q *Queue) check(b *Bot) (func(b *Bot), bool) {
 	q.Lock()
 	defer q.Unlock()
-	if _, ok = q.wip[b.ID]; !ok {
-		q.wip[b.ID] = true
+	if q.wip[b.ID] {
+		return nil, false
 	}
+	q.wip[b.ID] = true
 	return func(b *Bot) {
 		q.Lock()
 		defer q.Unlock()
 		delete(q.wip, b.ID)
-	}, ok
+	}, true
 }
 
 func (q *Queue) Poll() {
-	for range q.tick.C {
-		res, err := http.DefaultClient.Do(req)
-		if err != nil {
-			log.Err(err).Msg("Failed to get bots")
-		}
-		defer func() {
-			_ = res.Body.Close()
-		}()
-
-		var body []byte
-		if body, err = io.ReadAll(res.Body); err != nil {
-			log.Err(err).Msg("Failed to read response body")
-		}
-
-		var bots []Bot
-		if err = json.Unmarshal(body, &bots); err != nil {
-			log.Err(err).Bytes("body", body).Msg("Failed to unmarshal bots")
-		}
-
-		for _, b := range bots {
-			if b.Headless {
-				q.less <- &b
-			} else {
-				q.full <- &b
-			}
-		}
-		log.Info().EmbedObject(q).Send()
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Err(err).Msg("Failed to get bots")
 	}
-}
+	defer func() {
+		_ = res.Body.Close()
+	}()
 
-func (q *Queue) work(c chan *Bot, count int)  {
-    for range count {
-			q.Go(func() {
-				for b := range c {
-					if cb, ok := q.check(b); ok {
-						b.Run(cb)
-					}
-				}
-			})
+	var body []byte
+	if body, err = io.ReadAll(res.Body); err != nil {
+		log.Err(err).Msg("Failed to read response body")
+	}
+
+	var bots []Bot
+	if err = json.Unmarshal(body, &bots); err != nil {
+		log.Err(err).Bytes("body", body).Msg("Failed to unmarshal bots")
+	}
+
+	for _, b := range bots {
+		if b.Headless {
+			q.less <- &b
+		} else {
+			q.full <- &b
 		}
+	}
+	log.Info().EmbedObject(q).Send()
 }
 
 type Bot struct {
@@ -139,6 +131,8 @@ func (b *Bot) MarshalZerologObject(evt *zerolog.Event) {
 func (b *Bot) Run(done func(b *Bot)) {
 
 	defer done(b)
+
+	log.Info().EmbedObject(b).Msg("running...")
 
 	args := []string{
 		"-i", strconv.Itoa(b.ID),
@@ -199,11 +193,20 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	<-quit
-	fmt.Println()// newline for ^C buffer entry
-
-	q.Quit()
-	log.Log().Msg("👋") 
+	for {
+		select {
+		case <-q.C:
+			q.Poll()
+		case <-quit:
+			fmt.Println() // newline for ^C buffer entry
+			q.Stop()
+			close(q.less)
+			close(q.full)
+			q.Wait()
+			log.Log().Msg("👋")
+			return
+		}
+	}
 }
 
 func makeLogger() zerolog.Logger {

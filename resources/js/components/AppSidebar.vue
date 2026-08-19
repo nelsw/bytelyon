@@ -5,7 +5,6 @@ import {
     Network,
     LayoutDashboard,
     Newspaper,
-    Plus,
     Search,
 } from '@lucide/vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -25,11 +24,6 @@ import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
-    {
-        title: 'New Bot',
-        href: '/bots/create',
-        icon: Plus,
-    },
     {
         title: 'Dashboard',
         href: dashboard(),

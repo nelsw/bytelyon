@@ -3,8 +3,6 @@ sail = ./vendor/bin/sail
 pint = ./vendor/bin/pint
 exec = docker compose exec laravel.test sh -c
 
-it: down build up
-
 clean:
 	@truncate -s 0 storage/logs/browser.log storage/logs/laravel.log
 	@rm -rf bootstrap/cache/* reports/* storage/framework/sessions/*
@@ -16,7 +14,7 @@ install:
 build:
 	@$(sail) build --no-cache
 
-up:
+up: build
 	@$(sail) up -d
 	@$(exec) "npm run dev && php artisan horizon"
 
@@ -24,7 +22,7 @@ down:
 	@$(sail) down --remove-orphans --rmi local
 
 destroy:
-	@$(sail) down -v --remove-orphans --rmi all
+	@$(sail) down laravel.test -v --remove-orphans --rmi all
 
 lint:
 	@$(pint) --parallel

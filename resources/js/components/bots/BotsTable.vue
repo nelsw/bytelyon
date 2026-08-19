@@ -2,8 +2,9 @@
 import { Link, router } from '@inertiajs/vue3';
 import { ArrowDown, ArrowUp, ArrowUpDown } from '@lucide/vue';
 import { computed } from 'vue';
+import BotDrawer from '@/components/BotDrawer.vue';
 import DeleteBotButton from '@/components/bots/DeleteBotButton.vue';
-import EditButton from '@/components/EditButton.vue';
+import EditBotButton from '@/components/EditBotButton.vue';
 import { Badge } from '@/components/ui/badge';
 import BotTypeIcon from '@/components/ui/BotTypeIcon.vue';
 import { Button } from '@/components/ui/button';
@@ -141,9 +142,11 @@ function onRowClick(row: BotRow): void {
         <p class="mt-2 text-sm text-muted-foreground">
             Create your first bot to start tracking queries and schedules.
         </p>
-        <Button as-child class="mt-4">
-            <Link href="/bots/create">Create your first bot</Link>
-        </Button>
+        <BotDrawer>
+            <template #trigger>
+                <Button class="mt-4">Create your first bot</Button>
+            </template>
+        </BotDrawer>
     </div>
 
     <div
@@ -395,7 +398,7 @@ function onRowClick(row: BotRow): void {
                             <div
                                 class="flex flex-wrap items-center justify-end gap-2"
                             >
-                                <EditButton :href="`/bots/${bot.id}/edit`" />
+                                <EditBotButton :bot="bot" />
                                 <DeleteBotButton
                                     :bot-id="bot.id"
                                     :bot-query="bot.query"

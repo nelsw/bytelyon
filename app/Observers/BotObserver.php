@@ -11,6 +11,17 @@ class BotObserver
 {
     public function created(Bot $bot): void
     {
+        switch ($bot->type) {
+            case BotType::Search:
+                $bot->serp()->create(['query' => $bot->query]);
+                break;
+            case BotType::Sitemap:
+                $bot->sitemap()->create(['domain' => $bot->query]);
+                break;
+            case BotType::News:
+                // nothing to prepare, yet.
+                break;
+        }
         BotJob::dispatch($bot);
     }
 

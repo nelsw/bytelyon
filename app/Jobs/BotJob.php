@@ -30,17 +30,25 @@ class BotJob implements ShouldBeUnique, ShouldQueue
     public function handle(): void
     {
 
-        if (! $this->check()) {
+        if ($this->bot->isNotRunnable()) {
             return;
         }
 
-        $payload = $this->prepare();
+        $bro = Redis::connection('broker');
 
-        $result = $this->run($payload);
+        $bro->set("bot:{$this->bot->id}:todo", $this->bot->toJson());
+
+        /** @var string|bool $result */
+        $result = false;
+        while ($result === false) {
+            sleep(15);
+            $result = $bro->getDel("bot:{$this->bot->id}:done");
+        }
 
         Log::info('BotJob::handle - worked', [
-            ...$payload,
-            ...['result' => $result],
+            'type' => $this->bot->type,
+            'query' => $this->bot->query,
+            'result' => $result
         ]);
 
         if ($result !== 'ok') {
@@ -48,67 +56,17 @@ class BotJob implements ShouldBeUnique, ShouldQueue
         }
     }
 
-    private function check(): bool
-    {
-        if (! $this->bot->enabled) {
-            Log::info('BotJob::handle - bot disabled', ['id' => $this->bot->id]);
-            return false;
-        }
-
-        if ($this->bot->last_run_at === null) {
-            return true;
-        }
-
-        $nextRunAt = $this->bot->last_run_at->add($this->bot->frequency->interval());
-        if ($nextRunAt->isFuture()) {
-            Log::info('BotJob::handle - too soon', [
-                'id' => $this->bot->id,
-                'nextRunAt' => $nextRunAt,
-            ]);
-            return false;
-        }
-
-        return true;
-    }
-
-    private function prepare(): array
-    {
-        $payload = [
-            'id' => $this->bot->id,
-            'type' => $this->bot->type,
-            'query' => $this->bot->query,
-            'headless' => $this->bot->headless,
-            'last_run_at' => ($this->bot->last_run_at ?? now()->subYear()),
-        ];
-
-        if ($this->bot->type === BotType::Sitemap) {
-            $payload['sitemap_id'] = $this->bot->sitemap()->firstOrCreate(['domain' => $payload['query']])->id;
-        } elseif ($this->bot->type === BotType::Search) {
-            $payload['serp_id'] = $this->bot->serp()->firstOrCreate(['query' => $payload['query']])->id;
-        }
-
-        return $payload;
-    }
-
-    private function run(array $payload): string
-    {
-        $bro = Redis::connection('broker');
-        $bro->del("bot:{$this->bot->id}:done");
-        $bro->set("bot:{$this->bot->id}:ready", json_encode($payload));
-        while ($bro->get("bot:{$this->bot->id}:done") === null) {
-            if ($bro->exists("bot:{$this->bot->id}:ready")) {
-                Log::debug('BotJob::handle - waiting...');
-                sleep(30);
-            } else {
-                Log::debug('BotJob::handle - working!!!');
-                sleep(60);
-            }
-        }
-        return $bro->getDel("bot:{$this->bot->id}:done");
-    }
-
     public function failed(?Throwable $e): void
     {
+        try {
+            Redis::connection('broker')
+                ->set("bot:{$this->bot->id}:todo", $this->bot->toJson());
+        } catch (Throwable $e) {
+            Log::error('BotJob::failed - failed to set todo in failure block', [
+                'exception' => $e,
+                'bot.id' => $this->uniqueId(),
+            ]);
+        }
         Log::error('BotJob::failed', [
             'exception' => $e,
             'bot.id' => $this->uniqueId(),

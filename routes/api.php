@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ApiController;
 use App\Http\Middleware\CheckApiKey;
+use Illuminate\Support\Facades\Route;
 
 Route::middleware(CheckApiKey::class)->name('api.')->controller(ApiController::class)->group(function () {
 

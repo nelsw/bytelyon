@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @property-read Collection<int, Article> $articles
@@ -140,5 +141,39 @@ class Bot extends Model
             'headless' => $this->headless,
             'last_run_at' => ($this->last_run_at ?? now()->subYear()),
         ], $options);
+    }
+
+    public function isRunnable(): bool
+    {
+        if (!$this->enabled) {
+            Log::debug('Bot is disabled', [
+                'id' => $this->id,
+                'type' => $this->type,
+                'query' => $this->query,
+            ]);
+            return false;
+        }
+
+        $nextRunAt = now();
+        if ($this->last_run_at !== null) {
+            $nextRunAt = $this->last_run_at->add($this->frequency->interval());
+        }
+
+        if ($nextRunAt->isFuture()) {
+            Log::debug('Bot is not due to run yet', [
+                'id' => $this->id,
+                'type' => $this->type,
+                'query' => $this->query,
+                'nextRunAt' => $nextRunAt,
+            ]);
+            return false;
+        }
+
+        return true;
+    }
+
+    public function isNotRunnable(): bool
+    {
+        return !$this->isRunnable();
     }
 }

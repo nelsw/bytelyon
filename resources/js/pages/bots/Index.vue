@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
+import BotDrawer from '@/components/BotDrawer.vue';
 import BotsTable from '@/components/bots/BotsTable.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -46,9 +47,11 @@ defineProps<{
                 </p>
             </div>
 
-            <Button as-child size="sm">
-                <Link href="/bots/create">Create bot</Link>
-            </Button>
+            <BotDrawer>
+                <template #trigger>
+                    <Button size="sm">Create bot</Button>
+                </template>
+            </BotDrawer>
         </div>
 
         <Card>

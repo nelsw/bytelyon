@@ -62,7 +62,7 @@ defineProps<{
             </div>
 
             <div class="flex items-center gap-2">
-                <EditBotButton :bot-id="bot.id" />
+                <EditBotButton :bot="bot" />
                 <DeleteBotButton :bot-id="bot.id" :bot-query="bot.query" />
             </div>
         </div>

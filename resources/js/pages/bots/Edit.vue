@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import BotForm from '@/components/bots/BotForm.vue';
 import DeleteBotButton from '@/components/bots/DeleteBotButton.vue';
 import {
@@ -79,13 +79,11 @@ defineProps<{
 
             <CardContent>
                 <BotForm
-                    :action="`/bots/${bot.id}`"
-                    method="put"
-                    submit-label="Save"
                     :bot="bot"
                     :type-options="typeOptions"
                     :frequency-options="frequencyOptions"
-                    :cancel-href="`/bots/${bot.id}`"
+                    show-cancel
+                    @cancel="router.visit(`/bots/${bot.id}`)"
                 />
             </CardContent>
         </Card>

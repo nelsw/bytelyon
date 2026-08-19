@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
 import { ArrowDown, ArrowUp, ArrowUpDown, Code, Wallpaper } from '@lucide/vue';
 import { computed, ref } from 'vue';
+import BotDrawer from '@/components/BotDrawer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -183,13 +184,22 @@ function dataEntries(
                 </div>
                 <div class="w-full text-center md:w-11/12">
                     <span v-for="q in serp.similarQueries" :key="q" class="p-1">
-                        <Badge class="my-2 capitalize" variant="outline">
-                            <Link
-                                :href="`/bots/create?query=${q}&type=search&frequency=daily`"
-                            >
-                                {{ q }}
-                            </Link>
-                        </Badge>
+                        <BotDrawer
+                            :bot="{
+                                query: q,
+                                type: 'search',
+                                frequency: 'daily',
+                            }"
+                        >
+                            <template #trigger>
+                                <Badge
+                                    class="my-2 cursor-pointer capitalize"
+                                    variant="outline"
+                                >
+                                    {{ q }}
+                                </Badge>
+                            </template>
+                        </BotDrawer>
                     </span>
                 </div>
             </div>

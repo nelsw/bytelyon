@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
+import BotDrawer from '@/components/BotDrawer.vue';
 import DeleteBotButton from '@/components/bots/DeleteBotButton.vue';
-import EditButton from '@/components/EditButton.vue';
+import EditBotButton from '@/components/EditBotButton.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -11,8 +12,11 @@ import { dashboard } from '@/routes';
 type NewsBot = {
     id: number;
     query: string;
+    type: string;
     enabled: boolean;
     frequency: string;
+    blacklist: string;
+    headless: boolean;
     processedAt: string | null;
     createdAt: string;
     updatedAt: string;
@@ -63,9 +67,11 @@ function openBotArticles(botId: number): void {
                     Create a bot with the "News" type to start collecting
                     articles.
                 </p>
-                <Button as-child class="mt-4">
-                    <Link href="/bots/create">Create bot</Link>
-                </Button>
+                <BotDrawer>
+                    <template #trigger>
+                        <Button class="mt-4">Create bot</Button>
+                    </template>
+                </BotDrawer>
             </div>
             <div v-else class="overflow-x-auto rounded-lg">
                 <table class="w-full min-w-75 text-left text-sm">
@@ -133,9 +139,7 @@ function openBotArticles(botId: number): void {
                                 <div
                                     class="flex flex-wrap items-center justify-end gap-2"
                                 >
-                                    <EditButton
-                                        :href="`/bots/${bot.id}/edit`"
-                                    />
+                                    <EditBotButton :bot="bot" />
                                     <DeleteBotButton
                                         :bot-id="bot.id"
                                         :bot-query="bot.query"

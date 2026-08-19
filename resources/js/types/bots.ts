@@ -4,12 +4,23 @@ export type BotRow = {
     query: string;
     type: string;
     frequency: string;
+    blacklist: string;
     enabled: boolean;
     headless: boolean;
     processedAt: string | null;
     createdAt: string;
     updatedAt: string;
     pageCount: number;
+};
+
+export type BotFormData = {
+    id?: number;
+    query: string;
+    type: string;
+    frequency: string;
+    blacklist: string;
+    enabled: boolean;
+    headless: boolean;
 };
 
 export type BotFilters = {

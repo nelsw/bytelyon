@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
-import BotCreateForm from '@/components/bots/BotCreateForm.vue';
+import { Head, router } from '@inertiajs/vue3';
+import BotForm from '@/components/bots/BotForm.vue';
 import {
     Card,
     CardContent,
@@ -58,9 +58,11 @@ defineProps<{
             </CardHeader>
 
             <CardContent>
-                <BotCreateForm
+                <BotForm
                     :type-options="typeOptions"
                     :frequency-options="frequencyOptions"
+                    show-cancel
+                    @cancel="router.visit('/bots')"
                 />
             </CardContent>
         </Card>

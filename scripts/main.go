@@ -41,17 +41,43 @@ func init() {
 
 	file := "../.env"
 	if profile != "" {
-		file = "../.env." + profile
+		file += "." + profile
 	}
 
 	if err := godotenv.Load(file); err != nil {
 		panic(err)
 	}
 
-	req, _ = http.NewRequest("GET", os.Getenv("API_URL")+"/api/bots", nil)
+	req, _ = http.NewRequest("GET", os.Getenv("API_URL")+"/bots", nil)
 	req.Header.Set("x-api-key", os.Getenv("API_KEY"))
 
-	log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout})
+	log.Logger = zerolog.New(zerolog.ConsoleWriter{
+		Out: os.Stdout,
+		FormatLevel: func(a any) string {
+			if a == nil || a == "<nil>" {
+				a = "   "
+			}
+			switch l := strings.ToUpper(a.(string)[:3]); l {
+			case "TRA":
+				return "\033[0;36m" + l + "\033[0m"
+			case "DEB":
+				return "\033[0;35m" + l + "\033[0m"
+			case "INF":
+				return "\033[0;32m" + l + "\033[0m"
+			case "WAR":
+				return "\033[0;33m" + l + "\033[0m"
+			case "ERR":
+				return "\033[0;31m" + l + "\033[0m"
+			case "FAT", "PAN":
+				return "\033[41m" + "\033[0;37m" + l + "\033[0m"
+			default:
+				return ""
+			}
+		},
+	}).With().Timestamp().Logger()
+
+	log.Log().Str("web.url", os.Getenv("API_URL")).Msg(`🦁 `)
+	log.Log().Str("web.key", os.Getenv("API_KEY")).Msg(`🦁 `)
 }
 
 func main() {
@@ -102,7 +128,7 @@ func poll(full, less chan *Bot) {
 
 	var bots []Bot
 	if err = json.Unmarshal(body, &bots); err != nil {
-		log.Err(err).Msg("Failed to unmarshal bots")
+		log.Err(err).Bytes("body", body).Msg("Failed to unmarshal bots")
 	}
 
 	for _, b := range bots {

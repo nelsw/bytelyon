@@ -19,7 +19,6 @@ class BotObserver
                 $bot->sitemap()->create(['domain' => $bot->query]);
                 break;
             case BotType::News:
-                // nothing to prepare, yet.
                 break;
         }
         BotJob::dispatch($bot);

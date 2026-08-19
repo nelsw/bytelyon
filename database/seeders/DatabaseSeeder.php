@@ -13,12 +13,14 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        $user = User::factory()
-            ->verified()
-            ->create([
-                'name' => 'Test User',
-                'email' => 'test@example.com',
-            ]);
+        $user = User::query()
+            ->whereEmail('test@example.com')
+            ->firstOr(fn () => User::factory()
+                ->verified()
+                ->create([
+                    'name' => 'Test User',
+                    'email' => 'test@example.com',
+                ]));
 
         Bot::factory()
             ->for($user)

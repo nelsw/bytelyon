@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasUser;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Model;
@@ -15,9 +16,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $default_author_name
  * @property string|null $default_blog_id
  * @property string $store
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property-read \App\Models\User|null $user
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read User|null $user
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Shopify newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Shopify newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Shopify query()
@@ -30,6 +32,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Shopify whereStore($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Shopify whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Shopify whereUserId($value)
+ *
  * @mixin \Eloquent
  */
 #[Fillable('client_id', 'client_secret', 'default_author_name', 'default_blog_id', 'store')]

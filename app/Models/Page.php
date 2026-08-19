@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Observers\PageObserver;
 use App\Traits\HasScreenshot;
+use Carbon\CarbonImmutable;
 use Database\Factories\PageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -20,14 +21,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $title
  * @property string|null $screenshot_key
  * @property array<array-key, mixed>|null $meta
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property \Carbon\CarbonImmutable|null $deleted_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $deleted_at
  * @property string $pageable_type
  * @property int $pageable_id
  * @property string|null $kind
  * @property int|null $index
  * @property-read Model|\Eloquent $pageable
+ *
  * @method static \Database\Factories\PageFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Page newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Page newQuery()
@@ -48,6 +50,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Page whereUrl($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Page withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Page withoutTrashed()
+ *
  * @mixin \Eloquent
  */
 #[Fillable('domain', 'meta', 'screenshot_key', 'title', 'url', 'kind', 'index')]

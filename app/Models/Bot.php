@@ -8,6 +8,7 @@ use App\Enums\FrequencyType;
 use App\Observers\BotObserver;
 use App\Policies\BotPolicy;
 use App\Traits\HasUser;
+use Carbon\CarbonImmutable;
 use Database\Factories\BotFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -27,7 +28,9 @@ use Illuminate\Support\Facades\Log;
  * @property-read Serp|null $serp
  * @property-read Sitemap|null $sitemap
  * @property-read User|null $user
+ *
  * @method static BotBuilder query()
+ *
  * @property int $id
  * @property string|null $blacklist
  * @property bool $enabled
@@ -35,13 +38,14 @@ use Illuminate\Support\Facades\Log;
  * @property FrequencyType $frequency
  * @property string $query
  * @property BotType $type
- * @property \Carbon\CarbonImmutable|null $last_run_at
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property \Carbon\CarbonImmutable|null $deleted_at
+ * @property CarbonImmutable|null $last_run_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $deleted_at
  * @property int $user_id
  * @property string|null $last_run_result
  * @property-read int|null $articles_count
+ *
  * @method static BotBuilder<static>|Bot enabled(bool $b = true)
  * @method static \Database\Factories\BotFactory factory($count = null, $state = [])
  * @method static BotBuilder<static>|Bot headless(bool $b = true)
@@ -65,6 +69,7 @@ use Illuminate\Support\Facades\Log;
  * @method static BotBuilder<static>|Bot whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Bot withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Bot withoutTrashed()
+ *
  * @mixin \Eloquent
  */
 #[Fillable('enabled', 'frequency', 'query', 'type', 'last_run_at', 'headless')]
@@ -145,7 +150,7 @@ class Bot extends Model
 
     public function isRunnable(): bool
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             Log::debug('Bot is disabled', [
                 'id' => $this->id,
                 'type' => $this->type,
@@ -174,6 +179,6 @@ class Bot extends Model
 
     public function isNotRunnable(): bool
     {
-        return !$this->isRunnable();
+        return ! $this->isRunnable();
     }
 }

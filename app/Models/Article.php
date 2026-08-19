@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasBot;
+use Carbon\CarbonImmutable;
 use Closure;
 use Database\Factories\ArticleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -17,20 +18,21 @@ use Illuminate\Support\Str;
 /**
  * @property int $id
  * @property string $title
- * @property \Carbon\CarbonImmutable $published_at
+ * @property CarbonImmutable $published_at
  * @property string|null $img_alt
  * @property string|null $img_url
  * @property string|null $source
  * @property array<array-key, mixed>|null $keywords
  * @property string|null $description
  * @property string|null $body
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property \Carbon\CarbonImmutable|null $deleted_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $deleted_at
  * @property int $bot_id
  * @property string|null $publisher
  * @property string $url
- * @property-read \App\Models\Bot|null $bot
+ * @property-read Bot|null $bot
+ *
  * @method static \Database\Factories\ArticleFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Article newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Article newQuery()
@@ -53,6 +55,7 @@ use Illuminate\Support\Str;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Article whereUrl($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Article withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Article withoutTrashed()
+ *
  * @mixin \Eloquent
  */
 #[Fillable([

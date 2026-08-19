@@ -2,21 +2,26 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
 use Illuminate\Auth\MustVerifyEmail as HasEmailVerification;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Notifications\DatabaseNotificationCollection;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
+use Laravel\Passkeys\Passkey;
 
 /**
  * @property int $id
@@ -31,16 +36,17 @@ use Laravel\Fortify\PasskeyAuthenticatable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property string|null $timezone
- * @property \Carbon\CarbonImmutable|null $deleted_at
+ * @property CarbonImmutable|null $deleted_at
  * @property string|null $img_url
- * @property-read \App\Models\Anthropic|null $anthropic
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Bot> $bots
+ * @property-read Anthropic|null $anthropic
+ * @property-read Collection<int, Bot> $bots
  * @property-read int|null $bots_count
- * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
+ * @property-read DatabaseNotificationCollection<int, DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \Laravel\Passkeys\Passkey> $passkeys
+ * @property-read Collection<int, Passkey> $passkeys
  * @property-read int|null $passkeys_count
- * @property-read \App\Models\Shopify|null $shopify
+ * @property-read Shopify|null $shopify
+ *
  * @method static \Database\Factories\UserFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newQuery()
@@ -58,6 +64,7 @@ use Laravel\Fortify\PasskeyAuthenticatable;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User withoutTrashed()
+ *
  * @mixin \Eloquent
  */
 #[Fillable('name', 'email', 'password', 'img_url')]

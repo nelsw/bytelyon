@@ -6,11 +6,13 @@ use App\Builders\SitemapBuilder;
 use App\Observers\SitemapObserver;
 use App\Traits\HasBot;
 use App\Traits\HasPages;
+use Carbon\CarbonImmutable;
 use Database\Factories\SitemapFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -19,13 +21,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $id
  * @property string $domain
  * @property array<array-key, mixed>|null $urls
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property \Carbon\CarbonImmutable|null $deleted_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $deleted_at
  * @property int $bot_id
- * @property-read \App\Models\Bot|null $bot
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Page> $pages
+ * @property-read Bot|null $bot
+ * @property-read Collection<int, Page> $pages
  * @property-read int|null $pages_count
+ *
  * @method static SitemapBuilder<static>|Sitemap byDomain()
  * @method static \Database\Factories\SitemapFactory factory($count = null, $state = [])
  * @method static SitemapBuilder<static>|Sitemap newModelQuery()
@@ -42,6 +45,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @method static SitemapBuilder<static>|Sitemap whereUrls($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Sitemap withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Sitemap withoutTrashed()
+ *
  * @mixin \Eloquent
  */
 #[Fillable('bot_id', 'domain', 'urls')]

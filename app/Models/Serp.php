@@ -7,29 +7,33 @@ use App\Observers\SerpObserver;
 use App\Traits\HasBot;
 use App\Traits\HasPages;
 use App\Traits\HasScreenshot;
+use Carbon\CarbonImmutable;
 use Database\Factories\SerpFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @method static SerpBuilder query()
+ *
  * @property int $id
  * @property string $query
  * @property string|null $screenshot_key
  * @property array<array-key, mixed>|null $data
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property \Carbon\CarbonImmutable|null $deleted_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $deleted_at
  * @property int $bot_id
  * @property string|null $content_key
- * @property-read \App\Models\Bot|null $bot
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Page> $pages
+ * @property-read Bot|null $bot
+ * @property-read Collection<int, Page> $pages
  * @property-read int|null $pages_count
+ *
  * @method static SerpBuilder<static>|Serp byQuery()
  * @method static \Database\Factories\SerpFactory factory($count = null, $state = [])
  * @method static SerpBuilder<static>|Serp newModelQuery()
@@ -47,6 +51,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @method static SerpBuilder<static>|Serp whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Serp withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Serp withoutTrashed()
+ *
  * @mixin \Eloquent
  */
 #[Fillable('query', 'data', 'screenshot_key', 'content_key')]

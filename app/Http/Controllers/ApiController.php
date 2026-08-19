@@ -36,7 +36,7 @@ class ApiController extends Controller
     public function bot(Request $request, Bot $bot): JsonResponse
     {
         $bro = Redis::connection('broker');
-        $result=$request->input('result');
+        $result = $request->input('result');
         $bro->set("bot:$bot->id:done", $result);
         if ($result === 'ok') {
             $bot->update(['last_run_at' => now()]);

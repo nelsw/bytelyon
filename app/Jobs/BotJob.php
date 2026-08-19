@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Enums\BotType;
 use App\Models\Bot;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -48,7 +47,7 @@ class BotJob implements ShouldBeUnique, ShouldQueue
         Log::info('BotJob::handle - worked', [
             'type' => $this->bot->type,
             'query' => $this->bot->query,
-            'result' => $result
+            'result' => $result,
         ]);
 
         if ($result !== 'ok') {

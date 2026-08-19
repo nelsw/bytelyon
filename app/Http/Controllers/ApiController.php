@@ -30,13 +30,17 @@ class ApiController extends Controller
         if (! is_array($keys)) {
             return response()->json();
         }
-        return response()->json(Arr::map($keys, fn (string $key) => json_decode($bro->get($key), true)));
+        return response()->json(Arr::map($keys, fn (string $key) => json_decode($bro->getDel($key), true)));
     }
 
     public function bot(Request $request, Bot $bot): JsonResponse
     {
-        $bot->update(['last_run_at' => now()]);
-        Redis::connection('broker')->set("bot:$bot->id:done", $request->input('result'));
+        $bro = Redis::connection('broker');
+        $result=$request->input('result');
+        $bro->set("bot:$bot->id:done", $result);
+        if ($result === 'ok') {
+            $bot->update(['last_run_at' => now()]);
+        }
         return response()->json();
     }
 

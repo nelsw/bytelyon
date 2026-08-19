@@ -58,6 +58,15 @@ class BotJob implements ShouldBeUnique, ShouldQueue
 
     public function failed(?Throwable $e): void
     {
+        try {
+            Redis::connection('broker')
+                ->set("bot:{$this->bot->id}:todo", $this->bot->toJson());
+        } catch (Throwable $e) {
+            Log::error('BotJob::failed - failed to set todo in failure block', [
+                'exception' => $e,
+                'bot.id' => $this->uniqueId(),
+            ]);
+        }
         Log::error('BotJob::failed', [
             'exception' => $e,
             'bot.id' => $this->uniqueId(),

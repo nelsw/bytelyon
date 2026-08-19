@@ -156,7 +156,7 @@ class Bot extends Model
 
         $nextRunAt = now();
         if ($this->last_run_at !== null) {
-            $nextRunAt = $this->last_run_at->add($this->frequency->interval);
+            $nextRunAt = $this->last_run_at->add($this->frequency->interval());
         }
 
         if ($nextRunAt->isFuture()) {

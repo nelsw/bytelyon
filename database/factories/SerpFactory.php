@@ -36,4 +36,14 @@ class SerpFactory extends Factory
             'deleted_at' => now(),
         ]);
     }
+
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Serp $serp) {
+            Serp::withTrashed()
+                ->where('bot_id', $serp->bot_id)
+                ->whereKeyNot($serp->id)
+                ->forceDelete();
+        });
+    }
 }

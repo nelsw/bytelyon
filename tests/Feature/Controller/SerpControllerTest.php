@@ -11,6 +11,8 @@ class SerpControllerTest extends TestCase
 {
     public function test_authenticated_verified_users_can_view_available_serps(): void
     {
+        Serp::query()->delete();
+
         $user = User::factory()->verified()->create();
 
         Serp::factory()->create();

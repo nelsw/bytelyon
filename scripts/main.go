@@ -1,173 +1,49 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
-	"fmt"
-	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
-	"strconv"
-	"strings"
-	"sync"
 	"syscall"
-	"time"
 
-	"github.com/joho/godotenv"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
-type Bot struct {
-	ID        int       `json:"id"`
-	Type      string    `json:"type"`
-	Query     string    `json:"query"`
-	Headless  bool      `json:"headless"`
-	LastRunAt time.Time `json:"last_run_at"`
-	SitemapID int       `json:"sitemap_id"`
-	SearchID  int       `json:"serp_id"`
-	Blacklist []string  `json:"blacklist"`
-}
-
 var req *http.Request
 
-func init() {
-
-    var profile string
-	flag.StringVar(&profile, "profile", "", "local (default), testing, production")
-	flag.Parse()
-
-	file := "../.env"
-	if profile != "" {
-		file += "." + profile
-	}
-
-	if err := godotenv.Load(file); err != nil {
-		panic(err)
-	}
-
-	req, _ = http.NewRequest("GET", os.Getenv("API_URL")+"/bots", nil)
-	req.Header.Set("x-api-key", os.Getenv("API_KEY"))
-
-	log.Logger = zerolog.New(zerolog.ConsoleWriter{
-		Out: os.Stdout,
-		FormatLevel: func(a any) string {
-			if a == nil || a == "<nil>" {
-				a = "   "
-			}
-			switch l := strings.ToUpper(a.(string)[:3]); l {
-			case "TRA":
-				return "\033[0;36m" + l + "\033[0m"
-			case "DEB":
-				return "\033[0;35m" + l + "\033[0m"
-			case "INF":
-				return "\033[0;32m" + l + "\033[0m"
-			case "WAR":
-				return "\033[0;33m" + l + "\033[0m"
-			case "ERR":
-				return "\033[0;31m" + l + "\033[0m"
-			case "FAT", "PAN":
-				return "\033[41m" + "\033[0;37m" + l + "\033[0m"
-			default:
-				return ""
-			}
-		},
-	}).With().Timestamp().Logger()
-
-	log.Log().Str("web.url", os.Getenv("API_URL")).Msg(`🦁 `)
-	log.Log().Str("web.key", os.Getenv("API_KEY")).Msg(`🦁 `)
-}
-
 func main() {
-	log.Info().Msg("starting...")
 
-	full, less := make(chan *Bot), make(chan *Bot)
+    var key string
+    var poll, full, less int
+	flag.StringVar(&key, "key", "my-random-32-character-x-api-key", "API Auth Key")
+	flag.IntVar(&poll, "poll", 5, "Polling Interval in seconds")
+	flag.IntVar(&full, "full", 1, "Number of full workers")
+	flag.IntVar(&less, "less", 3, "Number of less workers")
+	flag.Parse()
+	
+	if len(key) == 36 {
+	    req, _ = http.NewRequest("GET", "https://bytelyon.com/api/bots", nil)
+	} else {
+	    req, _ = http.NewRequest("GET", "http://localhost:80/api/bots", nil)
+	}
+	req.Header.Set("x-api-key", key)
 
-	var wg sync.WaitGroup
-	work(&wg, full, less)
+	log.Logger = makeLogger()
 
-	tick := time.NewTicker(5 * time.Second)
-
-	quit := make(chan os.Signal, 1)
+	log.Log().Msg(`🦁 `)
+	log.Log().Msg(`🦁 ByteLyon Bot Runner`)
+	log.Log().Str("api", req.RequestURI).Msg(`🦁 `)
+	log.Log().Msg(`🦁 `)
+    
+    q := Start(less, full, poll)
+    
+    quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 
-	for {
-		select {
-		case <-tick.C:
-			poll(full, less)
-		case <-quit:
-		    fmt.Println()
-			log.Info().Msg("stopping...")
-			tick.Stop()
-			close(full)
-			close(less)
-			wg.Wait()
-			log.Info().Msg("👋")
-			return
-		}
-	}
+	q.Quit()
+
+	log.Info().Msgf("\n👋") // newline for ^C buffer entry
 }
 
-func poll(full, less chan *Bot) {
-	log.Info().Msg("polling...")
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Err(err).Msg("Failed to get bots")
-	}
-	defer func() {
-		_ = res.Body.Close()
-	}()
-
-	var body []byte
-	if body, err = io.ReadAll(res.Body); err != nil {
-		log.Err(err).Msg("Failed to read response body")
-	}
-
-	var bots []Bot
-	if err = json.Unmarshal(body, &bots); err != nil {
-		log.Err(err).Bytes("body", body).Msg("Failed to unmarshal bots")
-	}
-
-	for _, b := range bots {
-		if b.Headless {
-			less <- &b
-		} else {
-			full <- &b
-		}
-	}
-}
-
-func work(wg *sync.WaitGroup, full, less chan *Bot) {
-
-	ƒ := func(c chan *Bot) func() {
-		return func() {
-			for b := range c {
-    			args := []string{
-                    strconv.Itoa(b.ID),
-                    b.Type,
-                    b.Query,
-                    strings.Join(b.Blacklist, ","),
-                    b.LastRunAt.Format(time.RFC3339),
-                    strconv.FormatBool(b.Headless),
-                    strconv.Itoa(b.SitemapID),
-                    strconv.Itoa(b.SearchID),
-                }
-
-                if out, err := exec.Command("./main.py", args...).CombinedOutput(); err != nil {
-                   	log.Printf("Command error: %v\n", err)
-                } else {
-                    log.Printf("Command output: %s\n", string(out))
-                }
-			}
-		}
-	}
-
-	wg.Go(ƒ(full))
-	for range 3 {
-		wg.Go(ƒ(less))
-	}
-	log.Info().Msg("working...")
-}

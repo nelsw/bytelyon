@@ -251,7 +251,8 @@ class Bot:
             url = f"https://www.google.com?q={quote(url)}"
         return f"output/{self.id}/{uuid.uuid5(uuid.NAMESPACE_URL, url)}.{ext}"
 
-
+    def print(self) -> None:
+        print(f"Bot {self.id} ({self.type}): {self.query}")
 
 @dataclass
 class Job[T](ABC):
@@ -285,7 +286,7 @@ class Job[T](ABC):
     async def put(
         session: ClientSession, route: str, json_data: dict[str, object | list[object]]
     ) -> None:
-        _ = await session.put(
+        response = await session.put(
             url=f"{os.getenv('APP_URL', default='http://localhost:80')}/api/{route}",
             json=json_data,
             headers={
@@ -293,6 +294,8 @@ class Job[T](ABC):
                 "x-api-key": os.getenv("API_KEY", default=""),
             },
         )
+        print(f"PUT {route} -> \n{json_data}\n{response.status} {await response.text()}")
+        
 
     @staticmethod
     async def content(page: Page) -> bytes:
@@ -301,7 +304,7 @@ class Job[T](ABC):
     async def upload(self, body: bytes, url: str, ext: str = "png") -> str:
         if self.bot.type == Type.search and url.startswith("https://www.google.com"):
             url = f"https://www.google.com?q={quote(url)}"
-        key = f"output/{self.bot.id}/{uuid.uuid5(uuid.NAMESPACE_URL, url)}.{ext}"
+        key = f"{os.getenv('APP_ENV', default='output')}/{self.bot.id}/{uuid.uuid5(uuid.NAMESPACE_URL, url)}.{ext}"
         async with self.s3_session.client("s3") as s3_client:  # pyright: ignore[reportUnknownMemberType]
             _ = await s3_client.put_object(
                 Body=body,
@@ -405,6 +408,7 @@ class News(Job[Headline]):
                     _ = await page.goto(
                         headline.url, wait_until="domcontentloaded", timeout=5000
                     )
+                    await page.wait_for_timeout(1600)
                     content = await page.content()
                     self.articles.append(Article(headline, Doc(content), page.url))
                     await page.close()
@@ -758,11 +762,18 @@ if __name__ == "__main__":
     _ = parser.add_argument("-t", "--type", type=Type, help="Type of the bot")
     _ = parser.add_argument("-q", "--query", type=str, help="Query for the bot")
     _ = parser.add_argument(
-        "-b", "--blacklist", type=set[str], help="Blacklist for the bot"
+        "-b", "--blacklist", type=set[str], help="Result Blacklist"
     )
     _ = parser.add_argument(
-        "-a", "--after", type=str, help="Results after this date", default=None
+        "-a", "--after", type=str, help="Result date start", default=None
     )
+    _ = parser.add_argument(
+        "-m", "--sitemap", type=int, help="Sitemap ID", default=None
+    )
+    _ = parser.add_argument(
+        "-x", "--search", type=int, help="Search ID", default=None
+    )
+    _ = parser.add_argument("--key", type=str, help="API Auth Key", default="my-random-32-character-x-api-key")
     _ = parser.add_argument(
         "--headless", action="store_true", help="Run in headless mode"
     )
@@ -782,6 +793,8 @@ if __name__ == "__main__":
         after=after,
         headless=cast(bool, args.headless),
     )
+
+    bot.print()
 
     match bot.type:
         case Type.news:

@@ -15,7 +15,6 @@
 # ///
 import argparse
 import asyncio
-import gzip
 import os
 import uuid
 from abc import ABC, abstractmethod
@@ -24,7 +23,7 @@ from dataclasses import InitVar, asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import cast, override
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 from xml.etree.ElementTree import Element, fromstring
 
 import aioboto3
@@ -36,21 +35,14 @@ from dotenv import load_dotenv
 from playwright.async_api import (
     BrowserContext,
     Error,
-    Locator,
     Page,
     async_playwright,
 )
 from pytz import timezone
 from seleniumbase import (  # pyright: ignore[reportMissingTypeStubs]
-    SB,  # pyright: ignore[reportUnknownVariableType]
+    # pyright: ignore[reportUnknownVariableType]
     cdp_driver,
 )
-
-
-class Type(str, Enum):
-    news = "news"
-    search = "search"
-    sitemap = "sitemap"
 
 
 @dataclass
@@ -222,40 +214,18 @@ class Article:
 
 
 @dataclass
-class BotPage:
-    title: str
-    url: str
-    meta: dict[str, list[str]]
-    screenshot_key: str
-    domain: str = field(init=False)
-    index: int | None = None
-    kind: str | None = None
-    
-    def __post_init__(self) -> None:
-        self.domain = str(urlparse(self.url).netloc).removeprefix("www.")
-
-
-@dataclass
 class Bot:
     id: int
-    type: Type
     query: str
     headless: bool
     after: datetime | None = None
-    serp_id: int = field(default_factory=int)
-    sitemap_id: int = field(default_factory=int)
-    blacklist: set[str] = field(default_factory=set)
 
     def object_key(self, url: str, ext: str = "png") -> str:
-        if self.type == Type.search and url.startswith("https://www.google.com"):
-            url = f"https://www.google.com?q={quote(url)}"
         return f"output/{self.id}/{uuid.uuid5(uuid.NAMESPACE_URL, url)}.{ext}"
 
-    def print(self) -> None:
-        print(f"Bot {self.id} ({self.type}): {self.query}")
 
 @dataclass
-class Job[T](ABC):
+class AsyncJob[T](ABC):
     bot: Bot
 
     max_concurrency: int = 5
@@ -295,15 +265,9 @@ class Job[T](ABC):
             },
         )
         print(f"PUT {route} -> \n{json_data}\n{response.status} {await response.text()}")
-        
 
-    @staticmethod
-    async def content(page: Page) -> bytes:
-        return gzip.compress(bytes(await page.content(), "utf-8"))
 
     async def upload(self, body: bytes, url: str, ext: str = "png") -> str:
-        if self.bot.type == Type.search and url.startswith("https://www.google.com"):
-            url = f"https://www.google.com?q={quote(url)}"
         key = f"{os.getenv('APP_ENV', default='output')}/{self.bot.id}/{uuid.uuid5(uuid.NAMESPACE_URL, url)}.{ext}"
         async with self.s3_session.client("s3") as s3_client:  # pyright: ignore[reportUnknownMemberType]
             _ = await s3_client.put_object(
@@ -380,7 +344,7 @@ class Job[T](ABC):
 
 
 @dataclass
-class News(Job[Headline]):
+class News(AsyncJob[Headline]):
     visited_urls: set[str] = field(default_factory=set)
     articles: list[Article] = field(default_factory=list)
 
@@ -468,310 +432,14 @@ class News(Job[Headline]):
                 ]
             )
 
-
-@dataclass
-class Search(Job[str]):
-    similar_queries: set[str] = field(default_factory=set)
-    pages: list[BotPage] = field(default_factory=list)
-    content_key: str = field(default_factory=str)
-    screenshot_key: str = field(default_factory=str)
-    
-    async def add_page(self, page: Page, index: int, kind:str) -> None:
-        self.pages.append(BotPage(
-            title=await page.title(),
-            url=page.url,
-            meta=Doc(html=await page.content()).meta,
-            screenshot_key=await self.upload(
-                body=await self.screenshot(page),
-                url=page.url,
-            ),
-            kind=kind,
-            index=index,
-        ))
-    
-    async def handle_sponsored_products(
-        self, context: BrowserContext, locators: list[Locator]
-    ) -> None:
-        print(f"[ ] Handling Sponsored Products {len(locators)}")
-        idx = 0
-        for loc in locators:
-            domain = await loc.get_attribute("data-dtld")
-            merchant_id = await loc.get_attribute("data-merchant-id")
-            if domain is None or merchant_id is None:
-                continue
-            href = await loc.locator(
-                f'a[data-merchant-id="{merchant_id}"]'
-            ).get_attribute("href")
-            if href is not None:
-                p = await context.new_page()
-                _ = await p.goto(href, wait_until="domcontentloaded", timeout=5000)
-                await self.add_page(page=p, index=idx, kind="sponsored_products")
-                idx += 1
-
-    async def handle_sponsored_results(
-        self, context: BrowserContext, locators: list[Locator]
-    ) -> None:
-        print(f"[ ] Handling Sponsored Results {len(locators)}")
-        idx = 0
-        for loc in locators:
-            domain = await loc.get_attribute("data-pcu")
-            if domain is None:
-                continue
-            href = await loc.get_attribute("href")
-            if href is not None:
-                p = await context.new_page()
-                _ = await p.goto(href, wait_until="domcontentloaded", timeout=5000)
-                await self.add_page(page=p, index=idx, kind="sponsored_results")
-                idx += 1
-
-    async def handle_organic_results(
-        self, context: BrowserContext, locators: list[Locator]
-    ) -> None:
-        print(f"[ ] Handling Organic Results {len(locators)}")
-        idx = 0
-        for loc in locators:
-            href = await loc.locator("xpath=ancestor::a[1]").get_attribute("href")
-            if href is not None:
-                p = await context.new_page()
-                _ = await p.goto(href, wait_until="domcontentloaded", timeout=5000)
-                await self.add_page(page=p, index=idx, kind="organic_results")
-                idx += 1
-
-    async def handle_organic_products(self, context: BrowserContext, p: Page) -> None:
-        locators = await p.locator("product-viewer-entrypoint").all()
-        idx = 0
-        for loc in locators:
-            print(f"[ ] Handling Organic Product {idx}")
-            try:
-                await loc.locator("img").first.click(timeout=3000, force=True)
-            except Error as e:
-                print(f"[!] organic products handler failed: {idx}, {e}")
-                continue
-
-            u = await p.locator("div[data-redirect-url]").first.get_attribute(
-                "data-redirect-url"
-            )
-            if u is not None:
-                np = await context.new_page()
-                _ = await np.goto(url=u, wait_until="domcontentloaded", timeout=5000)
-                await self.add_page(page=p, index=idx, kind="organic_products")
-                idx += 1
-
-    async def handle_similar_queries(self, page: Page) -> None:
-        top = page.locator("div[data-notify-expansion]")
-        bottom = page.locator("div#botstuff").locator("a")
-        for e in await top.all():
-            txt = await e.get_attribute("data-q")
-            if txt and len(txt) > 4:
-                self.similar_queries.add(txt)
-        for a in await bottom.all():
-            txt = await a.text_content()
-            if txt and len(txt) > 4:
-                self.similar_queries.add(txt)
-
-    @override
-    async def pre_process(self):
-        with SB(uc=True) as sb:
-            sb.activate_cdp_mode()  # pyright: ignore[reportUnknownMemberType]
-            endpoint_url = cast(str, sb.get_endpoint_url())  # pyright: ignore[reportUnknownMemberType]
-            async with async_playwright() as p:
-                browser = await p.chromium.connect_over_cdp(endpoint_url)
-                context = browser.contexts[0]
-                page = context.pages[0]
-                try:
-                    _ = page.goto(
-                        "https://www.google.com/ncr", wait_until="domcontentloaded"
-                    )
-                    await self.accept_cookies(page)
-                    search_box = page.locator(
-                        'textarea[name="q"], input[name="q"]'
-                    ).first
-                    await search_box.press_sequentially(self.bot.query, delay=40)
-                    await search_box.press("Enter")
-                    await page.wait_for_load_state("domcontentloaded")
-
-                    captcha = page.locator(
-                        "iframe[src*='recaptcha'], form#captcha-form"
-                    )
-                    if await captcha.count() == 0:
-                        print("[+] Captcha not detected.")
-                    else:
-                        print("[!] Captcha detected!")
-                        try:
-                            sb.cdp.gui_click_captcha()  # pyright: ignore[reportUnknownMemberType]
-                            await asyncio.sleep(5)
-                        except Error as e:
-                            print(f"Automatic captcha solve failed: {e}")
-
-                        waited = 0
-                        while await captcha.count() and waited < 5 * 60:
-                            await asyncio.sleep(3)
-                            waited += 3
-                        if waited >= 5 * 60:
-                            print("[-] Timed out waiting for the CAPTCHA to be solved.")
-                            return
-
-                    _ = await page.wait_for_selector("#search", timeout=20000)
-                    await self.handle_similar_queries(page)
-                    self.content_key = await self.upload(
-                        body=bytes(await page.content(), "utf-8"),
-                        url=page.url,
-                        ext="html",
-                    )  
-                    self.screenshot_key = await self.upload(
-                        body=await self.screenshot(page),
-                        url=page.url,
-                    )
-
-                    await self.handle_organic_products(context, page)
-                    await self.handle_organic_results(
-                        context, await page.locator("h3[id]").all()
-                    )
-                    await self.handle_sponsored_results(
-                        context, await page.locator("[data-pcu]").all()
-                    )
-                    await self.handle_sponsored_products(
-                        context, await page.locator("[data-dtld]").all()
-                    )
-
-                except Error as e:
-                    print(f"Error occurred while running search bot: {e}")
-                finally:
-                    await browser.close()
-
-    @override
-    async def task(self, context: BrowserContext) -> None:
-        pass
-
-    @override
-    async def post_process(self) -> None:
-        async with aiohttp.ClientSession() as session:
-            tasks = [
-                self.put(session,f"searches/{self.bot.serp_id}/page", asdict(page))
-                for page in self.pages
-            ]
-            tasks.append(self.put(session, f"bots/{self.bot.id}/searches",
-            {
-                "data": {
-                    "similar_queries": list(self.similar_queries),
-                },
-                "content_key": self.content_key,
-                "screenshot_key": self.screenshot_key,
-            }))
-            _ = await asyncio.gather(*tasks)
-        
-
-@dataclass
-class Sitemap(Job[str]):
-    urls: set[str] = field(default_factory=set)
-    pages: set[BotPage] = field(default_factory=set)
-    
-    async def extract_links(self, page: Page) -> list[str]:
-        """Returns normalized, same-domain absolute URLs found on the page."""
-        print(f"[ ] Extracting links from page: {page.url}")
-        try:
-            links = set[str]()
-            exp: str = "() => Array.from(document.querySelectorAll('a[href]')).map(a => a.href)"
-            hrefs: list[str | None] = cast(list[str | None], await page.evaluate(exp))
-            for href in hrefs:
-                if href is not None and str(urlparse(href).netloc).removeprefix("www.") == self.bot.query:
-                    parsed = urlparse(href)
-                    links.add(
-                        f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/")
-                    )
-            print(f"[+] Extracted {len(links)} links from page: {page.url}")
-            return list(links)
-        except Error as e:
-            print(f"[-] Error extracting links from {page.url}: {e}")
-            return []
-
-    async def crawl_page(self, context: BrowserContext, url: str) -> list[str]:
-        for attempt in range(1, self.max_retries + 2):
-            async with self.bounder:
-                suffix = (
-                    f" (attempt {attempt}/{self.max_retries + 1})"
-                    if attempt > 1
-                    else ""
-                )
-                print(f"[+] Crawling: {url}{suffix}")
-                page = await context.new_page()
-                try:
-                    _ = await page.goto(url, wait_until="networkidle", timeout=30000)
-                    self.pages.add(BotPage(
-                        title=await page.title(),
-                        url=page.url,
-                        meta=Doc(html=await page.content()).meta,
-                        screenshot_key=await self.upload(
-                            body=await self.screenshot(page),
-                            url=page.url,
-                        ),
-                    ))
-                    return await self.extract_links(page)
-                except Error as e:
-                    if attempt <= self.max_retries:
-                        delay = self.retry_backoff * attempt
-                        print(f"[!] {url} failed ({e}); retrying in {delay:.0f}s")
-                        await asyncio.sleep(delay)
-                finally:
-                    await page.close()
-
-        print(f"[-] Giving up on {url} after {self.max_retries + 1} attempts")
-        return []
-
-    @override
-    async def task(self, context: BrowserContext):
-        while True:
-            url = await self.queue.get()
-            try:
-                async with self.lock:
-                    if url in self.urls:
-                        continue
-                    self.urls.add(url)
-
-                discovered_links = await self.crawl_page(context, url)
-
-                async with self.lock:
-                    for link in discovered_links:
-                        if link not in self.urls:
-                            await self.queue.put(link)
-            finally:
-                self.queue.task_done()
-
-    @override
-    async def pre_process(self):
-        await self.queue.put(f"https://{self.bot.query}")
-
-    @override
-    async def post_process(self):
-        async with aiohttp.ClientSession() as session:
-            tasks = [
-                self.put(session, f"sitemaps/{self.bot.sitemap_id}/page", asdict(p))
-                for p in self.pages
-            ]
-            tasks.append(self.put(session, f"bots/{self.bot.id}/sitemaps", {
-                "urls": sorted(self.urls),
-            }))
-            _ = await asyncio.gather(*tasks)
-
-
 if __name__ == "__main__":
     _ = load_dotenv("../.env")
 
     parser = argparse.ArgumentParser(description="Run a 🤖")
     _ = parser.add_argument("-i", "--id", type=int, help="ID of the bot")
-    _ = parser.add_argument("-t", "--type", type=Type, help="Type of the bot")
     _ = parser.add_argument("-q", "--query", type=str, help="Query for the bot")
     _ = parser.add_argument(
-        "-b", "--blacklist", type=set[str], help="Result Blacklist"
-    )
-    _ = parser.add_argument(
         "-a", "--after", type=str, help="Result date start", default=None
-    )
-    _ = parser.add_argument(
-        "-m", "--sitemap", type=int, help="Sitemap ID", default=None
-    )
-    _ = parser.add_argument(
-        "-x", "--search", type=int, help="Search ID", default=None
     )
     _ = parser.add_argument("--key", type=str, help="API Auth Key", default="my-random-32-character-x-api-key")
     _ = parser.add_argument(
@@ -787,19 +455,9 @@ if __name__ == "__main__":
 
     bot = Bot(
         id=cast(int, args.id),
-        type=cast(Type, args.type),
         query=cast(str, args.query),
-        blacklist=cast(set[str], args.blacklist),
         after=after,
         headless=cast(bool, args.headless),
     )
 
-    bot.print()
-
-    match bot.type:
-        case Type.news:
-            asyncio.run(News(bot).run())
-        case Type.search:
-            asyncio.run(Search(bot).run())
-        case Type.sitemap:
-            asyncio.run(Sitemap(bot).run())
+    asyncio.run(News(bot).run())

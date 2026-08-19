@@ -5,14 +5,19 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type Bot struct {
@@ -26,17 +31,31 @@ type Bot struct {
 	Blacklist []string  `json:"blacklist"`
 }
 
-var url string
-var key string
+var req *http.Request
 
 func init() {
-	flag.StringVar(&url, "url", "http://localhost:80", "URL to poll")
-	flag.StringVar(&key, "key", "my-random-32-character-x-api-key", "API key for authentication")
+
+    var profile string
+	flag.StringVar(&profile, "profile", "", "local (default), testing, production")
 	flag.Parse()
+
+	file := "../.env"
+	if profile != "" {
+		file = "../.env." + profile
+	}
+
+	if err := godotenv.Load(file); err != nil {
+		panic(err)
+	}
+
+	req, _ = http.NewRequest("GET", os.Getenv("API_URL")+"/api/bots", nil)
+	req.Header.Set("x-api-key", os.Getenv("API_KEY"))
+
+	log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout})
 }
 
 func main() {
-	log.Println("starting...")
+	log.Info().Msg("starting...")
 
 	full, less := make(chan *Bot), make(chan *Bot)
 
@@ -53,26 +72,24 @@ func main() {
 		case <-tick.C:
 			poll(full, less)
 		case <-quit:
-			log.Printf("\nstopping...\n")
+		    fmt.Println()
+			log.Info().Msg("stopping...")
 			tick.Stop()
 			close(full)
 			close(less)
 			wg.Wait()
-			log.Println("👋")
+			log.Info().Msg("👋")
 			return
 		}
 	}
 }
 
 func poll(full, less chan *Bot) {
-	log.Println("polling...")
-
-	req, _ := http.NewRequest("GET", url+"/api/bots", nil)
-	req.Header.Set("x-api-key", key)
+	log.Info().Msg("polling...")
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Printf("Failed to get bots: %v", err)
+		log.Err(err).Msg("Failed to get bots")
 	}
 	defer func() {
 		_ = res.Body.Close()
@@ -80,13 +97,12 @@ func poll(full, less chan *Bot) {
 
 	var body []byte
 	if body, err = io.ReadAll(res.Body); err != nil {
-		log.Printf("Failed to read response body: %v", err)
+		log.Err(err).Msg("Failed to read response body")
 	}
 
 	var bots []Bot
-	fmt.Println("Bots:", string(body))
 	if err = json.Unmarshal(body, &bots); err != nil {
-		log.Printf("Failed to unmarshal bots: %v", err)
+		log.Err(err).Msg("Failed to unmarshal bots")
 	}
 
 	for _, b := range bots {
@@ -103,34 +119,22 @@ func work(wg *sync.WaitGroup, full, less chan *Bot) {
 	ƒ := func(c chan *Bot) func() {
 		return func() {
 			for b := range c {
+    			args := []string{
+                    strconv.Itoa(b.ID),
+                    b.Type,
+                    b.Query,
+                    strings.Join(b.Blacklist, ","),
+                    b.LastRunAt.Format(time.RFC3339),
+                    strconv.FormatBool(b.Headless),
+                    strconv.Itoa(b.SitemapID),
+                    strconv.Itoa(b.SearchID),
+                }
 
-				combined(b)
-
-				//data, _ := json.Marshal(b)
-				//
-				//cmd := exec.Command("./main.py", string(data))
-				//
-				//stdout, err := cmd.StdoutPipe()
-				//if err != nil {
-				//	log.Printf("Failed to create stdout pipe: %v\n", err)
-				//	return
-				//}
-				//
-				//if err = cmd.Start(); err != nil {
-				//	log.Printf("Failed to start command: %v\n", err)
-				//	return
-				//}
-				//
-				//scanner := bufio.NewScanner(stdout)
-				//for scanner.Scan() {
-				//	fmt.Printf("%s\n", scanner.Text())
-				//}
-				//
-				//if err = scanner.Err(); err != nil {
-				//	log.Printf("scanner err: %v\n", err)
-				//} else if err = cmd.Wait(); err != nil {
-				//	log.Printf("Command finished with error: %v\n", err)
-				//}
+                if out, err := exec.Command("./main.py", args...).CombinedOutput(); err != nil {
+                   	log.Printf("Command error: %v\n", err)
+                } else {
+                    log.Printf("Command output: %s\n", string(out))
+                }
 			}
 		}
 	}
@@ -139,18 +143,5 @@ func work(wg *sync.WaitGroup, full, less chan *Bot) {
 	for range 3 {
 		wg.Go(ƒ(less))
 	}
-	log.Println("working...")
-}
-
-func combined(b *Bot) {
-	data, _ := json.Marshal(b)
-	cmd := exec.Command("./main.py", string(data))
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("Command finished with error: %v\n", err)
-	} else {
-		fmt.Println(string(out))
-	}
-	fmt.Println(string(out))
-
+	log.Info().Msg("working...")
 }

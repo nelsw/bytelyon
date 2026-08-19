@@ -36,20 +36,14 @@ class BotJob implements ShouldBeUnique, ShouldQueue
 
         $bro = Redis::connection('broker');
 
-        $bro->del("bot:{$this->bot->id}:done");
-        $bro->set("bot:{$this->bot->id}:ready", $this->bot->toJson());
+        $bro->set("bot:{$this->bot->id}:todo", $this->bot->toJson());
 
-        while ($bro->get("bot:{$this->bot->id}:done") === null) {
-            if ($bro->exists("bot:{$this->bot->id}:ready")) {
-                Log::debug('BotJob::handle - waiting...');
-                sleep(30);
-            } else {
-                Log::debug('BotJob::handle - working!!!');
-                sleep(60);
-            }
+        /** @var string|bool $result */
+        $result = false;
+        while ($result === false) {
+            sleep(15);
+            $result = $bro->getDel("bot:{$this->bot->id}:done");
         }
-
-        $result = $bro->getDel("bot:{$this->bot->id}:done");
 
         Log::info('BotJob::handle - worked', [
             'type' => $this->bot->type,

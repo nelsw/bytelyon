@@ -11,7 +11,7 @@ install:
 	@composer install
 	@npm install
 
-build: install
+build:
 	@$(sail) build --no-cache
 
 up: build
@@ -22,7 +22,7 @@ down:
 	@$(sail) down --remove-orphans --rmi local
 
 destroy:
-	@$(sail) down -v --remove-orphans --rmi all
+	@$(sail) down laravel.test -v --remove-orphans --rmi all
 
 lint:
 	@$(pint) --parallel

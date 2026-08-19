@@ -26,11 +26,11 @@ class ApiController extends Controller
     {
         $bro = Redis::connection('broker');
 
-        $keys = $bro->keys('bot:*:ready');
+        $keys = $bro->keys('bot:*:todo');
         if (! is_array($keys)) {
             return response()->json();
         }
-        return response()->json(Arr::map($keys, fn (string $key) => json_decode($bro->getDel($key), true)));
+        return response()->json(Arr::map($keys, fn (string $key) => json_decode($bro->get($key), true)));
     }
 
     public function bot(Request $request, Bot $bot): JsonResponse

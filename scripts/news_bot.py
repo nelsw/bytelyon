@@ -39,19 +39,18 @@ from pytz import timezone
 from seleniumbase import cdp_driver
 
 RFC_1123 = "%a, %d %b %Y %H:%M:%S %Z"
-TZ=timezone("UTC")
-
-
+TZ = timezone("UTC")
 
 
 @dataclass
 class Config:
     api_key: str
-    app_env: str  = field(init=False)
-    api_url: str  = field(init=False)
+    app_env: str = field(init=False)
+    api_url: str = field(init=False)
     headers: dict[str, str] = field(init=False)
     s3_bucket: str = field(init=False)
     s3_client = boto3.client('s3')
+
     def __post_init__(self) -> None:
         self.headers = {
             "Content-Type": "application/json",
@@ -71,20 +70,6 @@ class Config:
             print(f"ℹ️  API Request: {url}")
             async with session.put(url=url, json=json, headers=self.headers) as response:
                 print("✅ API Request:", await response.text())
-
-
-    def s3_put(self, body: bytes, key: str) -> None:
-        try:
-            print(f"ℹ️  S3 Upload:  {key}")
-            response = self.s3_client.put_object(
-                Body=body,
-                Bucket="bytelyon-private",
-                Key=key,
-                ContentType="image/png",
-            )
-            print(f"✅ S3 Upload:  {key} - ETag: {response['ETag']}")
-        except ClientError as e:
-            print(f"❌ S3 Upload:  {key} - Error: {e}")
 
 
 @dataclass
@@ -226,6 +211,7 @@ class Bot:
     def object_key(self, url: str, ext: str = "png") -> str:
         return f"output/{self.id}/{uuid.uuid5(uuid.NAMESPACE_URL, url)}.{ext}"
 
+
 @dataclass
 class AsyncJob[T](ABC):
     bot: Bot
@@ -243,42 +229,6 @@ class AsyncJob[T](ABC):
         self.queue = asyncio.Queue()
         self.lock = asyncio.Lock()
 
-    @staticmethod
-    async def accept_cookies(page: Page) -> None:
-        for text in ("Accept", "Accept all", "I agree"):
-            button = page.get_by_role("button", name=text)
-            try:
-                if await button.count() > 0 and await button.first.is_visible():
-                    await button.first.click()
-            except Error as e:
-                print("failed to accept cookies", e)
-
-    @staticmethod
-    async def screenshot(page: Page) -> bytes:
-        await page.evaluate("""async () => {
-            await new Promise((resolve) => {
-                let totalHeight = 0;
-                let distance = 100;
-                let timer = setInterval(() => {
-                    let scrollHeight = document.body.scrollHeight;
-                    window.scrollBy(0, distance);
-                    totalHeight += distance;
-                    if (totalHeight >= scrollHeight || totalHeight >= 10_000) {
-                        window.scrollTo(0, 0);
-                        clearInterval(timer);
-                        resolve();
-                    }
-                }, 100);
-            });
-        }""")
-        return await page.screenshot(full_page=True)
-
-    @abstractmethod
-    async def task(self, context: BrowserContext) -> None:
-        pass
-
-    async def put_result(self, result:str) -> None:
-        await self.cfg.api_put(f"bots/{self.bot.id}", {"result": result})
 
 @dataclass
 class News(AsyncJob[Headline]):
@@ -308,7 +258,7 @@ class News(AsyncJob[Headline]):
             finally:
                 await browser.close()
         driver.stop()
-        await self.put_result("ok")
+        await self.cfg.api_put(f"bots/{self.bot.id}", {"result": "ok"})
 
     async def task(self, context: BrowserContext):
         while True:
@@ -333,8 +283,6 @@ class News(AsyncJob[Headline]):
                     await page.goto(url=headline.url, wait_until="domcontentloaded", timeout=5_000)
                     await page.wait_for_timeout(1600)
 
-                    key = self.bot.object_key(page.url)
-                    self.cfg.s3_put(await page.screenshot(full_page=True), key)
                     doc = Doc(await page.content())
                     await self.cfg.api_put(f"bots/{self.bot.id}/articles", {
                         "url": page.url,
@@ -347,7 +295,6 @@ class News(AsyncJob[Headline]):
                         "body": doc.body(),
                         "keywords": doc.keywords(),
                         "description": doc.description(),
-                        'screenshot_key': key,
                     })
                     return
                 except Error as e:
@@ -383,10 +330,6 @@ class News(AsyncJob[Headline]):
             if h.published_after(self.bot.after) and h.url != "chrome-error://chromewebdata/":
                 await self.queue.put(h)
         return
-
-
-
-
 
 
 if __name__ == "__main__":

@@ -11,25 +11,27 @@
 # ]
 # ///
 import argparse
-import json
+import asyncio
 import uuid
 from dataclasses import dataclass, InitVar, field
 from urllib.parse import urlparse
 
+import aioboto3
+import aiohttp
 import boto3
-import requests
 from botocore.exceptions import ClientError
 from bs4 import BeautifulSoup, Tag, NavigableString
-from playwright.sync_api import sync_playwright, Error, Page, Locator, BrowserContext
-from seleniumbase import SB
+from playwright.async_api import async_playwright, Error, Page, Locator, BrowserContext
+from seleniumbase import cdp_driver
 
 s3_client = boto3.client('s3')
+
 
 @dataclass
 class Config:
     api_key: str
-    app_env: str  = field(init=False)
-    api_url: str  = field(init=False)
+    app_env: str = field(init=False)
+    api_url: str = field(init=False)
     headers: dict[str, str] = field(init=False)
     s3_bucket: str = field(init=False)
 
@@ -46,17 +48,12 @@ class Config:
             self.app_env = 'local'
             self.api_url = "http://localhost:80/api"
 
-    def api_put(self, route: str, data: dict[str, object]) -> None:
+    async def api_put(self, route: str, data: dict[str, object]) -> None:
         url = f"{self.api_url}/{route}"
-        try:
-            body = json.dumps(data, indent=4).encode("utf-8")
-            print(f"[ ] API Request url={url}", body)
-            response = requests.put(url, data=body, headers=self.headers)
-            response.raise_for_status()  # Raises an error for bad status codes (4xx, 5xx)
-            print(f"[✔] API Request url={url}", response.status_code)
-        except requests.exceptions.RequestException as e:
-            print(f"[ⅹ] API Request url={url} error={e}")
-
+        async with aiohttp.ClientSession() as session:
+            print(f"ℹ️  API Request: {url}")
+            async with session.put(url=url, json=data, headers=self.headers) as response:
+                print("✅ API Request:", await response.text())
 
     def s3_put(self, body: bytes, key: str, ct: str) -> None:
         try:
@@ -196,12 +193,14 @@ class Doc:
         ordered_text = sorted(unique_text.items(), key=lambda item: item[1])
         return "\n\n".join([item[0] for item in ordered_text])
 
+
 @dataclass
 class Search:
     url: str = field(init=False)
     content_key: str = field(default_factory=str)
     screenshot_key: str = field(default_factory=str)
     data: dict[str, str] = field(default_factory=dict)
+
 
 # @dataclass
 # class Node:
@@ -232,82 +231,81 @@ class Bot:
     def __post_init__(self):
         self.url = f"https://www.google.com?q={self.query.replace(' ', '+')}"
 
+
 @dataclass
 class Job:
     bot: Bot
     cfg: Config
+    imgs: dict[str, bytes] = field(default_factory=dict)
 
-    def run(self):
-        with SB(uc=True) as sb:
-            sb.activate_cdp_mode()
-            endpoint_url = sb.get_endpoint_url()
+    async def run(self):
+        driver = await cdp_driver.start_async()
+        endpoint_url = driver.get_endpoint_url()
+        async with async_playwright() as p:
+            browser = await p.chromium.connect_over_cdp(endpoint_url)
+            context = browser.contexts[0]
+            page = context.pages[0]
 
-            with sync_playwright() as p:
-                browser = p.chromium.connect_over_cdp(endpoint_url)
-                context = browser.contexts[0]
-                page = context.pages[0]
+            await page.goto("https://www.google.com")
+            await page.wait_for_timeout(200)
+            search_box = page.locator('textarea[name="q"], input[name="q"]').first
+            await search_box.press_sequentially(self.bot.query, delay=40)
+            await search_box.press("Enter")
+            await page.wait_for_load_state("domcontentloaded")
 
-                page.goto("https://www.google.com")
-                page.wait_for_timeout(200)
-                search_box = page.locator('textarea[name="q"], input[name="q"]').first
-                search_box.press_sequentially(self.bot.query, delay=40)
-                search_box.press("Enter")
-                page.wait_for_load_state("domcontentloaded")
+            captcha = page.locator("iframe[src*='recaptcha'], form#captcha-form")
+            if await captcha.count() > 0:
+                print("[!] Captcha detected!")
+                waited = 0
+                while await captcha.count() and waited < 5 * 60:
+                    waited += 3
+                    await asyncio.sleep(waited)
+                if waited >= 5 * 60:
+                    print("[-] Timed out waiting for the CAPTCHA to be solved.")
+                    return
 
-                captcha = page.locator("iframe[src*='recaptcha'], form#captcha-form")
-                if captcha.count() > 0:
-                    print("[!] Captcha detected!")
-                    try:
-                        sb.solve_captcha()
-                        sb.sleep(2)
-                    except Error as e:
-                        print(f"solve_captcha failed: {e}")
-                    try:
-                        sb.cdp.gui_click_captcha()
-                        sb.sleep(2)
-                    except Error as e:
-                        print(f"gui_click_captcha failed: {e}")
+            await page.wait_for_selector("#search", timeout=20000)
 
-                    waited = 0
-                    while captcha.count() and waited < 5 * 60:
-                        waited += 3
-                        sb.sleep(waited)
-                    if waited >= 5 * 60:
-                        print("[-] Timed out waiting for the CAPTCHA to be solved.")
-                        return
+            src_key = self.file_key(self.bot.url, 'html')
+            img_key = self.file_key(self.bot.url)
+            self.cfg.upload_content_to_s3(bytes(await page.content(), 'utf-8'), src_key)
+            self.cfg.upload_screenshot_to_s3(await page.screenshot(), img_key)
+            await self.cfg.api_put(f"bots/{self.bot.id}/searches", {
+                "data": {
+                    "similar_queries": await self.handle_similar_queries(page),
+                },
+                "content_key": src_key,
+                "screenshot_key": img_key,
+            })
+            await self.handle_organic_products(context, page)
+            await self.handle_organic_results(
+                context, await page.locator("h3[id]").all()
+            )
+            await self.handle_sponsored_results(
+                context, await page.locator("[data-pcu]").all()
+            )
+            await self.handle_sponsored_products(
+                context, await page.locator("[data-dtld]").all()
+            )
 
-                _ = page.wait_for_selector("#search", timeout=20000)
-
-                src_key = self.file_key(self.bot.url, 'html')
-                img_key = self.file_key(self.bot.url)
-                self.cfg.upload_content_to_s3(bytes(page.content(), 'utf-8'), src_key)
-                self.cfg.upload_screenshot_to_s3(page.screenshot(), img_key)
-                self.cfg.api_put(f"bots/{self.bot.id}/searches", {
-                    "data": {
-                        "similar_queries": self.handle_similar_queries(page),
-                    },
-                    "content_key": src_key,
-                    "screenshot_key": img_key,
-                })
-                self.handle_organic_products(context, page)
-                self.handle_organic_results(
-                    context, page.locator("h3[id]").all()
+            session = aioboto3.Session()
+            async with session.client("s3") as s3:
+                await asyncio.gather(
+                    *[
+                        s3.put_object( Body=body, Bucket="bytelyon-private", Key=key, ContentType='image/png')
+                        for key, body in self.imgs.items()
+                    ]
                 )
-                self.handle_sponsored_results(
-                    context, page.locator("[data-pcu]").all()
-                )
-                self.handle_sponsored_products(
-                    context, page.locator("[data-dtld]").all()
-                )
-                self.cfg.api_put(f"bots/{self.bot.id}", {"result": "ok"})
+
+            await self.cfg.api_put(f"bots/{self.bot.id}", {"result": "ok"})
 
     def file_key(self, url: str, ext: str = 'png') -> str:
         return f"{self.cfg.app_env}/{self.bot.id}/{uuid.uuid5(uuid.NAMESPACE_URL, url)}.{ext}"
 
-    def handle_similar_queries(self, p: Page) -> list[str]:
+    async def handle_similar_queries(self, p: Page) -> list[str]:
         print(f"ℹ️  Similar Queries")
-        top = [e.get_attribute("data-q") for e in p.locator("div[data-notify-expansion]").all()]
-        end = [e.text_content() for e in p.locator("div#botstuff").locator("a").all()]
+        top = [await e.get_attribute("data-q") for e in await p.locator("div[data-notify-expansion]").all()]
+        end = [await e.text_content() for e in await p.locator("div#botstuff").locator("a").all()]
         result: set[str] = set()
         for t in top + end:
             if t is not None and len(t) > 4:
@@ -315,80 +313,80 @@ class Job:
         print(f"✅ Similar Queries: {len(result)}")
         return sorted(list(result))
 
-    def handle_sponsored_products(self,
-        context: BrowserContext, locators: list[Locator]
-    ) -> None:
+    async def handle_sponsored_products(self,
+                                        context: BrowserContext, locators: list[Locator]
+                                        ) -> None:
         print(f"[ ] Handling Sponsored Products {len(locators)}")
         for idx, loc in enumerate(locators):
-            domain = loc.get_attribute("data-dtld")
-            merchant_id = loc.get_attribute("data-merchant-id")
+            domain = await loc.get_attribute("data-dtld")
+            merchant_id = await loc.get_attribute("data-merchant-id")
             if domain is None or merchant_id is None:
                 continue
-            href = loc.locator(
+            href = await loc.locator(
                 f'a[data-merchant-id="{merchant_id}"]'
             ).get_attribute("href")
             if href is not None:
-                p = context.new_page()
-                _ = p.goto(href, wait_until="domcontentloaded", timeout=5000)
-                self.save_page(p, kind="sponsored_products", index=idx)
+                p = await context.new_page()
+                await  p.goto(href, wait_until="domcontentloaded", timeout=5000)
+                await self.save_page(p, kind="sponsored_products", index=idx)
 
-    def handle_sponsored_results(self,
-        context: BrowserContext, locators: list[Locator]
-    ) -> None:
+    async def handle_sponsored_results(self,
+                                       context: BrowserContext, locators: list[Locator]
+                                       ) -> None:
         print(f"[ ] Handling Sponsored Results {len(locators)}")
         for idx, loc in enumerate(locators):
-            domain = loc.get_attribute("data-pcu")
-            href = loc.get_attribute("href")
+            domain = await loc.get_attribute("data-pcu")
+            href = await loc.get_attribute("href")
             if domain is None or href is None:
                 continue
 
-            p = context.new_page()
-            _ = p.goto(href, wait_until="domcontentloaded", timeout=5000)
-            self.save_page(p, kind="sponsored_results", index=idx)
+            p = await context.new_page()
+            await p.goto(href, wait_until="domcontentloaded", timeout=5000)
+            await self.save_page(p, kind="sponsored_results", index=idx)
 
-    def handle_organic_results(self,
-        context: BrowserContext, locators: list[Locator]
-    ) -> None:
+    async def handle_organic_results(self,
+                                     context: BrowserContext, locators: list[Locator]
+                                     ) -> None:
         print(f"[ ] Handling Organic Results {len(locators)}")
         for idx, loc in enumerate(locators):
-            href = loc.locator("xpath=ancestor::a[1]").get_attribute("href")
+            href = await loc.locator("xpath=ancestor::a[1]").get_attribute("href")
             if href is not None:
-                p = context.new_page()
-                _ = p.goto(href, wait_until="domcontentloaded", timeout=5000)
-                self.save_page(p, kind="organic_results", index=idx)
+                p = await context.new_page()
+                await p.goto(href, wait_until="domcontentloaded", timeout=5000)
+                await self.save_page(p, kind="organic_results", index=idx)
 
-    def handle_organic_products(self, context: BrowserContext, p: Page) -> None:
-        locators = p.locator("product-viewer-entrypoint").all()
+    async def handle_organic_products(self, context: BrowserContext, p: Page) -> None:
+        locators = await p.locator("product-viewer-entrypoint").all()
         for idx, loc in enumerate(locators):
             print(f"[ ] Handling Organic Product {idx}")
             try:
-                loc.locator("img").first.click(timeout=3000, force=True)
+                await loc.locator("img").first.click(timeout=3000, force=True)
             except Error as e:
                 print(f"[!] organic products handler failed: {idx}, {e}")
                 continue
 
-            u = p.locator("div[data-redirect-url]").first.get_attribute(
+            u = await p.locator("div[data-redirect-url]").first.get_attribute(
                 "data-redirect-url"
             )
             if u is not None:
-                np = context.new_page()
-                _ = np.goto(url=u, wait_until="domcontentloaded", timeout=5000)
-                self.save_page(p, kind="organic_products", index=idx)
+                np = await context.new_page()
+                await np.goto(url=u, wait_until="domcontentloaded", timeout=5000)
+                await self.save_page(np, kind="organic_products", index=idx)
 
-    def save_page(self, p: Page, kind: str, index: int) -> None:
+
+    async def save_page(self, p: Page, kind: str, index: int) -> None:
         key = self.file_key(p.url)
-        self.cfg.upload_screenshot_to_s3(p.screenshot(full_page=True), key)
-        self.cfg.api_put(f"searches/{self.bot.search_id}/page", {
-            "title": p.title,
+        self.imgs[key] = await p.screenshot(full_page=True)
+        await self.cfg.api_put(f"searches/{self.bot.search_id}/page", {
+            "title": await p.title(),
             "url": p.url,
-            "meta": Doc(p.content()).meta,
+            "meta": Doc(await p.content()).meta,
             "screenshot_key": key,
             "kind": kind,
             "index": index,
             "domain": str(urlparse(p.url).netloc).removeprefix("www.")
         })
-
-
+        await p.close()
 
 # todo - login to google
 if __name__ == "__main__":
@@ -408,4 +406,4 @@ if __name__ == "__main__":
     )
     cfg = Config(args.key)
 
-    Job(bot, cfg).run()
+    asyncio.run(Job(bot, cfg).run())

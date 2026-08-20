@@ -3,6 +3,9 @@ sail = ./vendor/bin/sail
 pint = ./vendor/bin/pint
 exec = docker compose exec laravel.test sh -c
 
+it:
+	@cd scripts && go run main.go
+
 clean:
 	@truncate -s 0 storage/logs/browser.log storage/logs/laravel.log
 	@rm -rf bootstrap/cache/* reports/* storage/framework/sessions/*

@@ -3,7 +3,7 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#   "aioboto3",
+#   "boto3",
 #   "aiofiles",
 #   "beautifulsoup4",
 #   "httpx",
@@ -15,23 +15,20 @@
 # ///
 import argparse
 import asyncio
-import os
 import uuid
 from abc import ABC, abstractmethod
 from asyncio import Semaphore
-from dataclasses import InitVar, asdict, dataclass, field
-from datetime import datetime
-from enum import Enum
-from typing import cast, override
+from dataclasses import InitVar, dataclass, field
+from datetime import datetime as time
+from typing import cast
 from urllib.parse import quote
 from xml.etree.ElementTree import Element, fromstring
 
-import aioboto3
+import boto3
 import aiohttp
-from aiohttp import ClientSession
+from botocore.exceptions import ClientError
 from bs4 import BeautifulSoup, Tag
 from bs4.element import NavigableString
-from dotenv import load_dotenv
 from playwright.async_api import (
     BrowserContext,
     Error,
@@ -39,27 +36,65 @@ from playwright.async_api import (
     async_playwright,
 )
 from pytz import timezone
-from seleniumbase import (  # pyright: ignore[reportMissingTypeStubs]
-    # pyright: ignore[reportUnknownVariableType]
-    cdp_driver,
-)
+from seleniumbase import cdp_driver
+
+RFC_1123 = "%a, %d %b %Y %H:%M:%S %Z"
+TZ=timezone("UTC")
+
+
+
+
+@dataclass
+class Config:
+    api_key: str
+    app_env: str  = field(init=False)
+    api_url: str  = field(init=False)
+    headers: dict[str, str] = field(init=False)
+    s3_bucket: str = field(init=False)
+    s3_client = boto3.client('s3')
+    def __post_init__(self) -> None:
+        self.headers = {
+            "Content-Type": "application/json",
+            "x-api-key": self.api_key,
+        }
+        # the key is the length of a UUID ...
+        if len(self.api_key) == 36:
+            self.app_env = 'production'
+            self.api_url = "https://bytelyon.com/api"
+        else:
+            self.app_env = 'local'
+            self.api_url = "http://localhost:80/api"
+
+    async def api_put(self, route: str, json: dict[str, object]) -> None:
+        url = f"{self.api_url}/{route}"
+        async with aiohttp.ClientSession() as session:
+            print(f"ℹ️  API Request: {url}")
+            async with session.put(url=url, json=json, headers=self.headers) as response:
+                print("✅ API Request:", await response.text())
+
+
+    def s3_put(self, body: bytes, key: str) -> None:
+        try:
+            print(f"ℹ️  S3 Upload:  {key}")
+            response = self.s3_client.put_object(
+                Body=body,
+                Bucket="bytelyon-private",
+                Key=key,
+                ContentType="image/png",
+            )
+            print(f"✅ S3 Upload:  {key} - ETag: {response['ETag']}")
+        except ClientError as e:
+            print(f"❌ S3 Upload:  {key} - Error: {e}")
 
 
 @dataclass
 class Headline:
     url: str
-    published_at: str
+    at: str
     title: str
 
-    def published_after(self, dt: datetime | None) -> bool:
-        if dt is None:
-            return True
-        return (
-            datetime.strptime(self.published_at, "%a, %d %b %Y %H:%M:%S %Z").astimezone(
-                tz=timezone("UTC")
-            )
-            > dt
-        )
+    def published_after(self, t: time | None) -> bool:
+        return t is None or time.strptime(self.at, RFC_1123).astimezone(tz=TZ) > t
 
 
 @dataclass
@@ -182,60 +217,26 @@ class Doc:
 
 
 @dataclass
-class Article:
-    headline: InitVar[Headline]
-    doc: InitVar[Doc]
-    url: str
-
-    published_at: str = field(init=False)
-    title: str = field(init=False)
-
-    body: str = field(init=False)
-    description: str = field(init=False)
-    keywords: list[str] = field(init=False)
-    img_url: str = field(init=False)
-    img_alt: str = field(init=False)
-    source: str = field(init=False)
-    publisher: str = field(init=False)
-
-    def __post_init__(self, headline: Headline, doc: Doc) -> None:
-        source = "Bing"
-        if headline.url.startswith("https://news.google"):
-            source = "Google"
-        self.published_at = headline.published_at
-        self.title = headline.title
-        self.source = source
-        self.publisher = doc.source()
-        self.img_url = doc.img_url()
-        self.img_alt = doc.img_alt()
-        self.body = doc.body()
-        self.keywords = doc.keywords()
-        self.description = doc.description()
-
-
-@dataclass
 class Bot:
     id: int
     query: str
     headless: bool
-    after: datetime | None = None
+    after: time | None = None
 
     def object_key(self, url: str, ext: str = "png") -> str:
         return f"output/{self.id}/{uuid.uuid5(uuid.NAMESPACE_URL, url)}.{ext}"
 
-
 @dataclass
 class AsyncJob[T](ABC):
     bot: Bot
-
+    cfg: Config
     max_concurrency: int = 5
-    max_retries: int = 3
-    retry_backoff: float | int = 3.0
+    max_retries: int = 2
+    retry_backoff: float | int = 2.5
 
     bounder: Semaphore = field(init=False)
     queue: asyncio.Queue[T] = field(init=False)
     lock: asyncio.Lock = field(init=False)
-    s3_session: aioboto3.Session = field(default_factory=aioboto3.Session)
 
     def __post_init__(self):
         self.bounder = asyncio.Semaphore(self.max_concurrency)
@@ -251,31 +252,6 @@ class AsyncJob[T](ABC):
                     await button.first.click()
             except Error as e:
                 print("failed to accept cookies", e)
-
-    @staticmethod
-    async def put(
-        session: ClientSession, route: str, json_data: dict[str, object | list[object]]
-    ) -> None:
-        response = await session.put(
-            url=f"{os.getenv('APP_URL', default='http://localhost:80')}/api/{route}",
-            json=json_data,
-            headers={
-                "Content-Type": "application/json",
-                "x-api-key": os.getenv("API_KEY", default=""),
-            },
-        )
-        print(f"PUT {route} -> \n{json_data}\n{response.status} {await response.text()}")
-
-
-    async def upload(self, body: bytes, url: str, ext: str = "png") -> str:
-        key = f"{os.getenv('APP_ENV', default='output')}/{self.bot.id}/{uuid.uuid5(uuid.NAMESPACE_URL, url)}.{ext}"
-        async with self.s3_session.client("s3") as s3_client:  # pyright: ignore[reportUnknownMemberType]
-            _ = await s3_client.put_object(
-                Body=body,
-                Bucket=os.getenv("AWS_BUCKET", ""),
-                Key=key,
-            )
-        return key
 
     @staticmethod
     async def screenshot(page: Page) -> bytes:
@@ -301,14 +277,22 @@ class AsyncJob[T](ABC):
     async def task(self, context: BrowserContext) -> None:
         pass
 
-    async def pre_process(self) -> None:
-        pass
+    async def put_result(self, result:str) -> None:
+        await self.cfg.api_put(f"bots/{self.bot.id}", {"result": result})
 
-    async def post_process(self) -> None:
-        pass
+@dataclass
+class News(AsyncJob[Headline]):
+    visited_urls: set[str] = field(default_factory=set)
 
-    async def process(self):
-        driver = await cdp_driver.start_async(headless=self.bot.headless)  # pyright: ignore[reportUnknownMemberType]
+    async def run(self) -> None:
+        urls = [
+            f"https://www.bing.com/news/search?format=rss&q={quote(self.bot.query)}",
+            f"https://news.google.com/rss/search?q={quote(self.bot.query)}&hl=en-US&gl=US&ceid=US:en",
+        ]
+        async with aiohttp.ClientSession() as session:
+            _ = await asyncio.gather(*[self.add_headlines(session, url) for url in urls])
+
+        driver = await cdp_driver.start_async(headless=self.bot.headless)
         endpoint_url = driver.get_endpoint_url()
         async with async_playwright() as p:
             browser = await p.chromium.connect_over_cdp(endpoint_url)
@@ -324,31 +308,8 @@ class AsyncJob[T](ABC):
             finally:
                 await browser.close()
         driver.stop()
+        await self.put_result("ok")
 
-    async def run(self) -> None:
-        result = "ok"
-        try:
-            print("pre_process...")
-            await self.pre_process()
-            print("process...")
-            await self.process()
-            print("post_process...")
-            await self.post_process()
-            print("put ok...")
-        except Error as err:
-            print(f"put error: {err!s}")
-            result = str(err)
-        finally:
-            async with aiohttp.ClientSession() as session:
-                await self.put(session, f"bots/{self.bot.id}", {"result": result})
-
-
-@dataclass
-class News(AsyncJob[Headline]):
-    visited_urls: set[str] = field(default_factory=set)
-    articles: list[Article] = field(default_factory=list)
-
-    @override
     async def task(self, context: BrowserContext):
         while True:
             a: Headline = await self.queue.get()
@@ -365,17 +326,29 @@ class News(AsyncJob[Headline]):
 
     async def scrape(self, ctx: BrowserContext, headline: Headline) -> None:
         for attempt in range(1, self.max_retries + 2):
-            print(f"scrape... {attempt}")
+            print(f"scrape title={headline.title} attempt={attempt}")
             async with self.bounder:
                 page = await ctx.new_page()
                 try:
-                    _ = await page.goto(
-                        headline.url, wait_until="domcontentloaded", timeout=5000
-                    )
+                    await page.goto(url=headline.url, wait_until="domcontentloaded", timeout=5_000)
                     await page.wait_for_timeout(1600)
-                    content = await page.content()
-                    self.articles.append(Article(headline, Doc(content), page.url))
-                    await page.close()
+
+                    key = self.bot.object_key(page.url)
+                    self.cfg.s3_put(await page.screenshot(full_page=True), key)
+                    doc = Doc(await page.content())
+                    await self.cfg.api_put(f"bots/{self.bot.id}/articles", {
+                        "url": page.url,
+                        "published_at": headline.at,
+                        "title": headline.title,
+                        "source": doc.source(),
+                        "publisher": doc.source(),
+                        "img_url": doc.img_url(),
+                        "img_alt": doc.img_alt(),
+                        "body": doc.body(),
+                        "keywords": doc.keywords(),
+                        "description": doc.description(),
+                        'screenshot_key': key,
+                    })
                     return
                 except Error as e:
                     print(f"[!] upsert error: {e!s}")
@@ -386,9 +359,7 @@ class News(AsyncJob[Headline]):
                     await page.close()
 
     @staticmethod
-    async def fetch_xml(
-        session: aiohttp.ClientSession, url: str
-    ) -> Element[str] | None:
+    async def get_xml(session: aiohttp.ClientSession, url: str) -> Element[str] | None:
         print(f"[ ] fetch_xml {url}")
         async with session.get(url) as response:
             if response.status >= 300:
@@ -398,42 +369,27 @@ class News(AsyncJob[Headline]):
             print(f"[+] fetch_xml {url}")
             return fromstring(text=await response.text(encoding="utf-8"))
 
-    async def fetch(self, session: aiohttp.ClientSession, url: str) -> None:
-        xml = await self.fetch_xml(session, url)
+    async def add_headlines(self, session: aiohttp.ClientSession, url: str) -> None:
+        xml = await self.get_xml(session, url)
         if xml is None:
             return
 
         for e in xml.findall(".//item"):
             h = Headline(
                 url=e.findtext("link", default=""),
-                published_at=e.findtext("pubDate", default=""),
+                at=e.findtext("pubDate", default=""),
                 title=e.findtext("title", default=""),
             )
-            if h.published_after(self.bot.after):
+            if h.published_after(self.bot.after) and h.url != "chrome-error://chromewebdata/":
                 await self.queue.put(h)
         return
 
-    @override
-    async def pre_process(self) -> None:
-        urls = [
-            f"https://www.bing.com/news/search?format=rss&q={quote(self.bot.query)}",
-            f"https://news.google.com/rss/search?q={quote(self.bot.query)}&hl=en-US&gl=US&ceid=US:en",
-        ]
-        async with aiohttp.ClientSession() as session:
-            _ = await asyncio.gather(*[self.fetch(session, url) for url in urls])
 
-    @override
-    async def post_process(self) -> None:
-        async with aiohttp.ClientSession() as session:
-            _ = await asyncio.gather(
-                *[
-                    self.put(session, f"bots/{self.bot.id}/articles", asdict(a))
-                    for a in self.articles
-                ]
-            )
+
+
+
 
 if __name__ == "__main__":
-    _ = load_dotenv("../.env")
 
     parser = argparse.ArgumentParser(description="Run a 🤖")
     _ = parser.add_argument("-i", "--id", type=int, help="ID of the bot")
@@ -441,7 +397,7 @@ if __name__ == "__main__":
     _ = parser.add_argument(
         "-a", "--after", type=str, help="Result date start", default=None
     )
-    _ = parser.add_argument("--key", type=str, help="API Auth Key", default="my-random-32-character-x-api-key")
+    _ = parser.add_argument("-k", "--key", type=str, help="API Auth Key", default="my-random-32-character-x-api-key")
     _ = parser.add_argument(
         "--headless", action="store_true", help="Run in headless mode"
     )
@@ -449,7 +405,7 @@ if __name__ == "__main__":
 
     after_arg: str | None = cast(str | None, args.after)
     if after_arg is not None:
-        after = datetime.fromisoformat(after_arg)
+        after = time.fromisoformat(after_arg)
     else:
         after = None
 
@@ -460,4 +416,6 @@ if __name__ == "__main__":
         headless=cast(bool, args.headless),
     )
 
-    asyncio.run(News(bot).run())
+    cfg = Config(args.key)
+
+    asyncio.run(News(bot, cfg).run())

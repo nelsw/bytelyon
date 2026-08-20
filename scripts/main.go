@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"net/http"
@@ -23,63 +24,73 @@ import (
 type Queue struct {
 	sync.Mutex
 	sync.WaitGroup
-	*time.Ticker
-	wip  map[int]bool
-	less chan *Bot
-	full chan *Bot
+	poller   *time.Ticker
+	working  map[int]bool
+	headless chan *Bot
+	headfull chan *Bot
+	lessLen  int
+	fullLen  int
+	pollDur  int
+	key      string
+	api      string
 }
 
-func Start(
-	headlessWorkers int,
-	headfullWorkers int,
-	pollingInterval int,
-) *Queue {
-	q := &Queue{
-		wip:    make(map[int]bool),
-		less:   make(chan *Bot),
-		full:   make(chan *Bot),
-		Ticker: time.NewTicker(time.Second * time.Duration(pollingInterval)),
-	}
+func (q *Queue) Start() *Queue {
+
+	q.poller = time.NewTicker(time.Duration(q.pollDur) * time.Second)
 
 	ƒ := func(count int, c chan *Bot) {
-        for range count {
-      		q.Go(func() {
-     			for b := range c {
-    				if cb, ok := q.check(b); ok {
-       					b.Run(cb)
-    				}
-     			}
-      		})
-       	}
+		for range count {
+			q.Go(func() {
+				for b := range c {
+					if ran, wip := q.check(b); wip {
+						_ = b.Run(q.key)
+						ran(b)
+					}
+				}
+			})
+		}
 	}
 
-	ƒ(headfullWorkers, q.full)
-	ƒ(headlessWorkers, q.less)
-	
+	ƒ(q.fullLen, q.headfull)
+	ƒ(q.lessLen, q.headless)
+
 	return q
 }
 
-func (q *Queue) MarshalZerologObject(evt *zerolog.Event) {
-	evt.Int("wip", len(q.wip)).
-		Int("less", len(q.less)).
-		Int("full", len(q.full))
+func (q *Queue) Stop() {
+	q.poller.Stop()
+	close(q.headless)
+	close(q.headfull)
+	q.Wait()
 }
 
-func (q *Queue) check(b *Bot) (func(b *Bot), bool) {
+func (q *Queue) MarshalZerologObject(evt *zerolog.Event) {
+	evt.Int("🚜", len(q.working)).
+		Int("🐺", len(q.headless)).
+		Int("🦄", len(q.headfull))
+}
+
+func (q *Queue) check(b *Bot) (done func(b *Bot), ok bool) {
 	q.Lock()
 	defer q.Unlock()
-	if q.wip[b.ID] {
-		return nil, false
+	if q.working[b.ID] {
+		return
 	}
-	q.wip[b.ID] = true
+	q.working[b.ID] = true
 	return func(b *Bot) {
 		q.Lock()
 		defer q.Unlock()
-		delete(q.wip, b.ID)
+		delete(q.working, b.ID)
+		log.Debug().EmbedObject(b).Msgf("done")
 	}, true
 }
 
 func (q *Queue) Poll() {
+
+	req, _ := http.NewRequest("GET", q.api+"/bots", nil)
+	req.Header.Set("x-api-key", q.key)
+
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Err(err).Msg("Failed to get bots")
@@ -100,17 +111,34 @@ func (q *Queue) Poll() {
 
 	for _, b := range bots {
 		if b.Headless {
-			q.less <- &b
+			q.headless <- &b
 		} else {
-			q.full <- &b
+			q.headfull <- &b
 		}
 	}
-	log.Info().EmbedObject(q).Send()
+	log.Log().EmbedObject(q).Send()
+}
+
+type BotType string
+
+const (
+	NewsBot    BotType = "news"
+	SearchBot  BotType = "search"
+	SitemapBot BotType = "sitemap"
+)
+
+func (t *BotType) String() string { return string(*t) }
+func (t *BotType) UnmarshalJSON(payload []byte) error {
+	if text := string(payload); text == `"news"` || text == `"search"` || text == `"sitemap"` {
+		*t = BotType(strings.ReplaceAll(text, `"`, ""))
+		return nil
+	}
+	return fmt.Errorf("unknown bot type: %s", payload)
 }
 
 type Bot struct {
 	ID        int       `json:"id"`
-	Type      string    `json:"type"`
+	Type      BotType   `json:"type"`
 	Query     string    `json:"query"`
 	Headless  bool      `json:"headless"`
 	LastRunAt time.Time `json:"last_run_at"`
@@ -125,84 +153,89 @@ func (b *Bot) MarshalZerologObject(evt *zerolog.Event) {
 		Any("t", b.Type)
 }
 
-// Run executes the prowl.py command with the bot's query and arguments
-// todo - consider making the final call here as it's the safest place
-// to determine if the command succeeded or failed.
-func (b *Bot) Run(done func(b *Bot)) {
-
-	defer done(b)
-
-	log.Info().EmbedObject(b).Msg("running...")
+func (b *Bot) Run(key string) error {
 
 	args := []string{
 		"-i", strconv.Itoa(b.ID),
-		"-t", b.Type,
-		"-q", b.Query,
-		"-a", b.LastRunAt.Format(time.RFC3339),
-		"--key", req.Header.Get("x-api-key"),
-	}
-
-	if bl := strings.TrimSpace(strings.Join(b.Blacklist, ",")); bl != "" {
-		args = append(args, "-b", bl)
+		"-q", fmt.Sprintf(`'%s'`, b.Query),
+		"-k", key,
 	}
 	if b.Headless {
 		args = append(args, "--headless")
 	}
-	if b.SitemapID > 0 {
-		args = append(args, "-m", strconv.Itoa(b.SitemapID))
-	}
-	if b.SearchID > 0 {
+
+	switch b.Type {
+	case NewsBot:
+		args = append(args, "-a", b.LastRunAt.Format(time.RFC3339))
+	case SitemapBot:
+		args = append(args, "-x", strconv.Itoa(b.SitemapID))
+	case SearchBot:
 		args = append(args, "-x", strconv.Itoa(b.SearchID))
+		if bl := strings.TrimSpace(strings.Join(b.Blacklist, ",")); bl != "" {
+			args = append(args, "-b", bl)
+		}
 	}
 
-	if out, err := exec.Command("./prowl.py", args...).CombinedOutput(); err != nil {
-		log.Err(err).Str("args", strings.Join(args, " ")).Msg("Command error")
-	} else {
-		log.Info().Msgf("Command output: %s", string(out))
+	name := fmt.Sprintf("./%s_bot.py", b.Type)
+
+	log.Debug().Str("cmd", name+" "+strings.Join(args, " ")).Send()
+
+	cmd := exec.Command(name, args...)
+
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	} else if err = cmd.Start(); err != nil {
+		return err
 	}
+
+	scanner := bufio.NewScanner(out)
+	for scanner.Scan() {
+		log.Log().Msg(scanner.Text())
+	}
+	return cmd.Wait()
 }
-
-var req *http.Request
 
 func main() {
 
-	var key string
-	var poll, full, less int
-	flag.StringVar(&key, "key", "my-random-32-character-x-api-key", "API Auth Key")
-	flag.IntVar(&poll, "poll", 5, "Polling Interval in seconds")
-	flag.IntVar(&full, "full", 1, "Number of full workers")
-	flag.IntVar(&less, "less", 3, "Number of less workers")
+	q := &Queue{
+		working:  make(map[int]bool),
+		headless: make(chan *Bot),
+		headfull: make(chan *Bot),
+	}
+
+	flag.StringVar(&q.key, "key", "my-random-32-character-x-api-key", "API Auth Key")
+	flag.IntVar(&q.pollDur, "poll", 5, "Polling Interval in seconds")
+	flag.IntVar(&q.fullLen, "full", 1, "Number of headfull workers")
+	flag.IntVar(&q.lessLen, "less", 3, "Number of headless workers")
 	flag.Parse()
 
-	if len(key) == 36 {
-		req, _ = http.NewRequest("GET", "https://bytelyon.com/api/bots", nil)
+	if len(q.key) == 36 {
+		q.api = "https://bytelyon.com/api"
 	} else {
-		req, _ = http.NewRequest("GET", "http://localhost:80/api/bots", nil)
+		q.api = "http://localhost:80/api"
 	}
-	req.Header.Set("x-api-key", key)
 
 	log.Logger = makeLogger()
 
 	log.Log().Msg(`🦁 `)
 	log.Log().Msg(`🦁  ByteLyon Bot Runner`)
-	log.Log().Str("api", req.URL.Host).Msg(`🦁 `)
+	log.Log().Str("api", q.api).Msg(`🦁 `)
+	log.Log().Str("key", q.key).Msg(`🦁 `)
 	log.Log().Msg(`🦁 `)
 
-	q := Start(less, full, poll)
+	q.Start()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	for {
 		select {
-		case <-q.C:
+		case <-q.poller.C:
 			q.Poll()
 		case <-quit:
 			fmt.Println() // newline for ^C buffer entry
 			q.Stop()
-			close(q.less)
-			close(q.full)
-			q.Wait()
 			log.Log().Msg("👋")
 			return
 		}
@@ -212,6 +245,12 @@ func main() {
 func makeLogger() zerolog.Logger {
 	return zerolog.New(zerolog.ConsoleWriter{
 		Out: os.Stdout,
+		FieldsOrder: []string{
+			"time", "level", "msg", // general fields
+			"🚜", "🦄", "🐺", // embedded q
+			"#", "t", "q", // embedded bot
+			"cmd", // always last
+		},
 		FormatLevel: func(a any) string {
 			if a == nil || a == "<nil>" {
 				a = "   "

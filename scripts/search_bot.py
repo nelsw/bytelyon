@@ -25,22 +25,58 @@ from seleniumbase import SB
 
 s3_client = boto3.client('s3')
 
-api_url = "http://localhost:80/api"
-api_headers = {
-    "Content-Type": "application/json",
-    "x-api-key": "",
-}
-app_env = "local"
-blacklist = set()
-bot_id = 0
-query = ""
-search_id = 0
-
 @dataclass
 class Config:
-    app_env: str
     api_key: str
-    api_url: str
+    app_env: str  = field(init=False)
+    api_url: str  = field(init=False)
+    headers: dict[str, str] = field(init=False)
+    s3_bucket: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.headers = {
+            "Content-Type": "application/json",
+            "x-api-key": self.api_key,
+        }
+        # the key is the length of a UUID ...
+        if len(self.api_key) == 36:
+            self.app_env = 'production'
+            self.api_url = "https://bytelyon.com/api"
+        else:
+            self.app_env = 'local'
+            self.api_url = "http://localhost:80/api"
+
+    def api_put(self, route: str, data: dict[str, object]) -> None:
+        url = f"{self.api_url}/{route}"
+        try:
+            body = json.dumps(data, indent=4).encode("utf-8")
+            print(f"[ ] API Request url={url}", body)
+            response = requests.put(url, data=body, headers=self.headers)
+            response.raise_for_status()  # Raises an error for bad status codes (4xx, 5xx)
+            print(f"[✔] API Request url={url}", response.status_code)
+        except requests.exceptions.RequestException as e:
+            print(f"[ⅹ] API Request url={url} error={e}")
+
+
+    def s3_put(self, body: bytes, key: str, ct: str) -> None:
+        try:
+            print(f"🔷 S3 Upload:  {key}")
+            response = s3_client.put_object(
+                Body=body,
+                Bucket="bytelyon-private",
+                Key=key,
+                ContentType=ct,
+            )
+            print(f"✅ S3 Upload:  {key} - ETag: {response['ETag']}")
+        except ClientError as e:
+            print(f"❌ S3 Upload:  {key} - Error: {e}")
+
+    def upload_content_to_s3(self, body: bytes, key: str):
+        self.s3_put(body, key, "text/html")
+
+    def upload_screenshot_to_s3(self, body: bytes, key: str):
+        self.s3_put(body, key, "image/png")
+
 
 @dataclass
 class Doc:
@@ -162,242 +198,196 @@ class Doc:
 
 @dataclass
 class Search:
-    id: int
-    query: str
-    bot_id: int
-    blacklist: set[str]
     url: str = field(init=False)
     content_key: str = field(default_factory=str)
     screenshot_key: str = field(default_factory=str)
     data: dict[str, str] = field(default_factory=dict)
 
+# @dataclass
+# class Node:
+#     index: int
+#     kind: str
+#     page: InitVar[Page]
+#     domain: str = field(init=False)
+#     title: str = field(init=False)
+#     url: str = field(init=False)
+#     meta: dict[str, list[str]] = field(init=False)
+#     screenshot_key: str = field(init=False)
+#
+#     def __post_init__(self, page: Page):
+#         self.title = page.title()
+#         self.url = page.url
+#         self.domain = str(urlparse(self.url).netloc).removeprefix("www.")
+#         self.meta = Doc(page.content()).meta
+#         self.screenshot_key = file_key(page.url)
+
 @dataclass
-class Node:
-    index: int
-    kind: str
-    page: InitVar[Page]
-    domain: str = field(init=False)
-    title: str = field(init=False)
+class Bot:
+    id: int
+    search_id: int
+    query: str
+    blacklist: set[str] = field(default_factory=set)
     url: str = field(init=False)
-    meta: dict[str, list[str]] = field(init=False)
-    screenshot_key: str = field(init=False)
 
-    def __post_init__(self, page: Page):
-        self.title = page.title()
-        self.url = page.url
-        self.domain = str(urlparse(self.url).netloc).removeprefix("www.")
-        self.meta = Doc(page.content()).meta
-        self.screenshot_key = file_key(page.url)
+    def __post_init__(self):
+        self.url = f"https://www.google.com?q={self.query.replace(' ', '+')}"
 
-def scroll_page(page: Page):
-    page.evaluate("""async () => {
-        await new Promise((resolve) => {
-            let totalHeight = 0;
-            let distance = 100;
-            let timer = setInterval(() => {
-                let scrollHeight = document.body.scrollHeight;
-                window.scrollBy(0, distance);
-                totalHeight += distance;
-                if (totalHeight >= scrollHeight || totalHeight >= 10_000) {
-                    window.scrollTo(0, 0);
-                    clearInterval(timer);
-                    resolve();
-                }
-            }, 100);
-        });
-    }""")
+@dataclass
+class Job:
+    bot: Bot
+    cfg: Config
 
-def file_key(url: str, ext: str = 'png') -> str:
-    return f"{app_env}/{bot_id}/{uuid.uuid5(uuid.NAMESPACE_URL, url)}.{ext}"
+    def run(self):
+        with SB(uc=True) as sb:
+            sb.activate_cdp_mode()
+            endpoint_url = sb.get_endpoint_url()
 
+            with sync_playwright() as p:
+                browser = p.chromium.connect_over_cdp(endpoint_url)
+                context = browser.contexts[0]
+                page = context.pages[0]
 
-def upload_content_to_s3(body: bytes, key: str):
-    upload_to_s3(body, key, "text/html")
+                page.goto("https://www.google.com")
+                page.wait_for_timeout(200)
+                search_box = page.locator('textarea[name="q"], input[name="q"]').first
+                search_box.press_sequentially(self.bot.query, delay=40)
+                search_box.press("Enter")
+                page.wait_for_load_state("domcontentloaded")
 
+                captcha = page.locator("iframe[src*='recaptcha'], form#captcha-form")
+                if captcha.count() > 0:
+                    print("[!] Captcha detected!")
+                    try:
+                        sb.solve_captcha()
+                        sb.sleep(2)
+                    except Error as e:
+                        print(f"solve_captcha failed: {e}")
+                    try:
+                        sb.cdp.gui_click_captcha()
+                        sb.sleep(2)
+                    except Error as e:
+                        print(f"gui_click_captcha failed: {e}")
 
-def upload_screenshot_to_s3(body: bytes, key: str):
-    upload_to_s3(body, key, "image/png")
+                    waited = 0
+                    while captcha.count() and waited < 5 * 60:
+                        waited += 3
+                        sb.sleep(waited)
+                    if waited >= 5 * 60:
+                        print("[-] Timed out waiting for the CAPTCHA to be solved.")
+                        return
 
+                _ = page.wait_for_selector("#search", timeout=20000)
 
-def upload_to_s3(body: bytes, key: str, ct: str):
-    try:
-        print(f"ℹ️  S3 Upload: {ct} - {key}")
-        response = s3_client.put_object(
-            Body=body,
-            Bucket="bytelyon-private",
-            Key=key,
-            ContentType=ct,
-        )
-        print(f"✅  S3 Upload: {ct} - {key} - ETag: {response['ETag']}")
-    except ClientError as e:
-        print(f"❌ S3 Upload: {ct} - {key} - Error: {e}")
+                src_key = self.file_key(self.bot.url, 'html')
+                img_key = self.file_key(self.bot.url)
+                self.cfg.upload_content_to_s3(bytes(page.content(), 'utf-8'), src_key)
+                self.cfg.upload_screenshot_to_s3(page.screenshot(), img_key)
+                self.cfg.api_put(f"bots/{self.bot.id}/searches", {
+                    "data": {
+                        "similar_queries": self.handle_similar_queries(page),
+                    },
+                    "content_key": src_key,
+                    "screenshot_key": img_key,
+                })
+                self.handle_organic_products(context, page)
+                self.handle_organic_results(
+                    context, page.locator("h3[id]").all()
+                )
+                self.handle_sponsored_results(
+                    context, page.locator("[data-pcu]").all()
+                )
+                self.handle_sponsored_products(
+                    context, page.locator("[data-dtld]").all()
+                )
+                self.cfg.api_put(f"bots/{self.bot.id}", {"result": "ok"})
 
+    def file_key(self, url: str, ext: str = 'png') -> str:
+        return f"{self.cfg.app_env}/{self.bot.id}/{uuid.uuid5(uuid.NAMESPACE_URL, url)}.{ext}"
 
-def put_request_to_api(url: str, data: dict):
-    try:
-        body = json.dumps(data, indent=4).encode("utf-8")
-        print(f"ℹ️  API Request: {url}", body)
-        response = requests.put(url, data=body, headers=api_headers)
-        response.raise_for_status()  # Raises an error for bad status codes (4xx, 5xx)
-        print("✅ API Request:", response.json())
-    except requests.exceptions.RequestException as e:
-        print(f"❌ API Request: {e}")
+    def handle_similar_queries(self, p: Page) -> list[str]:
+        print(f"ℹ️  Similar Queries")
+        top = [e.get_attribute("data-q") for e in p.locator("div[data-notify-expansion]").all()]
+        end = [e.text_content() for e in p.locator("div#botstuff").locator("a").all()]
+        result: set[str] = set()
+        for t in top + end:
+            if t is not None and len(t) > 4:
+                result.add(t)
+        print(f"✅ Similar Queries: {len(result)}")
+        return sorted(list(result))
 
+    def handle_sponsored_products(self,
+        context: BrowserContext, locators: list[Locator]
+    ) -> None:
+        print(f"[ ] Handling Sponsored Products {len(locators)}")
+        for idx, loc in enumerate(locators):
+            domain = loc.get_attribute("data-dtld")
+            merchant_id = loc.get_attribute("data-merchant-id")
+            if domain is None or merchant_id is None:
+                continue
+            href = loc.locator(
+                f'a[data-merchant-id="{merchant_id}"]'
+            ).get_attribute("href")
+            if href is not None:
+                p = context.new_page()
+                _ = p.goto(href, wait_until="domcontentloaded", timeout=5000)
+                self.save_page(p, kind="sponsored_products", index=idx)
 
-def handle_similar_queries(p: Page) -> list[str]:
-    print(f"ℹ️  Similar Queries")
-    top = [e.get_attribute("data-q") for e in p.locator("div[data-notify-expansion]").all()]
-    end = [e.text_content() for e in p.locator("div#botstuff").locator("a").all()]
-    result: set[str] = set()
-    for t in top + end:
-        if t is not None and len(t) > 4:
-            result.add(t)
-    print(f"✅ Similar Queries: {len(result)}")
-    return sorted(list(result))
+    def handle_sponsored_results(self,
+        context: BrowserContext, locators: list[Locator]
+    ) -> None:
+        print(f"[ ] Handling Sponsored Results {len(locators)}")
+        for idx, loc in enumerate(locators):
+            domain = loc.get_attribute("data-pcu")
+            href = loc.get_attribute("href")
+            if domain is None or href is None:
+                continue
 
-
-def save_page(p: Page, kind: str, index: int) -> None:
-    scroll_page(p)
-    key = file_key(p.url)
-    upload_screenshot_to_s3(p.screenshot(full_page=True), key)
-    put_request_to_api(f"searches/{search_id}/page", {
-        "title": p.title,
-        "url": p.url,
-        "meta": Doc(p.content()).meta,
-        "screenshot_key": key,
-        "kind": kind,
-        "index": index,
-    })
-
-
-def handle_sponsored_products(
-    context: BrowserContext, locators: list[Locator]
-) -> None:
-    print(f"[ ] Handling Sponsored Products {len(locators)}")
-    for idx, loc in enumerate(locators):
-        domain = loc.get_attribute("data-dtld")
-        merchant_id = loc.get_attribute("data-merchant-id")
-        if domain is None or merchant_id is None:
-            continue
-        href = loc.locator(
-            f'a[data-merchant-id="{merchant_id}"]'
-        ).get_attribute("href")
-        if href is not None:
             p = context.new_page()
             _ = p.goto(href, wait_until="domcontentloaded", timeout=5000)
-            save_page(p, kind="sponsored_products", index=idx)
+            self.save_page(p, kind="sponsored_results", index=idx)
 
+    def handle_organic_results(self,
+        context: BrowserContext, locators: list[Locator]
+    ) -> None:
+        print(f"[ ] Handling Organic Results {len(locators)}")
+        for idx, loc in enumerate(locators):
+            href = loc.locator("xpath=ancestor::a[1]").get_attribute("href")
+            if href is not None:
+                p = context.new_page()
+                _ = p.goto(href, wait_until="domcontentloaded", timeout=5000)
+                self.save_page(p, kind="organic_results", index=idx)
 
-def handle_sponsored_results(
-    context: BrowserContext, locators: list[Locator]
-) -> None:
-    print(f"[ ] Handling Sponsored Results {len(locators)}")
-    for idx, loc in enumerate(locators):
-        domain = loc.get_attribute("data-pcu")
-        href = loc.get_attribute("href")
-        if domain is None or href is None:
-            continue
+    def handle_organic_products(self, context: BrowserContext, p: Page) -> None:
+        locators = p.locator("product-viewer-entrypoint").all()
+        for idx, loc in enumerate(locators):
+            print(f"[ ] Handling Organic Product {idx}")
+            try:
+                loc.locator("img").first.click(timeout=3000, force=True)
+            except Error as e:
+                print(f"[!] organic products handler failed: {idx}, {e}")
+                continue
 
-        p = context.new_page()
-        _ = p.goto(href, wait_until="domcontentloaded", timeout=5000)
-        save_page(p, kind="sponsored_results", index=idx)
-
-
-def handle_organic_results(
-    context: BrowserContext, locators: list[Locator]
-) -> None:
-    print(f"[ ] Handling Organic Results {len(locators)}")
-    for idx, loc in enumerate(locators):
-        href = loc.locator("xpath=ancestor::a[1]").get_attribute("href")
-        if href is not None:
-            p = context.new_page()
-            _ = p.goto(href, wait_until="domcontentloaded", timeout=5000)
-            save_page(p, kind="organic_results", index=idx)
-
-
-def handle_organic_products(context: BrowserContext, p: Page) -> None:
-    locators = p.locator("product-viewer-entrypoint").all()
-    for idx, loc in enumerate(locators):
-        print(f"[ ] Handling Organic Product {idx}")
-        try:
-            loc.locator("img").first.click(timeout=3000, force=True)
-        except Error as e:
-            print(f"[!] organic products handler failed: {idx}, {e}")
-            continue
-
-        u = p.locator("div[data-redirect-url]").first.get_attribute(
-            "data-redirect-url"
-        )
-        if u is not None:
-            np = context.new_page()
-            _ = np.goto(url=u, wait_until="domcontentloaded", timeout=5000)
-            save_page(p, kind="organic_products", index=idx)
-
-
-def main() -> None:
-    with SB(uc=True) as sb:
-        sb.activate_cdp_mode()
-        endpoint_url = sb.get_endpoint_url()
-
-        with sync_playwright() as p:
-            browser = p.chromium.connect_over_cdp(endpoint_url)
-            context = browser.contexts[0]
-            page = context.pages[0]
-
-            page.goto("https://www.google.com")
-            page.wait_for_timeout(200)
-            search_box = page.locator('textarea[name="q"], input[name="q"]').first
-            search_box.press_sequentially(query, delay=40)
-            search_box.press("Enter")
-            page.wait_for_load_state("domcontentloaded")
-
-            captcha = page.locator("iframe[src*='recaptcha'], form#captcha-form")
-            if captcha.count() > 0:
-                print("[!] Captcha detected!")
-                try:
-                    sb.solve_captcha()
-                    sb.sleep(2)
-                except Error as e:
-                    print(f"solve_captcha failed: {e}")
-                try:
-                    sb.cdp.gui_click_captcha()
-                    sb.sleep(2)
-                except Error as e:
-                    print(f"gui_click_captcha failed: {e}")
-
-                waited = 0
-                while captcha.count() and waited < 5 * 60:
-                    waited += 3
-                    sb.sleep(waited)
-                if waited >= 5 * 60:
-                    print("[-] Timed out waiting for the CAPTCHA to be solved.")
-                    return
-
-            _ = page.wait_for_selector("#search", timeout=20000)
-
-            url = file_key(f"https://www.google.com?q={query.replace(' ', '+')}")
-            src_key = file_key(url, 'html')
-            img_key = file_key(url)
-            upload_content_to_s3(bytes(page.content(), 'utf-8'), src_key)
-            upload_screenshot_to_s3(page.screenshot(), img_key)
-            put_request_to_api(f"bots/{bot_id}/searches", {
-                "data": {
-                    "similar_queries": handle_similar_queries(page),
-                },
-                "content_key": src_key,
-                "screenshot_key": img_key,
-            })
-            handle_organic_products(context, page)
-            handle_organic_results(
-                context, page.locator("h3[id]").all()
+            u = p.locator("div[data-redirect-url]").first.get_attribute(
+                "data-redirect-url"
             )
-            handle_sponsored_results(
-                context, page.locator("[data-pcu]").all()
-            )
-            handle_sponsored_products(
-                context, page.locator("[data-dtld]").all()
-            )
-            put_request_to_api(f"bots/{bot_id}", {"result": "ok"})
+            if u is not None:
+                np = context.new_page()
+                _ = np.goto(url=u, wait_until="domcontentloaded", timeout=5000)
+                self.save_page(p, kind="organic_products", index=idx)
+
+    def save_page(self, p: Page, kind: str, index: int) -> None:
+        key = self.file_key(p.url)
+        self.cfg.upload_screenshot_to_s3(p.screenshot(full_page=True), key)
+        self.cfg.api_put(f"searches/{self.bot.search_id}/page", {
+            "title": p.title,
+            "url": p.url,
+            "meta": Doc(p.content()).meta,
+            "screenshot_key": key,
+            "kind": kind,
+            "index": index,
+            "domain": str(urlparse(p.url).netloc).removeprefix("www.")
+        })
+
 
 
 # todo - login to google
@@ -407,18 +397,15 @@ if __name__ == "__main__":
     _ = parser.add_argument("-x", "--search_id", type=int, help="ID of the bot", required=True)
     _ = parser.add_argument("-q", "--query", type=str, help="Query for the bot", required=True)
     _ = parser.add_argument("-b", "--blacklist", type=str, help="Domain Blacklist", required=False, default="")
-    _ = parser.add_argument("-k", "--key", type=str, help="ID of the bot", required=False,
-                            default="my-random-32-character-x-api-key")
+    _ = parser.add_argument("-k", "--key", type=str, help="ID of the bot", required=True)
     args = parser.parse_args()
 
-    api_headers["x-api-key"] = args.key
-    if len(args.key) == 36:
-        api_url = "https://bytelyon.com/api"
-        app_env = "production"
+    bot = Bot(
+        id=args.id,
+        search_id=args.search_id,
+        query=args.query,
+        blacklist=set(args.blacklist.split(","))
+    )
+    cfg = Config(args.key)
 
-    bot_id = args.id
-    blacklist = set(args.blacklist.split(","))
-    search_id = args.search_id
-    query = args.query
-
-    main()
+    Job(bot, cfg).run()

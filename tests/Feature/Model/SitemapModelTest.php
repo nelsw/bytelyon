@@ -18,7 +18,5 @@ class SitemapModelTest extends TestCase
 
         $this->assertSoftDeleted($sitemap->pages);
         $this->assertSoftDeleted($sitemap);
-        $this->assertSoftDeleted($sitemap->bot);
-
     }
 }

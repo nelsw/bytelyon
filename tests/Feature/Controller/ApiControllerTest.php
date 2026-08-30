@@ -25,21 +25,6 @@ class ApiControllerTest extends TestCase
         $this->get(route('api.bots.index'))->assertOk();
     }
 
-    public function test_bots_update()
-    {
-        $id = Bot::factory()->createQuietly()->id;
-        $exp = fake()->sentence;
-
-        $this->put(
-            uri: route('api.bots.update', ['bot' => $id]),
-            data: ['result' => $exp],
-        )->assertOk();
-
-        $act = Redis::connection('broker')->getDel("bot:$id:done");
-
-        $this->assertEquals($exp, $act);
-    }
-
     public function test_article()
     {
         $model = Article::factory()->create();

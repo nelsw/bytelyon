@@ -7,12 +7,15 @@ use App\Concerns\PageValidationRules;
 use App\Concerns\SerpValidationRules;
 use App\Concerns\SitemapValidationRules;
 use App\Models\Bot;
+use App\Models\Page;
 use App\Models\Serp;
 use App\Models\Sitemap;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 
 class ApiController extends Controller
@@ -24,23 +27,16 @@ class ApiController extends Controller
 
     public function bots(): JsonResponse
     {
-        $bro = Redis::connection('broker');
-
-        $keys = $bro->keys('bot:*:todo');
-        if (! is_array($keys)) {
-            return response()->json();
-        }
-        return response()->json(Arr::map($keys, fn (string $key) => json_decode($bro->getDel($key), true)));
+        return response()->json(data: Bot::query()
+            ->user(auth()->id())
+            ->enabled()
+            ->ready()
+            ->get());
     }
 
-    public function bot(Request $request, Bot $bot): JsonResponse
+    public function bot(Bot $bot): JsonResponse
     {
-        $bro = Redis::connection('broker');
-        $result=$request->input('result');
-        $bro->set("bot:$bot->id:done", $result);
-        if ($result === 'ok') {
-            $bot->update(['last_run_at' => now()]);
-        }
+        $bot->save();
         return response()->json();
     }
 
@@ -55,39 +51,59 @@ class ApiController extends Controller
 
     public function serp(Request $request, Bot $bot): JsonResponse
     {
-        $model = $bot->serp()->updateOrCreate(
-            attributes: ['query' => $request->input('query')],
-            values: $request->validate($this->serpRules()),
-        );
-        return response()->json(['id' => $model->id]);
+        return response()->json([
+            'id' => $bot->serp()->updateOrCreate(
+                attributes: ['query' => $request->input('query')],
+                values: $request->validate($this->serpRules()),
+            )->getKey(),
+        ]);
     }
 
     public function sitemap(Request $request, Bot $bot): JsonResponse
     {
-        $model = $bot->sitemap()->updateOrCreate(
-            attributes: ['domain' => $request->input('domain')],
-            values: $request->validate($this->sitemapRules()),
-        );
-        return response()->json(['id' => $model->id]);
+        return response()->json([
+            'id' => $bot->sitemap()->updateOrCreate(
+                attributes: ['domain' => $request->input('domain')],
+                values: $request->validate($this->sitemapRules()),
+            )->getKey(),
+        ]);
     }
 
     public function serpPage(Request $request, Serp $serp): JsonResponse
     {
-        $values = $request->validate($this->pageRules());
-        if (! isset($values['domain'])) {
-            $values['domain'] = URL::toDomain($values['url']);
-        }
-        $serp->pages()->updateOrCreate(['url' => $values['url']], $values);
-        return response()->json();
+        return response()->json([
+            'id' => $serp->pages()->updateOrCreate(
+                attributes: ['url' => $request->input('url')],
+                values: $request->validate($this->pageRules()),
+            )->getKey(),
+        ]);
     }
 
     public function sitemapPage(Request $request, Sitemap $sitemap): JsonResponse
     {
-        $values = $request->validate($this->pageRules());
-        if (! isset($values['domain'])) {
-            $values['domain'] = URL::toDomain($values['url']);
-        }
-        $sitemap->pages()->updateOrCreate(['url' => $values['url']], $values);
+        return response()->json([
+            'id' => $sitemap->pages()->updateOrCreate(
+                attributes: ['url' => $request->input('url')],
+                values: $request->validate($this->pageRules()),
+            )->getKey(),
+        ]);
+    }
+
+    public function pageImg(Request $request, Page $page): JsonResponse
+    {
+        Storage::disk('s3')->putFile(
+            path: $page->screenshot_key,
+            file: $request->validate(['screenshot_data' => ['nullable', 'image', 'mimes:png']])['screenshot_data'],
+        );
+        return response()->json();
+    }
+
+    public function searchImg(Request $request, Serp $serp): JsonResponse
+    {
+        Storage::disk('s3')->putFile(
+            path: $serp->screenshot_key,
+            file: $request->validate(['screenshot_data' => ['nullable', 'image', 'mimes:png']])['screenshot_data'],
+        );
         return response()->json();
     }
 }

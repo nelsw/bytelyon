@@ -67,7 +67,7 @@ use Illuminate\Support\Facades\Log;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Bot withoutTrashed()
  * @mixin \Eloquent
  */
-#[Fillable('enabled', 'frequency', 'query', 'type', 'last_run_at', 'headless')]
+#[Fillable('enabled', 'frequency', 'query', 'type', 'last_run_at', 'headless', 'blacklist')]
 #[UseFactory(BotFactory::class)]
 #[UsePolicy(BotPolicy::class)]
 #[UseEloquentBuilder(BotBuilder::class)]
@@ -107,6 +107,11 @@ class Bot extends Model
 
     public function toArray(): array
     {
+        $childId = match ($this->type) {
+            BotType::Search => $this->serp->id ?? 0,
+            BotType::Sitemap => $this->sitemap->id ?? 0,
+            default => -1,
+        };
         return [
             'id' => $this->id,
             'type' => $this->type,
@@ -116,13 +121,12 @@ class Bot extends Model
             'blacklist' => $this->blacklist,
             'headless' => $this->headless,
             'processedAt' => $this->last_run_at,
+            'played_at' => $this->played_at,
+            'play_result' => $this->play_result,
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
-            'childId' => match ($this->type) {
-                BotType::Search => $this->serp->id ?? 0,
-                BotType::Sitemap => $this->sitemap->id ?? 0,
-                default => -1,
-            },
+            'childId' => $childId,
+            'child_id' => $childId,
             'pageCount' => match ($this->type) {
                 BotType::News => $this->articles->count(),
                 BotType::Search => $this->serp?->pages?->count(),

@@ -7,22 +7,22 @@ use App\Models\Bot;
 use App\Models\Page;
 use App\Models\Serp;
 use App\Models\Sitemap;
+use App\Models\User;
 use Illuminate\Support\Facades\Redis;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ApiControllerTest extends TestCase
 {
-    private array $headers;
-
     protected function setUp(): void
     {
         parent::setUp();
-        $this->headers = ['x-api-key' => config('app.whitelist.keys')];
+        Sanctum::actingAs(User::factory()->create(), ['worker']);
     }
 
     public function test_bots_index()
     {
-        $this->get(route('api.bots.index'), $this->headers)->assertOk();
+        $this->get(route('api.bots.index'))->assertOk();
     }
 
     public function test_bots_update()
@@ -33,7 +33,6 @@ class ApiControllerTest extends TestCase
         $this->put(
             uri: route('api.bots.update', ['bot' => $id]),
             data: ['result' => $exp],
-            headers: $this->headers,
         )->assertOk();
 
         $act = Redis::connection('broker')->getDel("bot:$id:done");
@@ -47,7 +46,6 @@ class ApiControllerTest extends TestCase
         $this->put(
             route('api.articles.upsert', $model->bot),
             $model->toArray(),
-            $this->headers,
         )
             ->assertOk();
 
@@ -59,7 +57,6 @@ class ApiControllerTest extends TestCase
         $this->put(
             route('api.searches.upsert', $model->bot),
             $model->toArray(),
-            $this->headers,
         )->assertOk();
     }
 
@@ -68,7 +65,6 @@ class ApiControllerTest extends TestCase
         $this->put(
             route('api.sitemaps.upsert', Bot::factory()->createQuietly()),
             Sitemap::factory()->make(['urls' => null])->toArray(),
-            $this->headers,
         )->assertOk();
     }
 
@@ -78,7 +74,6 @@ class ApiControllerTest extends TestCase
         $this->put(
             route('api.sitemaps.upsert', $model->bot),
             $model->toArray(),
-            $this->headers,
         )->assertOk();
     }
 
@@ -88,7 +83,6 @@ class ApiControllerTest extends TestCase
         $this->put(
             route('api.searches.pages.upsert', $model),
             Page::factory()->withRelation(Serp::class, $model->id)->create()->toArray(),
-            $this->headers,
         )->assertOk();
     }
 
@@ -98,7 +92,6 @@ class ApiControllerTest extends TestCase
         $this->put(
             route('api.sitemaps.pages.upsert', $model),
             Page::factory()->withRelation(Sitemap::class, $model->id)->make()->toArray(),
-            $this->headers,
         )->assertOk();
     }
 }

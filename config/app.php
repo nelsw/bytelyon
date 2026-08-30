@@ -133,6 +133,5 @@ return [
     */
     'whitelist' => [
         'ips' => explode(',', env('APP_WHITELIST_IPS', '127.0.0.1')),
-        'keys' => explode(',', env('APP_WHITELIST_KEYS', '')),
     ],
 ];

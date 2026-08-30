@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
+import { edit as editApiTokens } from '@/routes/api-tokens';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editIntegrations } from '@/routes/integrations';
 import { edit as editProfile } from '@/routes/profile';
@@ -27,6 +28,10 @@ const sidebarNavItems: NavItem[] = [
     {
         title: 'Integrations',
         href: editIntegrations(),
+    },
+    {
+        title: 'Client API',
+        href: editApiTokens(),
     },
 ];
 

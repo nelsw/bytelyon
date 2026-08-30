@@ -31,11 +31,10 @@ class BotBuilder extends Builder
 
     public function ready(): static
     {
-        $sql = "played_at IS NULL
+        return $this->whereRaw("played_at IS NULL
 OR (frequency = 'hourly' AND (played_at + interval '1 hour') < NOW())
 OR (frequency = 'daily' AND (played_at + interval '1 day') < NOW())
 OR (frequency = 'weekly' AND (played_at + interval '7 day') < NOW())
-OR (frequency = 'monthly' AND (played_at + interval '30 day') < NOW())";
-        return $this->whereRaw($sql);
+OR (frequency = 'monthly' AND (played_at + interval '30 day') < NOW())");
     }
 }

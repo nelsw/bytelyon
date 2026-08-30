@@ -75,7 +75,7 @@ use Illuminate\Support\Facades\Log;
 class Bot extends Model
 {
     /** @use HasFactory<BotFactory> */
-    use HasFactory, HasUser, SoftDeletes;
+    use HasFactory, HasUser;
 
     /** @return array<string, string> */
     protected function casts(): array

@@ -37,10 +37,10 @@ class BotObserver
                 $bot->articles->each(fn (Article $article) => $article->delete());
                 break;
             case BotType::Search:
-                $bot->serp?->delete();
+                $bot->serp()->delete();
                 break;
             case BotType::Sitemap:
-                $bot->sitemap?->delete();
+                $bot->sitemap()->delete();
         }
     }
 }

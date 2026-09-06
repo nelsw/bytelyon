@@ -14,7 +14,7 @@ install:
 build:
 	@$(sail) build --no-cache
 
-up: build
+up:
 	@$(sail) up -d
 	@$(exec) "npm run dev && php artisan horizon"
 

@@ -36,6 +36,7 @@ use Illuminate\Support\Facades\Log;
  * @property string $query
  * @property BotType $type
  * @property \Carbon\CarbonImmutable|null $last_run_at
+ * @property \Carbon\CarbonImmutable|null $played_at
  * @property \Carbon\CarbonImmutable|null $created_at
  * @property \Carbon\CarbonImmutable|null $updated_at
  * @property \Carbon\CarbonImmutable|null $deleted_at
@@ -119,6 +120,7 @@ class Bot extends Model
             'enabled' => $this->enabled,
             'frequency' => $this->frequency,
             'blacklist' => $this->blacklist,
+            'after' => explode("\n", $this->blacklist),
             'headless' => $this->headless,
             'processedAt' => $this->last_run_at,
             'played_at' => $this->played_at,

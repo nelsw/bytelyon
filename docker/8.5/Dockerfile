@@ -1,7 +1,5 @@
 FROM ubuntu:24.04
 
-LABEL maintainer="Taylor Otwell"
-
 ARG WWWGROUP
 ARG NODE_VERSION=26
 ARG POSTGRES_VERSION=18
@@ -75,6 +73,7 @@ RUN groupadd --force -g $WWWGROUP sail
 RUN useradd -ms /bin/bash --no-user-group -g $WWWGROUP -u 1337 sail
 RUN git config --global --add safe.directory /var/www/html
 
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY start-container /usr/local/bin/start-container
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY php.ini /etc/php/8.5/cli/conf.d/99-sail.ini

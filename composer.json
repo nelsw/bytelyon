@@ -21,7 +21,9 @@
         "laravel/sanctum": "^4.3.3",
         "laravel/wayfinder": "^0.1.14",
         "league/flysystem-aws-s3-v3": "^3.0",
-        "shopify/shopify-api": "^6.1"
+        "shopify/shopify-api": "^6.1",
+        "ext-libxml": "*",
+        "ext-simplexml": "*"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.7",

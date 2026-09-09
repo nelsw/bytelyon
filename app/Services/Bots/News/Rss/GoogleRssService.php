@@ -5,6 +5,7 @@ namespace App\Services\Bots\News\Rss;
 use App\Enums\NewsSource;
 use App\Models\Article;
 use App\Models\Bot;
+use App\Services\XmlService;
 use Carbon\Exceptions\InvalidDateException;
 use Dom\Element;
 use Dom\HTMLDocument;
@@ -26,7 +27,6 @@ use Throwable;
 #[Singleton]
 readonly class GoogleRssService
 {
-    private const string RSS_URL = "https://news.google.com/rss/search";
     private const string ENDPOINT = 'https://news.google.com/_/DotsSplashUi/data/batchexecute';
     private const string LINK_REGEX = '~/articles/(?P<encoded_url>[^?]+)~';
     private const string USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
@@ -34,27 +34,20 @@ readonly class GoogleRssService
     private const int RETRIES = 2;
     private const int TIMEOUT = 30;
 
-    /**
-     * @param Bot $bot
-     * @return array<string, Article>
-     *
-     * @throws ConnectionException
-     * @throws RequestException
-     */
+    public function __construct(private XmlService $xmlService){}
+
+
     public function fetch(Bot $bot): array
     {
-        $body = Http::get(url: self::RSS_URL, query: [
+        $xml = $this->xmlService->fetch("https://news.google.com/rss/search", [
             'q' => $bot->query,
             'hl' => 'en-US',
             'gl' => 'US',
             'ceid' => 'US:en',
-        ])->throw()->body();
+        ]);
 
         $arr = [];
-        $xml = simplexml_load_string($body);
-        for ($i = 0; $i < count($xml->channel->item); $i++) {
-
-            $item = $xml->channel->item[$i];
+        foreach ($xml->channel->item as $item) {
 
             $publisher = str((string)$item->description)
                 ->trim()
@@ -96,13 +89,13 @@ readonly class GoogleRssService
                 }
             }
 
-            $arr[] = new Article([
-                'published_at' => $date->toDateTimeString(),
+            $arr[] = [
+                'published_at' => (string)$item->pubDate,
                 "title" => $title,
                 "url" => $this->decoded((string)$item->link),
                 "source" => NewsSource::GoogleNews->value,
                 "publisher" => $publisher,
-            ]);
+            ];
         }
         return $arr;
     }

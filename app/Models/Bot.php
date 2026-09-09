@@ -145,7 +145,7 @@ class Bot extends Model
             'id' => $this->id,
             'type' => $this->type,
             'query' => $this->query,
-            'blacklist' => explode("\n", $this->blacklist),
+            'blacklist' => $this->blacklist(),
             'headless' => $this->headless,
             'last_run_at' => ($this->last_run_at ?? now()->subYear()),
         ])->toJson($options);

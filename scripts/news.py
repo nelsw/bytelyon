@@ -16,7 +16,7 @@ from cloakbrowser import launch
 from playwright.sync_api import Browser, Page
 
 
-BODY_JS = """els => els.map(el => Array.from(el.querySelectorAll('p')).map(p => p.innerText.trim()).join(' '))"""
+BODY_JS = """els => els.map(el => Array.from(el.querySelectorAll('p')).map(p => p.innerText.trim()).join(' '))[0] ?? ''"""
 META_JS = """
 () => {
     const ok = (e, n) => e.getAttribute(n) !== null && e.getAttribute(n) !== '';

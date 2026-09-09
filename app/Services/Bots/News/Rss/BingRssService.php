@@ -5,37 +5,27 @@ namespace App\Services\Bots\News\Rss;
 use App\Enums\NewsSource;
 use App\Models\Article;
 use App\Models\Bot;
-use App\Models\Page;
-use Carbon\CarbonInterface;
+use App\Services\XmlService;
 use Carbon\Exceptions\InvalidDateException;
 use Illuminate\Container\Attributes\Singleton;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 #[Singleton]
 readonly class BingRssService
 {
-    private const string RSS_URL = "https://www.bing.com/news/search";
+    public function __construct(private XmlService $xmlService){}
 
-    /**
-     * @return array<string, Article>
-     * @throws RequestException
-     * @throws ConnectionException
-     */
+
     public function fetch(Bot $bot): array {
 
-        $body = Http::get(url: self::RSS_URL, query: [
+        $xml = $this->xmlService->fetch("https://www.bing.com/news/search", [
             'q' => $bot->query,
             'format' => 'rss',
-        ])->throw()->body();
+        ]);
 
         $arr = [];
-        $xml = simplexml_load_string($body);
-        for ($i = 0; $i < count($xml->channel->item); $i++) {
-            $item = $xml->channel->item[$i];
+        foreach ($xml->channel->item as $item) {
 
             try {
                 $date = Carbon::parse((string)$item->pubDate);
@@ -67,15 +57,15 @@ readonly class BingRssService
                 $image = (string) $item->xpath('//News:Image')[0];
             }
 
-            $arr[] = new Article([
+            $arr[] = [
                 'title' => (string)$item->title,
                 'description' => (string)$item->description,
-                'published_at' => $date->toDateTimeString(),
+                'published_at' => (string)$item->pubDate,
                 'publisher' => NewsSource::BingNews->value,
                 'source' => $source,
                 'img_url' => $image,
                 'url' => $this->decode((string)$item->link),
-            ]);
+            ];
         }
 
         return $arr;

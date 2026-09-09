@@ -21,7 +21,7 @@ readonly class Meta
                 ->collapse()
                 ->all(),
             description: self::find($items, fn ($item) => str_contains($item[0], 'description')),
-            imageSrc: self::find($items, fn ($item) => $item[0] === 'image' || str_contains($item[0], ':image')),
+            imageSrc: self::find($items, fn ($item) => $item[0] === 'image' || str_ends_with($item[0], ':image')),
             imageAlt: self::find($items, fn ($item) => str_contains($item[0], ':alt')),
             keywords: collect($items)
                 ->filter(fn ($item) => str_contains($item[0], 'keyword'))
@@ -29,6 +29,7 @@ readonly class Meta
                 ->collapse()
                 ->values()
                 ->unique()
+                ->map(fn ($item) => trim($item))
                 ->sort()
                 ->all(),
         );

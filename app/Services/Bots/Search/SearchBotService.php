@@ -3,9 +3,7 @@
 namespace App\Services\Bots\Search;
 
 use App\Enums\SerpPart;
-use App\Models\Bot;
 use App\Models\Serp;
-use App\Services\Bots\BotService;
 use Dom\Element;
 use Dom\HTMLDocument;
 use Illuminate\Container\Attributes\Singleton;

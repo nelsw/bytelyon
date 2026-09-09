@@ -75,12 +75,10 @@ use Illuminate\Support\Str;
     'title',
 ])]
 #[UseFactory(ArticleFactory::class)]
-class Article extends Model implements Processable
+class Article extends Model
 {
     /** @use HasFactory<ArticleFactory> */
-    use HasBotProcess,
-        HasFactory,
-        SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     /** @return array<string, string> */
     protected function casts(): array

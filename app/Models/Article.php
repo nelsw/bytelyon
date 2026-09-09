@@ -2,11 +2,17 @@
 
 namespace App\Models;
 
+use App\Contracts\Processable;
+use App\Enums\BotType;
 use App\Traits\HasBot;
+use App\Traits\HasBotProcess;
+use Carbon\CarbonImmutable;
 use Closure;
 use Database\Factories\ArticleFactory;
+use Eloquent;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -17,43 +23,43 @@ use Illuminate\Support\Str;
 /**
  * @property int $id
  * @property string $title
- * @property \Carbon\CarbonImmutable $published_at
+ * @property CarbonImmutable $published_at
  * @property string|null $img_alt
  * @property string|null $img_url
  * @property string|null $source
  * @property array<array-key, mixed>|null $keywords
  * @property string|null $description
  * @property string|null $body
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property \Carbon\CarbonImmutable|null $deleted_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $deleted_at
  * @property int $bot_id
  * @property string|null $publisher
  * @property string $url
- * @property-read \App\Models\Bot|null $bot
- * @method static \Database\Factories\ArticleFactory factory($count = null, $state = [])
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article onlyTrashed()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article whereBody($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article whereBotId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article whereDeletedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article whereDescription($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article whereImgAlt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article whereImgUrl($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article whereKeywords($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article wherePublishedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article wherePublisher($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article whereSource($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article whereTitle($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article whereUrl($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article withTrashed(bool $withTrashed = true)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Article withoutTrashed()
- * @mixin \Eloquent
+ * @property-read Bot|null $bot
+ * @method static ArticleFactory factory($count = null, $state = [])
+ * @method static Builder<static>|Article newModelQuery()
+ * @method static Builder<static>|Article newQuery()
+ * @method static Builder<static>|Article onlyTrashed()
+ * @method static Builder<static>|Article query()
+ * @method static Builder<static>|Article whereBody($value)
+ * @method static Builder<static>|Article whereBotId($value)
+ * @method static Builder<static>|Article whereCreatedAt($value)
+ * @method static Builder<static>|Article whereDeletedAt($value)
+ * @method static Builder<static>|Article whereDescription($value)
+ * @method static Builder<static>|Article whereId($value)
+ * @method static Builder<static>|Article whereImgAlt($value)
+ * @method static Builder<static>|Article whereImgUrl($value)
+ * @method static Builder<static>|Article whereKeywords($value)
+ * @method static Builder<static>|Article wherePublishedAt($value)
+ * @method static Builder<static>|Article wherePublisher($value)
+ * @method static Builder<static>|Article whereSource($value)
+ * @method static Builder<static>|Article whereTitle($value)
+ * @method static Builder<static>|Article whereUpdatedAt($value)
+ * @method static Builder<static>|Article whereUrl($value)
+ * @method static Builder<static>|Article withTrashed(bool $withTrashed = true)
+ * @method static Builder<static>|Article withoutTrashed()
+ * @mixin Eloquent
  */
 #[Fillable([
     'body',
@@ -69,10 +75,12 @@ use Illuminate\Support\Str;
     'title',
 ])]
 #[UseFactory(ArticleFactory::class)]
-class Article extends Model
+class Article extends Model implements Processable
 {
     /** @use HasFactory<ArticleFactory> */
-    use HasBot, HasFactory, SoftDeletes;
+    use HasBotProcess,
+        HasFactory,
+        SoftDeletes;
 
     /** @return array<string, string> */
     protected function casts(): array

@@ -3,15 +3,22 @@
 namespace App\Models;
 
 use App\Builders\SerpBuilder;
+use App\Contracts\Processable;
+use App\Enums\BotType;
 use App\Observers\SerpObserver;
 use App\Traits\HasBot;
+use App\Traits\HasBotProcess;
 use App\Traits\HasPages;
 use App\Traits\HasScreenshot;
+use Carbon\CarbonImmutable;
 use Database\Factories\SerpFactory;
+use Eloquent;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -22,20 +29,20 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $query
  * @property string|null $screenshot_key
  * @property array<array-key, mixed>|null $data
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property \Carbon\CarbonImmutable|null $deleted_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $deleted_at
  * @property int $bot_id
  * @property string|null $content_key
- * @property-read \App\Models\Bot|null $bot
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Page> $pages
+ * @property-read Bot|null $bot
+ * @property-read Collection<int, Page> $pages
  * @property-read int|null $pages_count
  * @method static SerpBuilder<static>|Serp byQuery()
- * @method static \Database\Factories\SerpFactory factory($count = null, $state = [])
+ * @method static SerpFactory factory($count = null, $state = [])
  * @method static SerpBuilder<static>|Serp newModelQuery()
  * @method static SerpBuilder<static>|Serp newQuery()
  * @method static SerpBuilder<static>|Serp notDeleted()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Serp onlyTrashed()
+ * @method static Builder<static>|Serp onlyTrashed()
  * @method static SerpBuilder<static>|Serp whereBotId($value)
  * @method static SerpBuilder<static>|Serp whereContentKey($value)
  * @method static SerpBuilder<static>|Serp whereCreatedAt($value)
@@ -45,20 +52,21 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @method static SerpBuilder<static>|Serp whereQuery($value)
  * @method static SerpBuilder<static>|Serp whereScreenshotKey($value)
  * @method static SerpBuilder<static>|Serp whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Serp withTrashed(bool $withTrashed = true)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Serp withoutTrashed()
- * @mixin \Eloquent
+ * @method static Builder<static>|Serp withTrashed(bool $withTrashed = true)
+ * @method static Builder<static>|Serp withoutTrashed()
+ * @mixin Eloquent
  */
 #[Fillable('query', 'data', 'screenshot_key', 'content_key')]
 #[ObservedBy(SerpObserver::class)]
 #[UseEloquentBuilder(SerpBuilder::class)]
 #[UseFactory(SerpFactory::class)]
-class Serp extends Model
+class Serp extends Model implements Processable
 {
     /** @use HasFactory<SerpFactory> */
     use HasBot,
         HasFactory,
         HasPages,
+        HasBotProcess,
         HasScreenshot,
         SoftDeletes;
 
@@ -68,5 +76,10 @@ class Serp extends Model
         return [
             'data' => 'json',
         ];
+    }
+
+    public function URL(): string
+    {
+        return 'https://www.google.com/search?q=' . urlencode($this->query);
     }
 }

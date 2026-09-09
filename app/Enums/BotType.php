@@ -11,4 +11,7 @@ enum BotType: string
     case News = 'news';
     case Search = 'search';
     case Sitemap = 'sitemap';
+
+    /* Default trait value */
+    case Unknown = 'unknown';
 }

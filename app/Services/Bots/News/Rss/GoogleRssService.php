@@ -4,6 +4,7 @@ namespace App\Services\Bots\News\Rss;
 
 use App\Enums\NewsSource;
 use App\Models\Article;
+use App\Models\Bot;
 use Carbon\Exceptions\InvalidDateException;
 use Dom\Element;
 use Dom\HTMLDocument;
@@ -34,19 +35,16 @@ readonly class GoogleRssService
     private const int TIMEOUT = 30;
 
     /**
-     * @param string $query
-     * @param Carbon $last
-     * @param array $blacklist
-     *
+     * @param Bot $bot
      * @return array<string, Article>
      *
      * @throws ConnectionException
      * @throws RequestException
      */
-    public function fetch(string $query, Carbon $last, array $blacklist): array
+    public function fetch(Bot $bot): array
     {
         $body = Http::get(url: self::RSS_URL, query: [
-            'q' => $query,
+            'q' => $bot->query,
             'hl' => 'en-US',
             'gl' => 'US',
             'ceid' => 'US:en',
@@ -88,23 +86,23 @@ readonly class GoogleRssService
                 continue;
             }
 
-            if ($date->isBefore($last)) {
+            if ($date->isBefore($bot->last_run_at)) {
                 continue;
             }
 
-            foreach ($blacklist as $keyword) {
+            foreach ($bot->blacklist() as $keyword) {
                 if (str_contains($title, $keyword)) {
                     continue 2;
                 }
             }
 
-            $arr[] = [
-                "pubDate" => $date,
+            $arr[] = new Article([
+                'published_at' => $date->toDateTimeString(),
                 "title" => $title,
-                "link" => $this->decoded((string)$item->link),
+                "url" => $this->decoded((string)$item->link),
                 "source" => NewsSource::GoogleNews->value,
                 "publisher" => $publisher,
-            ];
+            ]);
         }
         return $arr;
     }

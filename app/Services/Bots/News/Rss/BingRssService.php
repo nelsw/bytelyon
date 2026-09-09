@@ -3,6 +3,9 @@
 namespace App\Services\Bots\News\Rss;
 
 use App\Enums\NewsSource;
+use App\Models\Article;
+use App\Models\Bot;
+use App\Models\Page;
 use Carbon\CarbonInterface;
 use Carbon\Exceptions\InvalidDateException;
 use Illuminate\Container\Attributes\Singleton;
@@ -10,6 +13,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 #[Singleton]
 readonly class BingRssService
@@ -17,13 +21,14 @@ readonly class BingRssService
     private const string RSS_URL = "https://www.bing.com/news/search";
 
     /**
+     * @return array<string, Article>
      * @throws RequestException
      * @throws ConnectionException
      */
-    public function fetch(string $query, CarbonInterface $last, array $blacklist): array {
+    public function fetch(Bot $bot): array {
 
         $body = Http::get(url: self::RSS_URL, query: [
-            'q' => $query,
+            'q' => $bot->query,
             'format' => 'rss',
         ])->throw()->body();
 
@@ -34,30 +39,43 @@ readonly class BingRssService
 
             try {
                 $date = Carbon::parse((string)$item->pubDate);
-            } catch (InvalidDateException) {
+            } catch (InvalidDateException $e) {
+                Log::warning('BingRssService::fetch', [
+                    'exception' => $e,
+                    'item' => $item,
+                ]);
                 continue;
             }
-            if ($date->isBefore($last)) {
+            if ($date->isBefore($bot->last_run_at)) {
                 continue;
             }
 
-            $title = (string)$item->title;
-            $description = (string)$item->description;
-            foreach ($blacklist as $keyword) {
-                if (str_contains($title, $keyword) || str_contains($description, $keyword)) {
+            foreach ($bot->blacklist() as $keyword) {
+                if (str_contains((string)$item->title, $keyword) ||
+                    str_contains((string)$item->description, $keyword)) {
                     continue 2;
                 }
             }
 
-            $arr[] = [
-                'title' => $title,
-                'description' => $description,
-                'pubDate' => $date,
+            $source = '';
+            if (sizeof($item->xpath('//News:Source')) > 0) {
+                $source = (string)$item->xpath('//News:Source')[0];
+            }
+
+            $image = '';
+            if (sizeof($item->xpath('//News:Image'))) {
+                $image = (string) $item->xpath('//News:Image')[0];
+            }
+
+            $arr[] = new Article([
+                'title' => (string)$item->title,
+                'description' => (string)$item->description,
+                'published_at' => $date->toDateTimeString(),
                 'publisher' => NewsSource::BingNews->value,
-                'source' => (string)$item->xpath('//News:Source')[0],
-                'img_url' => (string)$item->xpath('//News:Image')[0],
+                'source' => $source,
+                'img_url' => $image,
                 'url' => $this->decode((string)$item->link),
-            ];
+            ]);
         }
 
         return $arr;

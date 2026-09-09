@@ -36,6 +36,13 @@ class BotFactory extends Factory
         ];
     }
 
+    public function headless(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            ...$attributes,
+            ...['headless' => true],
+        ]);
+    }
     public function enabled(): static
     {
         return $this->state(fn (array $attributes) => [

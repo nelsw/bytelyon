@@ -2,73 +2,38 @@
 
 namespace App\Services\Bots\Search;
 
-use App\Enums\BotType;
 use App\Enums\SerpPart;
 use App\Models\Bot;
+use App\Models\Serp;
+use App\Services\Bots\BotService;
 use Dom\Element;
 use Dom\HTMLDocument;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
-use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
-use RuntimeException;
-use Throwable;
 
 #[Singleton]
-readonly class SearchBotService
+class SearchBotService
 {
-    private const string HOST = "https://www.google.com";
-    public function run(Bot $bot): bool
+    private const string GOOGLE_URL = "https://www.google.com";
+    public function run(Serp $serp): bool
     {
-        $args = [
-            'uv', 'run', base_path('scripts/search.py'),
-            '-p', implode('/', [storage_path('app/private'), $bot->type->value, $bot->id]),
-            '-q', $bot->query
-        ];
-        if ($bot->headless) {
-            $args[] = '--headless';
-        }
-
-        $cmd = implode(' ', $args);
-        try {
-            $result = Process::run($args, function (string $type, string $output) use ($args, $cmd) {
-                Log::debug('SearchBotService::run', [
-                    'cmd' => $cmd,
-                    $type => $output,
-                ]);
-            });
-        } catch (ProcessTimedOutException | RuntimeException $e) {
-            Log::error('SearchBotService::run', [
-                'cmd' => $cmd,
-                'error' => $e->getMessage(),
-                'ok' => false,
-            ]);
-            return false;
-        }
-
-        Log::info('SearchBotService::run', [
-            'cmd' => $cmd,
-            'ok' => $result->successful(),
-        ]);
-
-        if ($result->failed()) {
+        if (!$serp->process(['-q', $serp->query])) {
             return false;
         }
 
         // url is not actual page URL, but rather a simple
         // concatenation of parts to prevent uuid shifts
-        $url = self::HOST . '/search?q=' . urlencode($bot->query);
-        $uuid = URL::toUuid5($url);
+        $uuid = URL::toUuid5($serp->URL());
 
-        $path = "{$bot->type->value}/$bot->id/$uuid.html";
-        $doc = HTMLDocument::createFromString(Storage::get($path));
+        $path = "search/$serp->id/$uuid.png";
 
+        $src = Storage::get("search/$serp->id/$uuid.html");
+        $doc = HTMLDocument::createFromString($src);
         $data = [
             SerpPart::SpoPro->value => $this->sponsoredProducts($doc),
             SerpPart::SpoRes->value => $this->sponsoredResults($doc),
@@ -77,13 +42,22 @@ readonly class SearchBotService
             SerpPart::SimQry->value => $this->similarQueries($doc),
         ];
 
+        // todo - go to each result page
+        // todo - revisit organic product urls
+
+        $serp->update([
+            'screenshot_key' => "search/$serp->id/$uuid.png",
+            'content_key' => "search/$serp->id/$uuid.html",
+            'data' => $data,
+        ]);
+
         return true;
     }
 
     private function finalURL(string $link): string
     {
-        if (!str_starts_with($link, self::HOST)) {
-            $link = self::HOST . $link;
+        if (!str_starts_with($link, self::GOOGLE_URL)) {
+            $link = self::GOOGLE_URL . $link;
         }
 
         $key = 'gsearch:decoded:' . sha1($link);
@@ -143,7 +117,7 @@ readonly class SearchBotService
                 "kind" => SerpPart::SpoPro->value,
                 "index" => $i,
                 "domain" => $e->getAttribute("data-dtld"),
-                "link" => $this->finalURL($a->getAttribute("href")),
+                "url" => $this->finalURL($a->getAttribute("href")),
                 "image" => $a->querySelector("img")->getAttribute("src"),
                 "title" => $div->querySelector("div[data-call_grow_wiz_event='true']"),
                 "price" => $div->querySelector("div[aria-label]"),
@@ -155,11 +129,13 @@ readonly class SearchBotService
     private function organicResults(HTMLDocument $doc): array
     {
         return collect($doc->querySelectorAll("h3[id]"))->map(function (Element $e, int $i): array {
+            $url = $this->finalURL($e->parentElement->getAttribute("href"));
             return [
                 "kind" => SerpPart::OrgRes->value,
                 "index" => $i,
                 "title" => $e->textContent,
-                "url" => $this->finalURL($e->parentElement->getAttribute("href")),
+                "url" => $url,
+                "domain" => URL::toDomain($url),
             ];
         })->all();
     }

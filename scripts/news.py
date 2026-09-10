@@ -45,7 +45,7 @@ def run(urls: list[str], path: str, headless: bool) -> None:
         meta = page.evaluate(META_JS)
         body = page.locator('article').evaluate_all(BODY_JS)
         if body == '':
-            page.locator('body').evaluate_all(BODY_JS)
+            body = page.locator('body').evaluate_all(BODY_JS)
 
         data = {
             'url': url,

@@ -28,13 +28,9 @@ readonly class BingRssService
             try {
                 $date = Carbon::parse((string) $item->pubDate);
             } catch (InvalidDateException $e) {
-                Log::warning('BingRssService::fetch', [
-                    'exception' => $e,
-                    'item' => $item,
-                ]);
                 continue;
             }
-            if ($date->isBefore($bot->last_run_at)) {
+            if ($date->isBefore($bot->lastRunAt())) {
                 continue;
             }
 

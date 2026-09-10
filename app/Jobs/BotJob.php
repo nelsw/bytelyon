@@ -34,6 +34,8 @@ class BotJob implements ShouldQueue
 
         $service->run($this->bot);
 
+        $this->bot->update(['last_run_at' => now()->utc()]);
+
         Log::info('BotJob::handle - worked', [
             'id' => $this->bot->id,
             'type' => $this->bot->type,

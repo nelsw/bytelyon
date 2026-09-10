@@ -49,6 +49,15 @@ readonly class GoogleRssService
         $arr = [];
         foreach ($xml->channel->item as $item) {
 
+            try {
+                $date = Carbon::parse((string) $item->pubDate);
+            } catch (InvalidDateException $e) {
+                continue;
+            }
+            if ($date->isBefore($bot->lastRunAt())) {
+                continue;
+            }
+
             $publisher = str((string) $item->description)
                 ->trim()
                 ->after('font')
@@ -72,16 +81,6 @@ readonly class GoogleRssService
                 ->remove(" - $publisher")
                 ->trim()
                 ->toString();
-
-            try {
-                $date = Carbon::parse((string) $item->pubDate);
-            } catch (InvalidDateException) {
-                continue;
-            }
-
-            if ($date->isBefore($bot->last_run_at)) {
-                continue;
-            }
 
             foreach ($bot->blacklist() as $keyword) {
                 if (str_contains($title, $keyword)) {

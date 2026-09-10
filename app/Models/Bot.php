@@ -10,6 +10,7 @@ use App\Policies\BotPolicy;
 use App\Traits\HasUser;
 use Carbon\CarbonImmutable;
 use Database\Factories\BotFactory;
+use DateTimeInterface;
 use Eloquent;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -195,5 +196,10 @@ class Bot extends Model
             return [];
         }
         return explode("\n", $this->blacklist);
+    }
+
+    public function lastRunAt(): DateTimeInterface
+    {
+        return $this->last_run_at ?? now()->subYear();
     }
 }

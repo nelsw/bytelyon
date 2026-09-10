@@ -88,10 +88,9 @@ readonly class GoogleRssService
                 }
             }
 
-            $arr[] = [
+            $arr[$this->decoded((string) $item->link)] = [
                 'published_at' => (string) $item->pubDate,
                 'title' => $title,
-                'url' => $this->decoded((string) $item->link),
                 'source' => NewsSource::GoogleNews->value,
                 'publisher' => $publisher,
             ];

@@ -2,12 +2,9 @@
 
 namespace App\Services;
 
-use App\Dto\Meta;
 use App\Models\Bot;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 
 #[Singleton]
 final readonly class NewsBotService
@@ -20,48 +17,31 @@ final readonly class NewsBotService
 
     public function run(Bot $bot): bool
     {
-        $articles = collect()
+        $arr = collect()
             ->merge($this->bingRssService->fetch($bot))
             ->merge($this->googleRssService->fetch($bot));
 
         Log::info('NewsBotService', [
             'bot' => $bot->toPrettyJson(),
-            'articles' => $articles->count(),
+            'articles' => $arr->count(),
         ]);
 
-        if ($articles->isEmpty()) {
+        if ($arr->isEmpty()) {
             return true;
         }
 
-        $articles->each(function (array $arr) use ($bot) {
+        $result = $this->botProcessService->news($arr->keys()->all());
+        if (is_string($result)) {
+            Log::error("NewsBotService - error: $result");
+            return false;
+        }
 
-            $url = $arr['url'];
-            if (! $this->botProcessService->url($bot, $url)) {
-                return;
-            }
-
-            $uuid = URL::toUuid5($url);
-            $data = Storage::json("{$bot->type->value}/$bot->id/$uuid.json");
-            if ($data === null) {
-                return;
-            }
-            $meta = Meta::of($data['meta']);
-            $body = $data['body'];
-
+        foreach ($result as $res) {
             $bot->articles()->updateOrCreate(
-                ['url' => $url],
-                [
-                    ...$arr,
-                    ...[
-                        'keywords' => $meta->keywords,
-                        'img_alt' => $meta->imageAlt,
-                        'img_url' => $meta->imageSrc,
-                        'description' => $meta->description,
-                        'body' => $body,
-                    ],
-                ],
+                ['url' => $res['url']],
+                [...$arr->get($res['url']), ...$res]
             );
-        });
+        }
 
         return true;
     }

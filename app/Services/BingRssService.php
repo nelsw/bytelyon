@@ -41,24 +41,12 @@ readonly class BingRssService
                 }
             }
 
-            $source = '';
-            if (count($item->xpath('//News:Source')) > 0) {
-                $source = (string) $item->xpath('//News:Source')[0];
-            }
-
-            $image = '';
-            if (count($item->xpath('//News:Image'))) {
-                $image = (string) $item->xpath('//News:Image')[0];
-            }
-
-            $arr[] = [
+            $arr[$this->decode((string) $item->link)] = [
                 'title' => (string) $item->title,
                 'description' => (string) $item->description,
                 'published_at' => (string) $item->pubDate,
                 'publisher' => NewsSource::BingNews->value,
-                'source' => $source,
-                'img_url' => $image,
-                'url' => $this->decode((string) $item->link),
+                'source' => (string) $item->xpath('(//News:Source)[0]'),
             ];
         }
 

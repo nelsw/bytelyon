@@ -1,10 +1,9 @@
 <?php
 
-namespace App\Services\Bots\News\Rss;
+namespace App\Services;
 
 use App\Enums\NewsSource;
 use App\Models\Bot;
-use App\Services\XmlService;
 use Carbon\Exceptions\InvalidDateException;
 use Dom\Element;
 use Dom\HTMLDocument;

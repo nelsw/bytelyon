@@ -1,12 +1,9 @@
 <?php
 
-namespace App\Services\Bots\News;
+namespace App\Services;
 
 use App\Dto\Meta;
 use App\Models\Bot;
-use App\Services\BotProcessService;
-use App\Services\Bots\News\Rss\BingRssService;
-use App\Services\Bots\News\Rss\GoogleRssService;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;

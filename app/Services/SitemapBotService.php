@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Services\Bots\Sitemap;
+namespace App\Services;
 
 use App\Models\Bot;
-use App\Services\BotProcessService;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;

@@ -12,37 +12,37 @@ final readonly class NewsBotService
     public function __construct(
         private GoogleRssService $googleRssService,
         private BingRssService $bingRssService,
-        private BotProcessService $botProcessService,
+        private LambdaService $lambdaService,
     ) {}
 
-    public function run(Bot $bot): bool
+    public function run(Bot $bot): void
     {
-        $arr = collect()
+        $items = collect()
             ->merge($this->bingRssService->fetch($bot))
             ->merge($this->googleRssService->fetch($bot));
 
-        Log::info('NewsBotService', [
+        Log::info('NewsBotService::run', [
             'bot' => $bot->toPrettyJson(),
-            'articles' => $arr->count(),
+            'items' => $items->count(),
         ]);
 
-        if ($arr->isEmpty()) {
-            return true;
+        if ($items->isEmpty()) {
+            return;
         }
 
-        $result = $this->botProcessService->news($arr->keys()->all());
-        if (is_string($result)) {
-            Log::error("NewsBotService - error: $result");
-            return false;
-        }
+        $pages = $this->lambdaService->news($items->keys()->all());
 
-        foreach ($result as $res) {
+        Log::info('NewsBotService::run', [
+            'bot' => $bot->toPrettyJson(),
+            'items' => $items->count(),
+            'pages' => count($pages),
+        ]);
+
+        foreach ($pages as $res) {
             $bot->articles()->updateOrCreate(
                 ['url' => $res['url']],
-                [...$arr->get($res['url']), ...$res]
+                [...$items->get($res['url']), ...$res]
             );
         }
-
-        return true;
     }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use Closure;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;

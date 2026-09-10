@@ -46,8 +46,8 @@ class BotModelTest extends TestCase
             ->first();
 
         $this->assertEquals($exp->id, $act->id);
-dump($act->toJson());
-        $result = Process::run(base_path('scripts/main') . " '".$act->toJson()."'");
+        dump($act->toJson());
+        $result = Process::run(base_path('scripts/main')." '".$act->toJson()."'");
         dump($result);
         dump($result->output());
     }

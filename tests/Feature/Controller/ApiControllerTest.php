@@ -8,7 +8,6 @@ use App\Models\Page;
 use App\Models\Serp;
 use App\Models\Sitemap;
 use App\Models\User;
-use Illuminate\Support\Facades\Redis;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 

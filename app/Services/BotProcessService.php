@@ -8,7 +8,7 @@ use Illuminate\Container\Attributes\Singleton;
 #[Singleton]
 readonly class BotProcessService
 {
-    public function __construct(private ProcessService $service){}
+    public function __construct(private ProcessService $service) {}
 
     public function query(Bot $bot, string $query): bool
     {
@@ -16,7 +16,7 @@ readonly class BotProcessService
             'uv', 'run', base_path("scripts/{$bot->type->value}.py"),
             '-p', storage_path("app/private/{$bot->type->value}/$bot->id"),
             '-q', $query,
-            '--headless'
+            '--headless',
         ]);
     }
 
@@ -26,8 +26,22 @@ readonly class BotProcessService
             'uv', 'run', base_path("scripts/{$bot->type->value}.py"),
             '-p', storage_path("app/private/{$bot->type->value}/$bot->id"),
             '-u', $url,
-            '--headless'
+            '--headless',
         ]);
     }
-}
 
+    public function urls(Bot $bot, array $urls): bool
+    {
+        $args = [
+            'uv', 'run', base_path("scripts/{$bot->type->value}.py"),
+            '-p', storage_path("app/private/{$bot->type->value}/$bot->id"),
+            '-u',
+        ];
+        $args = [
+            ...$args,
+            ...$urls,
+        ];
+        $args[] = '--headless';
+        return $this->service->run($args);
+    }
+}

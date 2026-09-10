@@ -12,12 +12,12 @@ class XmlServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new XmlService();
+        $this->service = new XmlService;
     }
 
-    public function testFetch():void
+    public function test_fetch(): void
     {
-        $url = "https://www.bing.com/news/search";
+        $url = 'https://www.bing.com/news/search';
         $query = [
             'q' => 'btc forecast',
             'format' => 'rss',

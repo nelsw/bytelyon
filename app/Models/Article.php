@@ -2,10 +2,6 @@
 
 namespace App\Models;
 
-use App\Contracts\Processable;
-use App\Enums\BotType;
-use App\Traits\HasBot;
-use App\Traits\HasBotProcess;
 use Carbon\CarbonImmutable;
 use Closure;
 use Database\Factories\ArticleFactory;
@@ -37,6 +33,7 @@ use Illuminate\Support\Str;
  * @property string|null $publisher
  * @property string $url
  * @property-read Bot|null $bot
+ *
  * @method static ArticleFactory factory($count = null, $state = [])
  * @method static Builder<static>|Article newModelQuery()
  * @method static Builder<static>|Article newQuery()
@@ -59,6 +56,7 @@ use Illuminate\Support\Str;
  * @method static Builder<static>|Article whereUrl($value)
  * @method static Builder<static>|Article withTrashed(bool $withTrashed = true)
  * @method static Builder<static>|Article withoutTrashed()
+ *
  * @mixin Eloquent
  */
 #[Fillable([

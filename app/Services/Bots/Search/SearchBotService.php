@@ -3,7 +3,8 @@
 namespace App\Services\Bots\Search;
 
 use App\Enums\SerpPart;
-use App\Models\Serp;
+use App\Models\Bot;
+use App\Services\BotProcessService;
 use Dom\Element;
 use Dom\HTMLDocument;
 use Illuminate\Container\Attributes\Singleton;
@@ -15,22 +16,19 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 
 #[Singleton]
-class SearchBotService
+readonly class SearchBotService
 {
-    private const string GOOGLE_URL = "https://www.google.com";
-    public function run(Serp $serp): bool
+    public function __construct(private BotProcessService $botProcessService) {}
+
+    public function run(Bot $bot): bool
     {
-        if (!$serp->process(['-q', $serp->query])) {
+        if (! $this->botProcessService->query($bot, $bot->query)) {
             return false;
         }
 
-        // url is not actual page URL, but rather a simple
-        // concatenation of parts to prevent uuid shifts
-        $uuid = URL::toUuid5($serp->URL());
+        $uuid = URL::toUuid5('https://www.google.com/search?q='.urlencode($bot->query));
 
-        $path = "search/$serp->id/$uuid.png";
-
-        $src = Storage::get("search/$serp->id/$uuid.html");
+        $src = Storage::get("{$bot->type->value}/$bot->id/$uuid.html");
         $doc = HTMLDocument::createFromString($src);
         $data = [
             SerpPart::SpoPro->value => $this->sponsoredProducts($doc),
@@ -40,12 +38,9 @@ class SearchBotService
             SerpPart::SimQry->value => $this->similarQueries($doc),
         ];
 
-        // todo - go to each result page
-        // todo - revisit organic product urls
-
-        $serp->update([
-            'screenshot_key' => "search/$serp->id/$uuid.png",
-            'content_key' => "search/$serp->id/$uuid.html",
+        $bot->serp->update([
+            'screenshot_key' => "{$bot->type->value}/$bot->id/$uuid.png",
+            'content_key' => "{$bot->type->value}/$bot->id/$uuid.html",
             'data' => $data,
         ]);
 
@@ -54,11 +49,14 @@ class SearchBotService
 
     private function finalURL(string $link): string
     {
-        if (!str_starts_with($link, self::GOOGLE_URL)) {
-            $link = self::GOOGLE_URL . $link;
+        if (! str_starts_with($link, 'https://www.google.com')) {
+            if (! str_starts_with($link, '/')) {
+                $link = "/$link";
+            }
+            $link = "https://www.google.com$link";
         }
 
-        $key = 'gsearch:decoded:' . sha1($link);
+        $key = 'gsearch:decoded:'.sha1($link);
         if (is_string($val = Cache::get($key))) {
             return $val;
         }
@@ -69,20 +67,20 @@ class SearchBotService
             return $link;
         }
 
-        $key = 'gsearch:decoded:' . sha1((string)$url);
+        $key = 'gsearch:decoded:'.sha1((string) $url);
         Cache::put($key, $url, now()->addMinutes(30));
         return $url;
     }
 
     private function sponsoredResults(HTMLDocument $doc): array
     {
-        return collect($doc->querySelectorAll("[data-pcu]"))->map(function (Element $e, int $i): array {
+        return collect($doc->querySelectorAll('[data-pcu]'))->map(function (Element $e, int $i): array {
             $url = $this->finalURL($e->getAttribute('href'));
             return [
-                "kind" => SerpPart::SpoPro->value,
+                'kind' => SerpPart::SpoPro->value,
                 'index' => $i,
-                'title' => $e->querySelector("span")[0]->text(),
-                'brand' => str($e->querySelector("span")[1]->text())->before('https://'),
+                'title' => $e->querySelector('span')[0]->text(),
+                'brand' => str($e->querySelector('span')[1]->text())->before('https://'),
                 'url' => $url,
                 'domain' => URL::toDomain($url),
             ];
@@ -91,14 +89,14 @@ class SearchBotService
 
     private function organicProducts(HTMLDocument $doc): array
     {
-        return collect($doc->querySelectorAll("product-viewer-entrypoint"))->map(function (Element $e, int $i): array {
-            $title = $e->querySelector("div")->getAttribute('aria-label');
-            $img = $e->querySelector("img");
+        return collect($doc->querySelectorAll('product-viewer-entrypoint'))->map(function (Element $e, int $i): array {
+            $title = $e->querySelector('div')->getAttribute('aria-label');
+            $img = $e->querySelector('img');
             if ($title == '') {
-                $img->getAttribute("alt");
+                $img->getAttribute('alt');
             }
             return [
-                "kind" => SerpPart::OrgPro->value,
+                'kind' => SerpPart::OrgPro->value,
                 'index' => $i,
                 'title' => $title,
                 'image' => $img->getAttribute('src'),
@@ -108,52 +106,50 @@ class SearchBotService
 
     private function sponsoredProducts(HTMLDocument $doc): array
     {
-        return collect($doc->querySelectorAll("[data-dtld]"))->map(function (Element $e, int $i): array {
-            $div = $e->querySelector("div.pla-unit-container");
-            $a = $div->querySelector("a.pla-unit-img-container-link");
+        return collect($doc->querySelectorAll('[data-dtld]'))->map(function (Element $e, int $i): array {
+            $div = $e->querySelector('div.pla-unit-container');
+            $a = $div->querySelector('a.pla-unit-img-container-link');
             return [
-                "kind" => SerpPart::SpoPro->value,
-                "index" => $i,
-                "domain" => $e->getAttribute("data-dtld"),
-                "url" => $this->finalURL($a->getAttribute("href")),
-                "image" => $a->querySelector("img")->getAttribute("src"),
-                "title" => $div->querySelector("div[data-call_grow_wiz_event='true']"),
-                "price" => $div->querySelector("div[aria-label]"),
-                "brand" => $div->querySelector("span[role='text']"),
+                'kind' => SerpPart::SpoPro->value,
+                'index' => $i,
+                'domain' => $e->getAttribute('data-dtld'),
+                'url' => $this->finalURL($a->getAttribute('href')),
+                'image' => $a->querySelector('img')->getAttribute('src'),
+                'title' => $div->querySelector("div[data-call_grow_wiz_event='true']"),
+                'price' => $div->querySelector('div[aria-label]'),
+                'brand' => $div->querySelector("span[role='text']"),
             ];
         })->all();
     }
 
     private function organicResults(HTMLDocument $doc): array
     {
-        return collect($doc->querySelectorAll("h3[id]"))->map(function (Element $e, int $i): array {
-            $url = $this->finalURL($e->parentElement->getAttribute("href"));
+        return collect($doc->querySelectorAll('h3[id]'))->map(function (Element $e, int $i): array {
+            $url = $this->finalURL($e->parentElement->getAttribute('href'));
             return [
-                "kind" => SerpPart::OrgRes->value,
-                "index" => $i,
-                "title" => $e->textContent,
-                "url" => $url,
-                "domain" => URL::toDomain($url),
+                'kind' => SerpPart::OrgRes->value,
+                'index' => $i,
+                'title' => $e->textContent,
+                'url' => $url,
+                'domain' => URL::toDomain($url),
             ];
         })->all();
     }
 
     private function similarQueries(HTMLDocument $doc): array
     {
-        $all = collect($doc->querySelectorAll("div[data-notify-expansion]"))
-            ->map(fn(Element $e): string => $e->getAttribute("data-q"))
-            ->filter(fn(string $q): bool => strlen($q) > 4);
+        $all = collect($doc->querySelectorAll('div[data-notify-expansion]'))
+            ->map(fn (Element $e): string => $e->getAttribute('data-q'))
+            ->filter(fn (string $q): bool => strlen($q) > 4);
 
-        $arr = collect($doc->querySelector("div#botstuff")->querySelectorAll("a"))
-            ->map(fn(Element $e): string => $e->textContent)
-            ->filter(fn(string $q): bool => strlen($q) > 4);
+        $arr = collect($doc->querySelector('div#botstuff')->querySelectorAll('a'))
+            ->map(fn (Element $e): string => $e->textContent)
+            ->filter(fn (string $q): bool => strlen($q) > 4);
 
-        // Note: The concat method numerically re-indexes keys for items concatenated onto the original collection.
-        // While merge returns a new collection, it also preserves the order of keys in associative collections.
-        return $all->merge($arr)->map(fn(string $s, int $i): array => [
-            "kind" => SerpPart::SimQry->value,
-            "index" => $i,
-            "value" => $s,
+        return $all->merge($arr)->map(fn (string $s, int $i): array => [
+            'kind' => SerpPart::SimQry->value,
+            'index' => $i,
+            'value' => $s,
         ])->all();
     }
 }

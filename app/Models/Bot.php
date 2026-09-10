@@ -29,7 +29,9 @@ use Illuminate\Support\Facades\Log;
  * @property-read Serp|null $serp
  * @property-read Sitemap|null $sitemap
  * @property-read User|null $user
+ *
  * @method static BotBuilder query()
+ *
  * @property int $id
  * @property string|null $blacklist
  * @property bool $enabled
@@ -45,6 +47,7 @@ use Illuminate\Support\Facades\Log;
  * @property int $user_id
  * @property string|null $last_run_result
  * @property-read int|null $articles_count
+ *
  * @method static BotBuilder<static>|Bot enabled(bool $b = true)
  * @method static BotFactory factory($count = null, $state = [])
  * @method static BotBuilder<static>|Bot headless(bool $b = true)
@@ -68,6 +71,7 @@ use Illuminate\Support\Facades\Log;
  * @method static BotBuilder<static>|Bot whereUserId($value)
  * @method static Builder<static>|Bot withTrashed(bool $withTrashed = true)
  * @method static Builder<static>|Bot withoutTrashed()
+ *
  * @mixin Eloquent
  */
 #[Fillable('enabled', 'frequency', 'query', 'type', 'last_run_at', 'headless', 'blacklist')]
@@ -153,7 +157,7 @@ class Bot extends Model
 
     public function isRunnable(): bool
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             Log::debug('Bot is disabled', [
                 'id' => $this->id,
                 'type' => $this->type,
@@ -182,10 +186,11 @@ class Bot extends Model
 
     public function isNotRunnable(): bool
     {
-        return !$this->isRunnable();
+        return ! $this->isRunnable();
     }
 
-    public function blacklist(): array {
+    public function blacklist(): array
+    {
         if (empty(trim($this->blacklist))) {
             return [];
         }

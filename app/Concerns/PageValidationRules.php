@@ -10,8 +10,6 @@ trait PageValidationRules
         return [
             'domain' => ['nullable', 'string', 'max:255'],
             'meta' => ['nullable', 'array'],
-//            'screenshot_key' => ['nullable', 'string', 'max:255'],
-//            'screenshot_data' => ['nullable', 'image', 'mimes:png'],
             'title' => ['required', 'string', 'max:1025'],
             'url' => ['required', 'string', 'url'],
             'index' => ['nullable', 'integer'],

@@ -3,7 +3,6 @@
 namespace App\Services\Bots\News\Rss;
 
 use App\Enums\NewsSource;
-use App\Models\Article;
 use App\Models\Bot;
 use App\Services\XmlService;
 use Carbon\Exceptions\InvalidDateException;
@@ -14,12 +13,12 @@ use Illuminate\Support\Facades\Log;
 #[Singleton]
 readonly class BingRssService
 {
-    public function __construct(private XmlService $xmlService){}
+    public function __construct(private XmlService $xmlService) {}
 
+    public function fetch(Bot $bot): array
+    {
 
-    public function fetch(Bot $bot): array {
-
-        $xml = $this->xmlService->fetch("https://www.bing.com/news/search", [
+        $xml = $this->xmlService->fetch('https://www.bing.com/news/search', [
             'q' => $bot->query,
             'format' => 'rss',
         ]);
@@ -28,7 +27,7 @@ readonly class BingRssService
         foreach ($xml->channel->item as $item) {
 
             try {
-                $date = Carbon::parse((string)$item->pubDate);
+                $date = Carbon::parse((string) $item->pubDate);
             } catch (InvalidDateException $e) {
                 Log::warning('BingRssService::fetch', [
                     'exception' => $e,
@@ -41,30 +40,30 @@ readonly class BingRssService
             }
 
             foreach ($bot->blacklist() as $keyword) {
-                if (str_contains((string)$item->title, $keyword) ||
-                    str_contains((string)$item->description, $keyword)) {
+                if (str_contains((string) $item->title, $keyword) ||
+                    str_contains((string) $item->description, $keyword)) {
                     continue 2;
                 }
             }
 
             $source = '';
-            if (sizeof($item->xpath('//News:Source')) > 0) {
-                $source = (string)$item->xpath('//News:Source')[0];
+            if (count($item->xpath('//News:Source')) > 0) {
+                $source = (string) $item->xpath('//News:Source')[0];
             }
 
             $image = '';
-            if (sizeof($item->xpath('//News:Image'))) {
+            if (count($item->xpath('//News:Image'))) {
                 $image = (string) $item->xpath('//News:Image')[0];
             }
 
             $arr[] = [
-                'title' => (string)$item->title,
-                'description' => (string)$item->description,
-                'published_at' => (string)$item->pubDate,
+                'title' => (string) $item->title,
+                'description' => (string) $item->description,
+                'published_at' => (string) $item->pubDate,
                 'publisher' => NewsSource::BingNews->value,
                 'source' => $source,
                 'img_url' => $image,
-                'url' => $this->decode((string)$item->link),
+                'url' => $this->decode((string) $item->link),
             ];
         }
 

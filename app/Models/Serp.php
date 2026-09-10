@@ -3,11 +3,8 @@
 namespace App\Models;
 
 use App\Builders\SerpBuilder;
-use App\Contracts\Processable;
-use App\Enums\BotType;
 use App\Observers\SerpObserver;
 use App\Traits\HasBot;
-use App\Traits\HasBotProcess;
 use App\Traits\HasPages;
 use App\Traits\HasScreenshot;
 use Carbon\CarbonImmutable;
@@ -25,6 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @method static SerpBuilder query()
+ *
  * @property int $id
  * @property string $query
  * @property string|null $screenshot_key
@@ -37,6 +35,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read Bot|null $bot
  * @property-read Collection<int, Page> $pages
  * @property-read int|null $pages_count
+ *
  * @method static SerpBuilder<static>|Serp byQuery()
  * @method static SerpFactory factory($count = null, $state = [])
  * @method static SerpBuilder<static>|Serp newModelQuery()
@@ -54,19 +53,19 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @method static SerpBuilder<static>|Serp whereUpdatedAt($value)
  * @method static Builder<static>|Serp withTrashed(bool $withTrashed = true)
  * @method static Builder<static>|Serp withoutTrashed()
+ *
  * @mixin Eloquent
  */
 #[Fillable('query', 'data', 'screenshot_key', 'content_key')]
 #[ObservedBy(SerpObserver::class)]
 #[UseEloquentBuilder(SerpBuilder::class)]
 #[UseFactory(SerpFactory::class)]
-class Serp extends Model implements Processable
+class Serp extends Model
 {
     /** @use HasFactory<SerpFactory> */
     use HasBot,
         HasFactory,
         HasPages,
-        HasBotProcess,
         HasScreenshot,
         SoftDeletes;
 
@@ -80,6 +79,6 @@ class Serp extends Model implements Processable
 
     public function URL(): string
     {
-        return 'https://www.google.com/search?q=' . urlencode($this->query);
+        return 'https://www.google.com/search?q='.urlencode($this->query);
     }
 }

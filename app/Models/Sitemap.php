@@ -3,12 +3,8 @@
 namespace App\Models;
 
 use App\Builders\SitemapBuilder;
-use App\Contracts\Processable;
-use App\Enums\BotType;
 use App\Observers\SitemapObserver;
-use App\Traits\HasBot;
 use App\Traits\HasPages;
-use App\Traits\HasBotProcess;
 use Carbon\CarbonImmutable;
 use Database\Factories\SitemapFactory;
 use Eloquent;
@@ -21,8 +17,6 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Uri;
-use Uri\WhatWg\Url;
 
 /**
  * @property int $id
@@ -35,6 +29,7 @@ use Uri\WhatWg\Url;
  * @property-read Bot|null $bot
  * @property-read Collection<int, Page> $pages
  * @property-read int|null $pages_count
+ *
  * @method static SitemapBuilder<static>|Sitemap byDomain()
  * @method static SitemapFactory factory($count = null, $state = [])
  * @method static SitemapBuilder<static>|Sitemap newModelQuery()
@@ -51,19 +46,17 @@ use Uri\WhatWg\Url;
  * @method static SitemapBuilder<static>|Sitemap whereUrls($value)
  * @method static Builder<static>|Sitemap withTrashed(bool $withTrashed = true)
  * @method static Builder<static>|Sitemap withoutTrashed()
+ *
  * @mixin Eloquent
  */
 #[Fillable('bot_id', 'domain', 'urls')]
 #[ObservedBy(SitemapObserver::class)]
 #[UseEloquentBuilder(SitemapBuilder::class)]
 #[UseFactory(SitemapFactory::class)]
-class Sitemap extends Model implements Processable
+class Sitemap extends Model
 {
     /** @use HasFactory<SitemapFactory> */
-    use HasFactory,
-        HasPages,
-        HasBotProcess,
-        SoftDeletes;
+    use HasFactory, HasPages, SoftDeletes;
 
     /** @return array<string, string> */
     protected function casts(): array
@@ -75,7 +68,7 @@ class Sitemap extends Model implements Processable
 
     public function URL(bool ...$www): string
     {
-        if (count($www) > 0  && $www[0]) {
+        if (count($www) > 0 && $www[0]) {
             return "https://www.$this->domain";
         }
         return "https://$this->domain";

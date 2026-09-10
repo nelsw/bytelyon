@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\Bot;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Support\Facades\Log;
@@ -14,10 +13,10 @@ readonly class ProcessService
 {
     public function run(array $args): bool
     {
-        // join the arguments for clear logging
         $cmd = implode(' ', $args);
 
         Log::debug('ProcessService::run', ['cmd' => $cmd]);
+
         try {
             $res = Process::run($args, function (string $type, string $output) use ($cmd) {
                 Log::debug('ProcessService::run', [
@@ -41,4 +40,3 @@ readonly class ProcessService
         return $res->successful();
     }
 }
-

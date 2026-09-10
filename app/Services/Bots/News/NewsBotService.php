@@ -16,10 +16,10 @@ use Illuminate\Support\Facades\URL;
 final readonly class NewsBotService
 {
     public function __construct(
-        private GoogleRssService  $googleRssService,
-        private BingRssService    $bingRssService,
+        private GoogleRssService $googleRssService,
+        private BingRssService $bingRssService,
         private BotProcessService $botProcessService,
-    ){}
+    ) {}
 
     public function run(Bot $bot): bool
     {
@@ -39,7 +39,7 @@ final readonly class NewsBotService
         $articles->each(function (array $arr) use ($bot) {
 
             $url = $arr['url'];
-            if (!$this->botProcessService->url($bot, $url)) {
+            if (! $this->botProcessService->url($bot, $url)) {
                 return;
             }
 
@@ -51,8 +51,6 @@ final readonly class NewsBotService
             $meta = Meta::of($data['meta']);
             $body = $data['body'];
 
-            // todo - check body for blacklisted terms
-
             $bot->articles()->updateOrCreate(
                 ['url' => $url],
                 [
@@ -63,7 +61,7 @@ final readonly class NewsBotService
                         'img_url' => $meta->imageSrc,
                         'description' => $meta->description,
                         'body' => $body,
-                    ]
+                    ],
                 ],
             );
         });

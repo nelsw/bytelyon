@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Enums;
+
 enum SerpPart: string
 {
     case SpoPro = 'sponsored_products';

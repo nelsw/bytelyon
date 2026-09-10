@@ -16,7 +16,7 @@ readonly class Meta
     {
         return new self(
             items: collect($items)
-                ->reject(fn ($item) => sizeof($item) < 2)
+                ->reject(fn ($item) => count($item) < 2)
                 ->transform(fn ($item) => [$item[0] => $item[1]])
                 ->collapse()
                 ->all(),
@@ -34,6 +34,7 @@ readonly class Meta
                 ->all(),
         );
     }
+
     private static function find($items, $callback): string
     {
         return collect($items)

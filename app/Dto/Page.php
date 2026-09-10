@@ -10,6 +10,5 @@ readonly class Page
         public string $body,
         public ?Meta $meta = null,
         public ?Links $links = null,
-    ) {
-    }
+    ) {}
 }

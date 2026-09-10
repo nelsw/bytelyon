@@ -31,6 +31,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $kind
  * @property int|null $index
  * @property-read Model|Eloquent $pageable
+ *
  * @method static PageFactory factory($count = null, $state = [])
  * @method static Builder<static>|Page newModelQuery()
  * @method static Builder<static>|Page newQuery()
@@ -51,6 +52,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @method static Builder<static>|Page whereUrl($value)
  * @method static Builder<static>|Page withTrashed(bool $withTrashed = true)
  * @method static Builder<static>|Page withoutTrashed()
+ *
  * @mixin Eloquent
  */
 #[Fillable('domain', 'meta', 'screenshot_key', 'title', 'url', 'kind', 'index')]

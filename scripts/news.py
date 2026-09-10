@@ -52,7 +52,7 @@ def keywords(page: Page) -> list:
     words = meta_content(page, KEYWORD_ATTRS).split(',')
     for idx, word in enumerate(words):
         txt = word.strip()
-        if txt is not "":
+        if txt != "":
             words[idx] = txt
     words.sort()
     return words

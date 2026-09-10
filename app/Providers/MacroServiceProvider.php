@@ -7,6 +7,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Ramsey\Uuid\Uuid;
 
 class MacroServiceProvider extends ServiceProvider
 {
@@ -59,6 +60,13 @@ class MacroServiceProvider extends ServiceProvider
                 $url = URL::toDomain($url);
             }
             return "https://www.google.com/s2/favicons?domain=$url&sz=$size";
+        });
+
+        URL::macro('toUuid5', function (?string $url): ?string {
+            if ($url === null) {
+                return null;
+            }
+            return Uuid::uuid5(Uuid::NAMESPACE_URL, $url)->toString();
         });
     }
 }

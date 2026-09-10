@@ -15,6 +15,13 @@ export type Auth = {
     canViewTelescope: boolean;
 };
 
+export type ApiToken = {
+    id: number;
+    name: string;
+    created_at_diff: string;
+    last_used_at_diff: string | null;
+};
+
 /* @chisel-passkeys */
 export type Passkey = {
     id: number;

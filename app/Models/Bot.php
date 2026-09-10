@@ -8,18 +8,20 @@ use App\Enums\FrequencyType;
 use App\Observers\BotObserver;
 use App\Policies\BotPolicy;
 use App\Traits\HasUser;
+use Carbon\CarbonImmutable;
 use Database\Factories\BotFactory;
+use Eloquent;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -27,7 +29,9 @@ use Illuminate\Support\Facades\Log;
  * @property-read Serp|null $serp
  * @property-read Sitemap|null $sitemap
  * @property-read User|null $user
+ *
  * @method static BotBuilder query()
+ *
  * @property int $id
  * @property string|null $blacklist
  * @property bool $enabled
@@ -35,21 +39,23 @@ use Illuminate\Support\Facades\Log;
  * @property FrequencyType $frequency
  * @property string $query
  * @property BotType $type
- * @property \Carbon\CarbonImmutable|null $last_run_at
- * @property \Carbon\CarbonImmutable|null $created_at
- * @property \Carbon\CarbonImmutable|null $updated_at
- * @property \Carbon\CarbonImmutable|null $deleted_at
+ * @property CarbonImmutable|null $last_run_at
+ * @property CarbonImmutable|null $played_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property CarbonImmutable|null $deleted_at
  * @property int $user_id
  * @property string|null $last_run_result
  * @property-read int|null $articles_count
+ *
  * @method static BotBuilder<static>|Bot enabled(bool $b = true)
- * @method static \Database\Factories\BotFactory factory($count = null, $state = [])
+ * @method static BotFactory factory($count = null, $state = [])
  * @method static BotBuilder<static>|Bot headless(bool $b = true)
  * @method static BotBuilder<static>|Bot newModelQuery()
  * @method static BotBuilder<static>|Bot newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Bot onlyTrashed()
+ * @method static Builder<static>|Bot onlyTrashed()
  * @method static BotBuilder<static>|Bot ready()
- * @method static BotBuilder<static>|Bot type(\App\Enums\BotType|string $type)
+ * @method static BotBuilder<static>|Bot type(BotType|string $type)
  * @method static BotBuilder<static>|Bot whereBlacklist($value)
  * @method static BotBuilder<static>|Bot whereCreatedAt($value)
  * @method static BotBuilder<static>|Bot whereDeletedAt($value)
@@ -63,19 +69,20 @@ use Illuminate\Support\Facades\Log;
  * @method static BotBuilder<static>|Bot whereType($value)
  * @method static BotBuilder<static>|Bot whereUpdatedAt($value)
  * @method static BotBuilder<static>|Bot whereUserId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Bot withTrashed(bool $withTrashed = true)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Bot withoutTrashed()
- * @mixin \Eloquent
+ * @method static Builder<static>|Bot withTrashed(bool $withTrashed = true)
+ * @method static Builder<static>|Bot withoutTrashed()
+ *
+ * @mixin Eloquent
  */
-#[Fillable('enabled', 'frequency', 'query', 'type', 'last_run_at', 'headless')]
+#[Fillable('enabled', 'frequency', 'query', 'type', 'last_run_at', 'headless', 'blacklist')]
+#[ObservedBy(BotObserver::class)]
+#[UseEloquentBuilder(BotBuilder::class)]
 #[UseFactory(BotFactory::class)]
 #[UsePolicy(BotPolicy::class)]
-#[UseEloquentBuilder(BotBuilder::class)]
-#[ObservedBy(BotObserver::class)]
 class Bot extends Model
 {
     /** @use HasFactory<BotFactory> */
-    use HasFactory, HasUser, SoftDeletes;
+    use HasFactory, HasUser;
 
     /** @return array<string, string> */
     protected function casts(): array
@@ -107,6 +114,11 @@ class Bot extends Model
 
     public function toArray(): array
     {
+        $childId = match ($this->type) {
+            BotType::Search => $this->serp->id ?? 0,
+            BotType::Sitemap => $this->sitemap->id ?? 0,
+            default => -1,
+        };
         return [
             'id' => $this->id,
             'type' => $this->type,
@@ -114,15 +126,15 @@ class Bot extends Model
             'enabled' => $this->enabled,
             'frequency' => $this->frequency,
             'blacklist' => $this->blacklist,
+            'after' => explode("\n", $this->blacklist),
             'headless' => $this->headless,
             'processedAt' => $this->last_run_at,
+            'played_at' => $this->played_at,
+            'play_result' => $this->play_result,
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
-            'childId' => match ($this->type) {
-                BotType::Search => $this->serp->id ?? 0,
-                BotType::Sitemap => $this->sitemap->id ?? 0,
-                default => -1,
-            },
+            'childId' => $childId,
+            'child_id' => $childId,
             'pageCount' => match ($this->type) {
                 BotType::News => $this->articles->count(),
                 BotType::Search => $this->serp?->pages?->count(),
@@ -137,7 +149,7 @@ class Bot extends Model
             'id' => $this->id,
             'type' => $this->type,
             'query' => $this->query,
-            'blacklist' => explode("\n", $this->blacklist),
+            'blacklist' => $this->blacklist(),
             'headless' => $this->headless,
             'last_run_at' => ($this->last_run_at ?? now()->subYear()),
         ])->toJson($options);
@@ -145,7 +157,7 @@ class Bot extends Model
 
     public function isRunnable(): bool
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             Log::debug('Bot is disabled', [
                 'id' => $this->id,
                 'type' => $this->type,
@@ -174,6 +186,14 @@ class Bot extends Model
 
     public function isNotRunnable(): bool
     {
-        return !$this->isRunnable();
+        return ! $this->isRunnable();
+    }
+
+    public function blacklist(): array
+    {
+        if (empty(trim($this->blacklist))) {
+            return [];
+        }
+        return explode("\n", $this->blacklist);
     }
 }

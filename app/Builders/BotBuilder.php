@@ -4,11 +4,22 @@ namespace App\Builders;
 
 use App\Enums\BotType;
 use App\Models\Bot;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
 /** @extends Builder<Bot> */
 class BotBuilder extends Builder
 {
+    public function type(BotType|string $type): static
+    {
+        return $this->where('type', $type);
+    }
+
+    public function user(User $user): static
+    {
+        return $this->where('user_id', $user->id);
+    }
+
     public function enabled(): static
     {
         return $this->where('enabled', true);

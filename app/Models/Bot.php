@@ -41,7 +41,6 @@ use Illuminate\Support\Facades\Log;
  * @property string $query
  * @property BotType $type
  * @property CarbonImmutable|null $last_run_at
- * @property CarbonImmutable|null $played_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  * @property CarbonImmutable|null $deleted_at
@@ -114,11 +113,6 @@ class Bot extends Model
 
     public function toArray(): array
     {
-        $childId = match ($this->type) {
-            BotType::Search => $this->serp->id ?? 0,
-            BotType::Sitemap => $this->sitemap->id ?? 0,
-            default => -1,
-        };
         return [
             'id' => $this->id,
             'type' => $this->type,
@@ -126,15 +120,16 @@ class Bot extends Model
             'enabled' => $this->enabled,
             'frequency' => $this->frequency,
             'blacklist' => $this->blacklist,
-            'after' => explode("\n", $this->blacklist),
+            'after' => $this->blacklist(),
             'headless' => $this->headless,
             'processedAt' => $this->last_run_at,
-            'played_at' => $this->played_at,
-            'play_result' => $this->play_result,
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
-            'childId' => $childId,
-            'child_id' => $childId,
+            'childId' => match ($this->type) {
+                BotType::Search => $this->serp->id ?? 0,
+                BotType::Sitemap => $this->sitemap->id ?? 0,
+                default => -1,
+            },
             'pageCount' => match ($this->type) {
                 BotType::News => $this->articles->count(),
                 BotType::Search => $this->serp?->pages?->count(),
@@ -151,7 +146,7 @@ class Bot extends Model
             'query' => $this->query,
             'blacklist' => $this->blacklist(),
             'headless' => $this->headless,
-            'last_run_at' => ($this->last_run_at ?? now()->subYear()),
+            'last_run_at' => $this->lastRunAt(),
         ])->toJson($options);
     }
 

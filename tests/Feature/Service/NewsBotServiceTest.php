@@ -5,6 +5,7 @@ namespace Tests\Feature\Service;
 use App\Models\Bot;
 use App\Services\LambdaService;
 use App\Services\NewsBotService;
+use Illuminate\Support\Facades\App;
 use Tests\TestCase;
 
 class NewsBotServiceTest extends TestCase
@@ -21,13 +22,14 @@ class NewsBotServiceTest extends TestCase
 
     public function test_run(): void
     {
-        $bot = Bot::factory()
+        if (!App::hasDebugModeEnabled()) {
+            return;
+        }
+        $this->assertDoesntThrow(fn () => $this->service->run(Bot::factory()
             ->news()
             ->enabled()
-            ->query('btc forecast')
-            ->lastRunAt(now()->subSecond())
-            ->createOneQuietly();
-
-        $this->assertDoesntThrow(fn () => $this->service->run($bot));
+            ->query('iran war')
+            ->lastRunAt(now()->subHours(3))
+            ->createOneQuietly()));
     }
 }

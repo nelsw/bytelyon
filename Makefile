@@ -45,9 +45,8 @@ rollback:
 	@$(exec) "php artisan migrate:rollback --ansi"
 	@$(exec) "php artisan migrate:rollback --env=testing --ansi"
 
-squash:
-	@$(exec) "php artisan schema:dump"
-	@$(exec) "php artisan schema:dump --database=testing --prune"
+prune:
+	@$(exec) "php artisan schema:dump --prune"
 
 seed:
 	@$(exec) "php artisan db:seed --ansi"

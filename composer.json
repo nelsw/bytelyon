@@ -22,9 +22,10 @@
         "laravel/framework": "^13.7",
         "laravel/horizon": "^5.47",
         "laravel/sanctum": "^4.3.3",
+        "laravel/telescope": "^5.24",
         "laravel/wayfinder": "^0.1.14",
         "league/flysystem-aws-s3-v3": "^3.0",
-        "shopify/shopify-api": "^6.1",
+        "shopify/shopify-api": "^6.1"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.7",

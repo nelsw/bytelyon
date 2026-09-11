@@ -7,42 +7,44 @@ use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Facades\Log;
 
 #[Singleton]
-final readonly class NewsBotService
+readonly class NewsBotService
 {
     public function __construct(
         private GoogleRssService $googleRssService,
         private BingRssService $bingRssService,
-        private BotProcessService $botProcessService,
+        private LambdaService $lambdaService,
     ) {}
 
-    public function run(Bot $bot): bool
+    public function run(Bot $bot): void
     {
-        $arr = collect()
+        $items = collect()
             ->merge($this->bingRssService->fetch($bot))
             ->merge($this->googleRssService->fetch($bot));
 
-        Log::info('NewsBotService', [
-            'bot' => $bot->toPrettyJson(),
-            'articles' => $arr->count(),
-        ]);
-
-        if ($arr->isEmpty()) {
-            return true;
+        if ($items->isEmpty()) {
+            Log::info('NewsBotService#run', [
+                'query' => $bot->query,
+                'items' => 0,
+            ]);
+            return;
         }
 
-        $result = $this->botProcessService->news($arr->keys()->all());
-        if (is_string($result)) {
-            Log::error("NewsBotService - error: $result");
-            return false;
-        }
+        $pages = $this->lambdaService->news($items->keys()->all());
 
-        foreach ($result as $res) {
+        foreach ($pages as $page) {
             $bot->articles()->updateOrCreate(
-                ['url' => $res['url']],
-                [...$arr->get($res['url']), ...$res]
+                attributes: ['url' => $page['url']],
+                values: [
+                    ...$items->get($page['url']),
+                    ...$page,
+                ]
             );
         }
 
-        return true;
+        Log::info('NewsBotService::run', [
+            'query' => $bot->query,
+            'items' => $items->count(),
+            'pages' => count($pages),
+        ]);
     }
 }

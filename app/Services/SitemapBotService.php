@@ -5,97 +5,48 @@ namespace App\Services;
 use App\Models\Bot;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Stringable;
-use Uri\Rfc3986\Uri;
 
 #[Singleton]
 readonly class SitemapBotService
 {
-    public function __construct(private BotProcessService $botProcessService) {}
+    public function __construct(private LambdaService $service) {}
 
-    public function run(Bot $bot): bool
+    public function run(Bot $bot, bool $sync = false): void
     {
-        Log::info("SitemapBotService - [$bot->query]");
+        Log::info("SitemapBotService::run - domain=[$bot->query] sync=[$sync]");
 
         $url = "https://$bot->query";
-        $map = [$url => false];
+        $urls = [];
 
-        $this->build($bot, 5, $map, [$url]);
-        $bot->sitemap->update([
-            'urls' => collect($map)->keys()->unique()->sort()->all(),
-        ]);
+        $this->sync($bot, 5, $urls, $url);
+
+        $bot->sitemap->update(['urls' => $urls]);
 
         Log::info('SitemapBotService - completed', [
             'bot_id' => $bot->id,
             'domain' => $bot->query,
-            'urls' => count($bot->sitemap->urls),
+            'urls' => count($urls),
         ]);
-
-        return true;
     }
 
-    private function build(Bot $bot, int $depth, array &$done, array $next): void
+    public function sync(Bot $bot, int $depth, array &$urls, string $url): void
     {
-        $count = count($next);
-        Log::debug("SitemapBotService - depth=[$depth] URLs=[$count]");
-        if ($depth <= 0 || $count === 0) {
-            return;
-        }
+        $data = $this->service->page($url);
 
-        if (! $this->botProcessService->urls($bot, $next)) {
-            Log::warning('SitemapBotService - processing error');
-        }
-
-        $todo = [];
-        foreach ($next as $url) {
-
-            $uuid = URL::toUuid5($url);
-            $path = "sitemap/$bot->id/$uuid.json";
-
-            $data = Storage::json($path);
-            if ($data === null) {
-                Log::warning("SitemapBotService - null file at [$path]");
-                continue;
-            }
-
-            $page = $bot->sitemap->pages()->updateOrCreate(['url' => $url],
-                [
-                    'domain' => $bot->query,
-                    'meta' => $data['meta'],
-                    'screenshot_key' => "{$bot->type->value}/$bot->id/$uuid.png",
-                    'title' => $data['title'],
-                ]
-            );
-            Log::debug('SitemapBotService - saved', $page->toArray());
-
-            $done[$url] = true;
-
-            Log::debug("SitemapBotService - scraping [$url]");
-            foreach ($data['links'] ?? [] as $link) {
-
-                if (isset($done[$link]) ||
-                    Uri::parse($link) === null ||
-                    str_starts_with($link, 'http://') ||
-                    URL::toDomain($link) !== $bot->query) {
-                    continue;
-                }
-
-                $link = str($link)
-                    ->trim()
-                    ->before('#')
-                    ->whenDoesntStartWith('https://', function (Stringable $str) {
-                        return $str->prepend('https://');
-                    })->toString();
-
-                $done[$link] = false;
-                $todo[] = $link;
-
-                Log::debug("SitemapBotService - added [$link]");
+        $links = [];
+        foreach ($data['links'] as $link) {
+            if (! isset($urls[$link])) {
+                $urls[$link] = false;
+                $links[] = $link;
             }
         }
+        unset($data['links']);
 
-        $this->build($bot, --$depth, $done, $todo);
+        $bot->sitemap->pages()->updateOrCreate(['url' => $url], ...$data);
+        $urls[$url] = true;
+
+        foreach ($links as $link) {
+            $this->sync($bot, $depth - 1, $urls, $link);
+        }
     }
 }

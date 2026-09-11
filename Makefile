@@ -3,20 +3,27 @@ sail = ./vendor/bin/sail
 pint = ./vendor/bin/pint
 exec = docker compose exec laravel.test sh -c
 
+graph:
+	@tree -a -d -I "node_modules|vendor|__pycache__|.git|.*_cache|lib|.junie|inertia-devtools|views|assets|migrations|.idea|.venv"
+
 clean:
 	@truncate -s 0 storage/logs/browser.log storage/logs/laravel.log
 	@rm -rf bootstrap/cache/* reports/* storage/framework/sessions/*
+
+lint:
+	@$(pint) --parallel
+	@npm run lint
 
 install:
 	@composer install
 	@npm install
 
 build:
+	COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1
 	@$(sail) build --no-cache
 
 up:
 	@$(sail) up -d
-	@$(exec) "npm run dev && php artisan horizon"
 
 down:
 	@$(sail) down --remove-orphans --rmi local
@@ -24,18 +31,22 @@ down:
 destroy:
 	@$(sail) down laravel.test -v --remove-orphans --rmi all
 
-lint:
-	@$(pint) --parallel
-	@npm run lint
+run: up
+	@$(exec) "npm run dev && php artisan horizon"
 
 fresh:
 	@$(exec) "php artisan optimize:clear && php artisan optimize"
 
 migrate:
 	@$(exec) "php artisan migrate --graceful --ansi"
+	@$(exec) "php artisan migrate --env=testing --graceful --ansi"
 
 rollback:
 	@$(exec) "php artisan migrate:rollback --ansi"
+	@$(exec) "php artisan migrate:rollback --env=testing --ansi"
+
+prune:
+	@$(exec) "php artisan schema:dump --prune"
 
 seed:
 	@$(exec) "php artisan db:seed --ansi"
@@ -55,9 +66,3 @@ helper:
 test: fresh
 	@XDEBUG_MODE=coverage $(sail) test --coverage-html reports/
 	@open reports/dashboard.html -a safari
-
-share:
-	@$(sail) share --subdomain=bytelyon
-
-graph:
-	@tree -a -d -I "node_modules|vendor|__pycache__|.git|.*_cache|lib|.junie|inertia-devtools|views|assets|migrations|.idea|.venv"

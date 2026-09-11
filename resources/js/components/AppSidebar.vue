@@ -6,6 +6,7 @@ import {
     LayoutDashboard,
     Newspaper,
     Search,
+    Telescope,
 } from '@lucide/vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
@@ -47,6 +48,14 @@ const mainNavItems: NavItem[] = [
 ];
 
 const footerNavItems: NavItem[] = [
+    {
+        title: 'Telescope',
+        href: '/telescope',
+        icon: Telescope,
+        show:
+            usePage().props.auth.canViewHorizon &&
+            usePage().props.auth.canViewTelescope,
+    },
     {
         title: 'Horizon',
         href: '/horizon',

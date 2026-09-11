@@ -255,18 +255,4 @@ return [
         'composer.json',
         '.env',
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Admin Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Where we send horizon mail.
-    |
-    */
-
-    'admin' => [
-        'emails' => explode(',', env('HORIZON_EMAILS', '')),
-        'notify' => env('HORIZON_NOTIFY', ''),
-    ],
 ];

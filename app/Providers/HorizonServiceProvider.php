@@ -12,7 +12,7 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
     {
         parent::boot();
 
-        Horizon::routeMailNotificationsTo(config('horizon.admin.notify'));
+        Horizon::routeMailNotificationsTo('kowalski7012@gmail.com');
     }
 
     protected function authorization(): void
@@ -27,7 +27,10 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
     protected function gate(): void
     {
         Gate::define('viewHorizon', function ($user = null): bool {
-            return in_array(optional($user)->email, config('horizon.admin.emails'));
+            if ($this->app->environment('local')) {
+                return true;
+            }
+            return optional($user)->email === 'kowalski7012@gmail.com';
         });
     }
 }

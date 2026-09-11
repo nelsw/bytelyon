@@ -46,7 +46,6 @@ use Illuminate\Support\Facades\Log;
  * @property CarbonImmutable|null $updated_at
  * @property CarbonImmutable|null $deleted_at
  * @property int $user_id
- * @property string|null $last_run_result
  * @property-read int|null $articles_count
  *
  * @method static BotBuilder<static>|Bot enabled(bool $b = true)

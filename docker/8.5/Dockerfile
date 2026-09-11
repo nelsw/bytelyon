@@ -11,7 +11,6 @@ ENV TZ=UTC
 ENV LANG=C.UTF-8
 ENV SUPERVISOR_PHP_COMMAND="/usr/bin/php -d variables_order=EGPCS /var/www/html/artisan serve --host=0.0.0.0 --port=80"
 ENV SUPERVISOR_PHP_USER="sail"
-ENV PLAYWRIGHT_BROWSERS_PATH=0
 
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
@@ -21,7 +20,22 @@ RUN echo "Acquire::http::Pipeline-Depth 0;" > /etc/apt/apt.conf.d/99custom && \
 
 RUN apt-get update && apt-get upgrade -y \
     && mkdir -p /etc/apt/keyrings \
-    && apt-get install -y gnupg gosu curl ca-certificates zip unzip git supervisor libcap2-bin libpng-dev python3 dnsutils librsvg2-bin fswatch ffmpeg nano \
+    && apt-get install -y \
+        gnupg \
+        gosu \
+        curl \
+        ca-certificates \
+        zip \
+        unzip \
+        git \
+        supervisor \
+        libcap2-bin \
+        libpng-dev \
+        python3 \
+        dnsutils \
+        librsvg2-bin \
+        fswatch \
+        nano \
     && curl -sS 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xb8dc7e53946656efbce4c1dd71daeaab4ad4cab6' | gpg --dearmor | tee /etc/apt/keyrings/ppa_ondrej_php.gpg > /dev/null \
     && echo "deb [signed-by=/etc/apt/keyrings/ppa_ondrej_php.gpg] https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble main" > /etc/apt/sources.list.d/ppa_ondrej_php.list \
     && apt-get update \
@@ -37,15 +51,12 @@ RUN apt-get update && apt-get upgrade -y \
         php8.5-xml \
         php8.5-zip \
         php8.5-bcmath \
-        php8.5-soap \
         php8.5-intl \
         php8.5-readline \
-        php8.5-ldap \
         php8.5-msgpack \
         php8.5-igbinary \
         php8.5-redis \
         php8.5-swoole \
-        php8.5-memcached \
         php8.5-pcov \
         php8.5-imagick \
         php8.5-xdebug \
@@ -57,7 +68,6 @@ RUN apt-get update && apt-get upgrade -y \
     && npm install -g npm pnpm bun corepack \
     && corepack enable \
     && corepack prepare yarn@stable --activate \
-    && npx -y playwright install-deps \
     && curl -sS https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor | tee /etc/apt/keyrings/pgdg.gpg > /dev/null \
     && echo "deb [signed-by=/etc/apt/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt noble-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
     && apt-get update \
@@ -73,7 +83,6 @@ RUN groupadd --force -g $WWWGROUP sail
 RUN useradd -ms /bin/bash --no-user-group -g $WWWGROUP -u 1337 sail
 RUN git config --global --add safe.directory /var/www/html
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY start-container /usr/local/bin/start-container
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY php.ini /etc/php/8.5/cli/conf.d/99-sail.ini

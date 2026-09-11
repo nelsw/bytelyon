@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Proxy;
 use Aws\Lambda\LambdaClient;
 use Illuminate\Container\Attributes\Singleton;
 
@@ -15,7 +16,7 @@ readonly class LambdaService
         $this->client = new LambdaClient(config('lambda'));
     }
 
-    public function invoke(string $functionName, array $payload): array
+    private function invoke(string $functionName, array $payload = []): array
     {
         $result = $this->client->invoke([
             'FunctionName' => $functionName,
@@ -27,11 +28,20 @@ readonly class LambdaService
 
     public function news(array $urls): array
     {
-        return $this->invoke('bytelyon-article-extractor', ['urls' => $urls]);
+        return $this->invoke('bytelyon-article-extractor', compact('urls'));
     }
 
     public function page(string $url, bool $includeLinks = true): array
     {
-        return $this->invoke('bytelyon-page-scraper', ['url' => $url, 'includeLinks' => $includeLinks]);
+        return $this->invoke('bytelyon-page-scraper', compact('url', 'includeLinks'));
+    }
+
+    public function serp(string $query, Proxy $proxy): array
+    {
+        return $this->invoke('bytelyon-serp-scraper', [
+            'query' => $query,
+            'proxy' => $proxy->toPayload(),
+            'geoip' => true,
+        ]);
     }
 }

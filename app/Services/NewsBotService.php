@@ -7,13 +7,13 @@ use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Facades\Log;
 
 #[Singleton]
-final readonly class NewsBotService
+readonly class NewsBotService
 {
     public function __construct(
         private GoogleRssService $googleRssService,
-        private BingRssService $bingRssService,
-        private LambdaService $lambdaService,
-    ) {}
+        private BingRssService   $bingRssService,
+        private LambdaService    $lambdaService,
+    ){}
 
     public function run(Bot $bot): void
     {
@@ -21,28 +21,30 @@ final readonly class NewsBotService
             ->merge($this->bingRssService->fetch($bot))
             ->merge($this->googleRssService->fetch($bot));
 
-        Log::info('NewsBotService::run', [
-            'bot' => $bot->toPrettyJson(),
-            'items' => $items->count(),
-        ]);
-
         if ($items->isEmpty()) {
+            Log::info("NewsBotService#run", [
+                'query' => $bot->query,
+                'items' => 0,
+            ]);
             return;
         }
 
         $pages = $this->lambdaService->news($items->keys()->all());
 
+        foreach ($pages as $page) {
+            $bot->articles()->updateOrCreate(
+                attributes: ['url' => $page['url']],
+                values: [
+                    ...$items->get($page['url']),
+                    ...$page,
+                ]
+            );
+        }
+
         Log::info('NewsBotService::run', [
-            'bot' => $bot->toPrettyJson(),
+            'query' => $bot->query,
             'items' => $items->count(),
             'pages' => count($pages),
         ]);
-
-        foreach ($pages as $res) {
-            $bot->articles()->updateOrCreate(
-                ['url' => $res['url']],
-                [...$items->get($res['url']), ...$res]
-            );
-        }
     }
 }

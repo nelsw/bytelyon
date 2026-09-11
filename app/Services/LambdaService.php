@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Proxy;
 use Aws\Lambda\LambdaClient;
 use Illuminate\Container\Attributes\Singleton;
+use Illuminate\Support\Facades\Log;
 
 #[Singleton]
 readonly class LambdaService
@@ -16,14 +17,23 @@ readonly class LambdaService
         $this->client = new LambdaClient(config('lambda'));
     }
 
-    private function invoke(string $functionName, array $payload = []): array
+    private function invoke(string $functionName, array $input = []): array
     {
         $result = $this->client->invoke([
             'FunctionName' => $functionName,
             'InvocationType' => 'RequestResponse',
-            'Payload' => json_encode($payload),
+            'Payload' => json_encode($input),
         ]);
-        return json_decode($result->get('Payload')->getContents(), true);
+
+        $output = json_decode($result->get('Payload')->getContents(), true);
+
+        Log::debug('LambdaService#invoke', [
+            'ƒ' => $functionName,
+            'in' => $input,
+            'out' => $output,
+        ]);
+
+        return $output;
     }
 
     public function news(array $urls): array

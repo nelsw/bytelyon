@@ -157,4 +157,15 @@ class Bot extends Model
     {
         return $this->last_run_at ?? now()->subYear();
     }
+
+    public function blacklisted(string ...$args): bool
+    {
+        if (count($args) === 0) {
+            return false;
+        }
+        $str = implode(" ", $args);
+        $arr = explode(" ", $str);
+        $map = array_map(fn (string $item) => [trim($item) => true], $arr);
+        return array_any($this->blacklist(), fn(string $key) => isset($map[$key]));
+    }
 }

@@ -6,6 +6,7 @@ use App\Enums\BotType;
 use App\Enums\FrequencyType;
 use App\Models\Bot;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -36,6 +37,14 @@ class BotFactory extends Factory
         ];
     }
 
+    public function query(string $query): static
+    {
+        return $this->state(fn (array $attributes) => [
+            ...$attributes,
+            ...['query' => $query],
+        ]);
+    }
+
     public function headless(): static
     {
         return $this->state(fn (array $attributes) => [
@@ -51,6 +60,15 @@ class BotFactory extends Factory
             ...['enabled' => true],
         ]);
     }
+
+    public function lastRunAt(CarbonInterface $lastRunAt): static
+    {
+        return $this->state(fn (array $attributes) => [
+            ...$attributes,
+            ...['last_run_at' => $lastRunAt],
+        ]);
+    }
+
 
     public function neverRun(): static
     {

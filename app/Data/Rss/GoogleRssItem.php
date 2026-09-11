@@ -1,18 +1,12 @@
 <?php
 
-namespace App\Services;
+namespace App\Data\Rss;
 
 use App\Enums\NewsSource;
-use App\Models\Bot;
-use Carbon\Exceptions\InvalidDateException;
 use Dom\Element;
 use Dom\HTMLDocument;
-use DOMDocument;
-use DOMElement;
-use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -21,8 +15,7 @@ use JsonException;
 use RuntimeException;
 use Throwable;
 
-#[Singleton]
-readonly class GoogleRssService
+class GoogleRssItem extends BaseRssItem
 {
     private const int LIBXML_NOERROR = 32;
 
@@ -31,73 +24,34 @@ readonly class GoogleRssService
     private const string LINK_REGEX = '~/articles/(?P<encoded_url>[^?]+)~';
 
     private const string USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-        .'(KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+    .'(KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
     private const int RETRIES = 2;
 
     private const int TIMEOUT = 30;
 
-    public function __construct(private XmlService $xmlService) {}
-
-    public function fetch(Bot $bot): array
+    function imageSrc(): string
     {
-        $xml = $this->xmlService->fetch('https://news.google.com/rss/search', [
-            'q' => $bot->query,
-            'hl' => 'en-US',
-            'gl' => 'US',
-            'ceid' => 'US:en',
-        ]);
+        return '';
+    }
+    public function publisher(): string
+    {
+        return (string) $this->source;
+    }
 
-        $arr = [];
-        foreach ($xml->channel->item as $item) {
+    public function title(): string
+    {
+        return explode(' - ', $this->title)[0];
+    }
 
-            try {
-                $date = Carbon::parse((string) $item->pubDate);
-            } catch (InvalidDateException $e) {
-                continue;
-            }
-            if ($date->isBefore($bot->lastRunAt())) {
-                continue;
-            }
+    public function source(): string
+    {
+        return NewsSource::GoogleNews->value;
+    }
 
-            $publisher = str((string) $item->description)
-                ->trim()
-                ->after('font')
-                ->after('>')
-                ->before('<')
-                ->replace("\n", ' ');
-
-            while ($publisher->contains('  ')) {
-                $publisher = $publisher->replace('  ', ' ');
-            }
-            $publisher = $publisher->trim()->toString();
-
-            $title = str((string) $item->title)
-                ->trim()
-                ->replace("\n", ' ');
-
-            while ($title->contains('  ')) {
-                $title = $title->replace('  ', ' ');
-            }
-            $title = $title
-                ->remove(" - $publisher")
-                ->trim()
-                ->toString();
-
-            foreach ($bot->blacklist() as $keyword) {
-                if (str_contains($title, $keyword)) {
-                    continue 2;
-                }
-            }
-
-            $arr[$this->decoded((string) $item->link)] = [
-                'published_at' => (string) $item->pubDate,
-                'title' => $title,
-                'source' => NewsSource::GoogleNews->value,
-                'publisher' => $publisher,
-            ];
-        }
-        return $arr;
+    public function url(): string
+    {
+        return $this->decoded((string) $this->link);
     }
 
     private function decoded(string $link): string
@@ -149,12 +103,12 @@ readonly class GoogleRssService
         return rtrim($url, '/');
     }
 
-    private function decodeNode(DOMDocument|HTMLDocument $node, string $encodedText): ?string
+    private function decodeNode(HTMLDocument $node, string $encodedText): ?string
     {
         /**
          * @return array{0: string, 1: string} [signature, timestamp]
          */
-        $ƒ = function (DOMElement|Element $wiz): array {
+        $ƒ = function (Element $wiz): array {
             return [
                 $wiz->firstElementChild?->getAttribute('data-n-a-sg') ?? '',
                 $wiz->firstElementChild?->getAttribute('data-n-a-ts') ?? '',
@@ -228,4 +182,6 @@ readonly class GoogleRssService
             ->retry(self::RETRIES, 250, throw: false)
             ->throw();
     }
+
+
 }

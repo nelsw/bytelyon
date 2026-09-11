@@ -24,6 +24,8 @@ use Throwable;
 #[Singleton]
 readonly class GoogleRssService
 {
+    private const int LIBXML_NOERROR = 32;
+
     private const string ENDPOINT = 'https://news.google.com/_/DotsSplashUi/data/batchexecute';
 
     private const string LINK_REGEX = '~/articles/(?P<encoded_url>[^?]+)~';
@@ -125,7 +127,7 @@ readonly class GoogleRssService
         try {
             $node = HTMLDocument::createFromString(
                 source: $this->client()->get($link)->body(),
-                options: 32, // LIBXML_NOERROR
+                options: self::LIBXML_NOERROR,
             );
         } catch (Throwable $e) {
             Log::warning('failed to parse gstatic html', [...$context, 'error' => $e->getMessage()]);

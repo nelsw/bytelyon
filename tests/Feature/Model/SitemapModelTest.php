@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Model;
 
+use App\Models\Page;
 use App\Models\Sitemap;
 use Tests\TestCase;
 
@@ -13,11 +14,17 @@ class SitemapModelTest extends TestCase
         $sitemap = Sitemap::factory()->hasPages(3)->create();
 
         $this->assertDatabaseHas($sitemap);
-        $this->assertDatabaseHas($sitemap->pages);
+        foreach ($sitemap->pages as $page) {
+            $this->assertDatabaseHas(Page::class, [
+                'pageable_id' => $page->pageable_id,
+                'pageable_type' => Sitemap::class,
+                'id' => $page->id
+            ]);
+        }
 
-        $sitemap->bot()->delete();
+        $sitemap->bot->delete();
 
+        $this->assertDatabaseMissing($sitemap);
         $this->assertSoftDeleted($sitemap->pages);
-        $this->assertSoftDeleted($sitemap);
     }
 }

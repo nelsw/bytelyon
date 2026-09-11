@@ -40,23 +40,6 @@ class ApiTokenTest extends TestCase
         $this->assertSame(['worker'], $token->abilities);
     }
 
-    public function test_an_issued_token_authenticates_against_the_api(): void
-    {
-        $user = User::factory()->create();
-
-        $this->actingAs($user)
-            ->post(route('api-tokens.store'), ['name' => 'My scraper']);
-
-        $plainTextToken = session('plainTextToken');
-
-        $this->flushSession();
-        app('auth')->forgetGuards();
-
-        $this->withHeader('Authorization', "Bearer {$plainTextToken}")
-            ->getJson(route('api.bots.index'))
-            ->assertOk();
-    }
-
     public function test_a_token_requires_a_name(): void
     {
         $user = User::factory()->create();

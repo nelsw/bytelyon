@@ -51,9 +51,6 @@ prune:
 seed:
 	@$(exec) "php artisan db:seed --ansi"
 
-tail:
-	@$(exec) "php artisan pail -vvv"
-
 work:
 	@$(exec) "php artisan horizon"
 
@@ -64,5 +61,9 @@ helper:
 	@$(exec) "php artisan ide-helper:generate && php artisan ide-helper:models && php artisan ide-helper:meta"
 
 test: fresh
-	@XDEBUG_MODE=coverage $(sail) test --coverage-html reports/
-	@open reports/dashboard.html -a safari
+	@$(sail) artisan config:clear
+	@$(sail) test --coverage-html public/reports/
+
+cov:
+	@open public/reports/dashboard.html
+	@open public/reports/index.html

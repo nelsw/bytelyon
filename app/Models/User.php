@@ -41,9 +41,12 @@ use Laravel\Sanctum\PersonalAccessToken;
  * @property string|null $timezone
  * @property CarbonImmutable|null $deleted_at
  * @property string|null $img_url
+ *
  * @property-read Anthropic|null $anthropic
  * @property-read Collection<int, Bot> $bots
  * @property-read int|null $bots_count
+ * @property-read Collection<int, Proxy> $proxies
+ * @property-read int|null $proxies_count
  * @property-read DatabaseNotificationCollection<int, DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
  * @property-read Collection<int, Passkey> $passkeys

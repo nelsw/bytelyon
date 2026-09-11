@@ -25,7 +25,6 @@
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage
-/reports/
 /resources/js/actions
 /resources/js/routes
 /resources/js/wayfinder
@@ -40,3 +39,4 @@ npm-debug.log
 yarn-error.log
 /.phpstorm.meta.php
 MIP.php
+/public/reports/

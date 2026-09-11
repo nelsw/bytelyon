@@ -25,7 +25,7 @@ class BotFactory extends Factory
             $query = fake()->sentence();
         }
         return [
-            'user_id' => User::factory(),
+            'user_id' => User::factory()->verified(),
             'blacklist' => "foo\nbar\nbaz",
             'headless' => fake()->boolean(),
             'frequency' => fake()->randomElement(FrequencyType::values()),

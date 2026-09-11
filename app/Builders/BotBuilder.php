@@ -9,24 +9,9 @@ use Illuminate\Database\Eloquent\Builder;
 /** @extends Builder<Bot> */
 class BotBuilder extends Builder
 {
-    public function type(BotType|string $type): static
+    public function enabled(): static
     {
-        return $this->where('type', $type);
-    }
-
-    public function enabled(bool $b = true): static
-    {
-        return $this->where('enabled', $b);
-    }
-
-    public function headless(bool $b = true): static
-    {
-        return $this->where('headless', $b);
-    }
-
-    public function user(int $id): static
-    {
-        return $this->where('user_id', $id);
+        return $this->where('enabled', true);
     }
 
     public function ready(): static

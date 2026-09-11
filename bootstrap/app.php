@@ -36,4 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request) => $request->is('api/*'),
         );
     })
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('run:bots')->everyFifteenMinutes();
+    })
     ->create();

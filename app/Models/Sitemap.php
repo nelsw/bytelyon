@@ -66,12 +66,4 @@ class Sitemap extends Model
             'urls' => 'array',
         ];
     }
-
-    public function URL(bool ...$www): string
-    {
-        if (count($www) > 0 && $www[0]) {
-            return "https://www.$this->domain";
-        }
-        return "https://$this->domain";
-    }
 }

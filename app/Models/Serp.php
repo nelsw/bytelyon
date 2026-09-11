@@ -76,9 +76,4 @@ class Serp extends Model
             'data' => 'json',
         ];
     }
-
-    public function URL(): string
-    {
-        return 'https://www.google.com/search?q='.urlencode($this->query);
-    }
 }

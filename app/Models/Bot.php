@@ -10,6 +10,7 @@ use App\Policies\BotPolicy;
 use App\Traits\HasUser;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Carbon\CarbonInterval;
 use Database\Factories\BotFactory;
 use Eloquent;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -137,34 +138,19 @@ class Bot extends Model
         ];
     }
 
-    public function toJson($options = 0): string
-    {
-        return collect([
-            'id' => $this->id,
-            'type' => $this->type,
-            'query' => $this->query,
-            'blacklist' => $this->blacklist(),
-            'headless' => $this->headless,
-            'last_run_at' => $this->lastRunAt(),
-        ])->toJson($options);
-    }
-
     public function isRunnable(): bool
     {
-        return $this->enabled && $this->lastRunAt()->add($this->frequency->interval())->isPast();
-    }
-
-    public function isNotRunnable(): bool
-    {
-        return ! $this->isRunnable();
+        return $this->enabled && $this->lastRunAt()->add(match ($this->frequency) {
+                FrequencyType::Hourly => CarbonInterval::hour(),
+                FrequencyType::Daily => CarbonInterval::day(),
+                FrequencyType::Weekly => CarbonInterval::week(),
+                FrequencyType::Monthly => CarbonInterval::month(),
+            })->isPast();
     }
 
     public function blacklist(): array
     {
-        if (empty(trim($this->blacklist))) {
-            return [];
-        }
-        return explode("\n", $this->blacklist);
+        return empty(trim($this->blacklist)) ? [] : explode("\n", $this->blacklist);
     }
 
     public function lastRunAt(): CarbonInterface

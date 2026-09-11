@@ -28,7 +28,7 @@ class BotJob implements ShouldQueue, ShouldBeUnique
 
     public function handle(BotService $service): void
     {
-        if ($this->bot->isNotRunnable()) {
+        if (! $this->bot->isRunnable()) {
             return;
         }
 

@@ -29,4 +29,9 @@ readonly class LambdaService
     {
         return $this->invoke('bytelyon-article-extractor', ['urls' => $urls]);
     }
+
+    public function page(string $url, bool $includeLinks = true): array
+    {
+        return $this->invoke('bytelyon-page-scraper', ['url' => $url, 'includeLinks' => $includeLinks]);
+    }
 }

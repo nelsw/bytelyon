@@ -40,3 +40,4 @@ yarn-error.log
 /.phpstorm.meta.php
 MIP.php
 /public/reports/
+/_ide_helper_models.php

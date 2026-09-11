@@ -8,7 +8,7 @@ graph:
 
 clean:
 	@truncate -s 0 storage/logs/browser.log storage/logs/laravel.log
-	@rm -rf bootstrap/cache/* reports/* storage/framework/sessions/*
+	@rm -rf bootstrap/cache/* public/reports/* storage/framework/sessions/*
 
 lint:
 	@$(pint) --parallel
@@ -61,6 +61,7 @@ helper:
 	@$(exec) "php artisan ide-helper:generate && php artisan ide-helper:models && php artisan ide-helper:meta"
 
 test: fresh
+	@rm -rf public/reports/*
 	@$(sail) artisan config:clear
 	@$(sail) test --coverage-html public/reports/
 

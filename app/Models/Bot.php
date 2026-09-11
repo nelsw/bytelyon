@@ -9,8 +9,8 @@ use App\Observers\BotObserver;
 use App\Policies\BotPolicy;
 use App\Traits\HasUser;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Database\Factories\BotFactory;
-use DateTimeInterface;
 use Eloquent;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -23,7 +23,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Support\Facades\Log;
 
 /**
  * @property-read Collection<int, Article> $articles
@@ -152,31 +151,7 @@ class Bot extends Model
 
     public function isRunnable(): bool
     {
-        if (! $this->enabled) {
-            Log::debug('Bot is disabled', [
-                'id' => $this->id,
-                'type' => $this->type,
-                'query' => $this->query,
-            ]);
-            return false;
-        }
-
-        $nextRunAt = now();
-        if ($this->last_run_at !== null) {
-            $nextRunAt = $this->last_run_at->add($this->frequency->interval());
-        }
-
-        if ($nextRunAt->isFuture()) {
-            Log::debug('Bot is not due to run yet', [
-                'id' => $this->id,
-                'type' => $this->type,
-                'query' => $this->query,
-                'nextRunAt' => $nextRunAt,
-            ]);
-            return false;
-        }
-
-        return true;
+        return $this->enabled && $this->lastRunAt()->add($this->frequency->interval())->isPast();
     }
 
     public function isNotRunnable(): bool
@@ -192,7 +167,7 @@ class Bot extends Model
         return explode("\n", $this->blacklist);
     }
 
-    public function lastRunAt(): DateTimeInterface
+    public function lastRunAt(): CarbonInterface
     {
         return $this->last_run_at ?? now()->subYear();
     }

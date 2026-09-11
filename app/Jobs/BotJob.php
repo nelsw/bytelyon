@@ -4,16 +4,16 @@ namespace App\Jobs;
 
 use App\Models\Bot;
 use App\Services\BotService;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\Timeout;
-use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 #[Timeout(60 * 5)]
-class BotJob implements ShouldQueue
+class BotJob implements ShouldQueue, ShouldBeUnique
 {
     use Queueable, SerializesModels;
 
@@ -21,9 +21,9 @@ class BotJob implements ShouldQueue
         public readonly Bot $bot,
     ) {}
 
-    public function middleware(): array
+    public function uniqueId(): string
     {
-        return [new WithoutOverlapping('bot')];
+        return strval($this->bot->id);
     }
 
     public function handle(BotService $service): void

@@ -3,24 +3,28 @@
 namespace App\Services;
 
 use App\Models\Bot;
+use App\Models\Sitemap;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 #[Singleton]
 readonly class SitemapBotService
 {
-    public function __construct(private LambdaService $service) {}
-
-    public function run(Bot $bot, bool $sync = false): void
+    public function __construct(private LambdaService $service)
     {
-        Log::info("SitemapBotService::run - domain=[$bot->query] sync=[$sync]");
+    }
+
+    public function run(Bot $bot): void
+    {
+        Log::info("SitemapBotService::run - domain=[$bot->query]");
 
         $url = "https://$bot->query";
         $urls = [];
 
         $this->sync($bot, 5, $urls, $url);
 
-        $bot->sitemap->update(['urls' => $urls]);
+        $bot->sitemap()->update(['urls' => $urls]);
 
         Log::info('SitemapBotService - completed', [
             'bot_id' => $bot->id,
@@ -33,19 +37,35 @@ readonly class SitemapBotService
     {
         $data = $this->service->page($url);
 
-        $links = [];
-        foreach ($data['links'] as $link) {
-            if (! isset($urls[$link])) {
-                $urls[$link] = false;
-                $links[] = $link;
-            }
+        try {
+            $bot->sitemap->pages()->updateOrCreate(
+                attributes: [
+                    'url' => $url,
+                    'pageable_type' => Sitemap::class,
+                    'pageable_id' => $bot->sitemap->id,
+                ],
+                values: [
+                    'domain' => $bot->query,
+                    'title' => $data['title'],
+                    'screenshot_key' => $data['screenshot_key'],
+                    'meta' => $data['meta'],
+                ],
+            );
+            $urls[$url] = true;
+        } catch (Throwable $e) {
+            Log::error("SitemapBotService - error scraping page", [
+                'bot_id' => $bot->id,
+                'domain' => $bot->query,
+                'url' => $url,
+                'error' => $e,
+            ]);
         }
-        unset($data['links']);
 
-        $bot->sitemap->pages()->updateOrCreate(['url' => $url], ...$data);
-        $urls[$url] = true;
-
-        foreach ($links as $link) {
+        foreach ($data['links'] as $link) {
+            if ($urls[$link] ?? false) {
+                continue;
+            }
+            $urls[$link] = false;
             $this->sync($bot, $depth - 1, $urls, $link);
         }
     }

@@ -38,7 +38,7 @@ readonly class LambdaService
 
     public function news(array $urls): array
     {
-        return $this->invoke('bytelyon-article-extractor', compact('urls'));
+        return $this->invoke('bytelyon-news-scraper', compact('urls'));
     }
 
     public function page(string $url, bool $includeLinks = true): array

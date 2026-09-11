@@ -13,7 +13,11 @@ class SitemapFactory extends Factory
     {
         $domain = $this->faker->domainName;
         return [
-            'bot_id' => Bot::factory()->headless()->sitemap(),
+            'bot_id' => Bot::factory()
+                ->sitemap()
+                ->headless()
+                ->enabled()
+                ->lastRunAt(now()->subYear()),
             'domain' => $domain,
             'urls' => [
                 "https://$domain",

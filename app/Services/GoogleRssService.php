@@ -125,7 +125,7 @@ readonly class GoogleRssService
         try {
             $node = HTMLDocument::createFromString(
                 source: $this->client()->get($link)->body(),
-                options: LIBXML_NOERROR,
+                options: 32, // LIBXML_NOERROR
             );
         } catch (Throwable $e) {
             Log::warning('failed to parse gstatic html', [...$context, 'error' => $e->getMessage()]);

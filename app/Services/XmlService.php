@@ -11,10 +11,11 @@ use SimpleXMLElement;
 #[Singleton]
 readonly class XmlService
 {
-    public function fetch(
-        string $url,
-        array $query = [],
-    ): false|SimpleXMLElement {
+    /**
+     * @param  array<string, string>  $query
+     */
+    public function fetch(string $url, array $query = []): false|SimpleXMLElement
+    {
 
         try {
             $body = Http::get($url, $query)->throw()->body();

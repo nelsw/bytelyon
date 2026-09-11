@@ -19,6 +19,7 @@ install:
 	@npm install
 
 build:
+	COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1
 	@$(sail) build --no-cache
 
 up:

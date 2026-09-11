@@ -6,6 +6,7 @@ use App\Enums\NewsSource;
 use App\Models\Bot;
 use Carbon\Exceptions\InvalidDateException;
 use Illuminate\Container\Attributes\Singleton;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 
 #[Singleton]
@@ -45,7 +46,7 @@ readonly class BingRssService
                 'description' => (string) $item->description,
                 'published_at' => (string) $item->pubDate,
                 'publisher' => NewsSource::BingNews->value,
-                'source' => (string) $item->xpath('(//News:Source)[0]'),
+                'source' => (string) Arr::first(array: $item->xpath('//News:Source'), default: ''),
             ];
         }
 

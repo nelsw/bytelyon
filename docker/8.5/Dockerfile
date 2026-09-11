@@ -33,6 +33,7 @@ RUN apt-get update && apt-get upgrade -y \
         libpng-dev \
         python3 \
         dnsutils \
+        librsvg2-bin \
         fswatch \
         nano \
     && curl -sS 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xb8dc7e53946656efbce4c1dd71daeaab4ad4cab6' | gpg --dearmor | tee /etc/apt/keyrings/ppa_ondrej_php.gpg > /dev/null \

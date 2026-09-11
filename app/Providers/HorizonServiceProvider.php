@@ -28,11 +28,9 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
     {
         Gate::define('viewHorizon', function ($user = null): bool {
             if ($this->app->environment('local')) {
-                return true;;
+                return true;
             }
-            return in_array(optional($user)->email, [
-                'kowalski7012@gmail.com',
-            ]);
+            return optional($user)->email === 'kowalski7012@gmail.com';
         });
     }
 }

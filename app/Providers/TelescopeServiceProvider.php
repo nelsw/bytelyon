@@ -47,7 +47,7 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
             if ($this->app->environment('local')) {
                 return true;
             }
-            return $user->email == 'kowalski7012@gmail.com';
+            return $user->email === 'kowalski7012@gmail.com';
         });
     }
 }

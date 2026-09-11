@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Builders\SitemapBuilder;
 use App\Observers\SitemapObserver;
+use App\Traits\HasBot;
 use App\Traits\HasPages;
 use Carbon\CarbonImmutable;
 use Database\Factories\SitemapFactory;
@@ -56,7 +57,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Sitemap extends Model
 {
     /** @use HasFactory<SitemapFactory> */
-    use HasFactory, HasPages, SoftDeletes;
+    use HasBot, HasFactory, HasPages, SoftDeletes;
 
     /** @return array<string, string> */
     protected function casts(): array

@@ -22,7 +22,7 @@ class NewsBotServiceTest extends TestCase
 
     public function test_run(): void
     {
-        if (!App::hasDebugModeEnabled()) {
+        if (! App::hasDebugModeEnabled()) {
             return;
         }
         $this->assertDoesntThrow(fn () => $this->service->run(Bot::factory()

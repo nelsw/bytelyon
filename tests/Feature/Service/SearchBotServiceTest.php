@@ -3,12 +3,8 @@
 namespace Tests\Feature\Service;
 
 use App\Models\Bot;
-use App\Models\Proxy;
-use App\Models\Sitemap;
 use App\Services\LambdaService;
-use App\Services\NewsBotService;
 use App\Services\SearchBotService;
-use App\Services\SitemapBotService;
 use Illuminate\Support\Facades\App;
 use Tests\TestCase;
 
@@ -26,7 +22,7 @@ class SearchBotServiceTest extends TestCase
 
     public function test_run(): void
     {
-        if (!App::hasDebugModeEnabled()) {
+        if (! App::hasDebugModeEnabled()) {
             return;
         }
 

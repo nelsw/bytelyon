@@ -11,9 +11,7 @@ use Throwable;
 #[Singleton]
 readonly class SitemapBotService
 {
-    public function __construct(private LambdaService $service)
-    {
-    }
+    public function __construct(private LambdaService $service) {}
 
     public function run(Bot $bot): void
     {
@@ -53,7 +51,7 @@ readonly class SitemapBotService
             );
             $urls[$url] = true;
         } catch (Throwable $e) {
-            Log::error("SitemapBotService - error scraping page", [
+            Log::error('SitemapBotService - error scraping page', [
                 'bot_id' => $bot->id,
                 'domain' => $bot->query,
                 'url' => $url,

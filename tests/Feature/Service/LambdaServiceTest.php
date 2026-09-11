@@ -20,7 +20,7 @@ class LambdaServiceTest extends TestCase
 
     public function test_news(): void
     {
-        if (!App::hasDebugModeEnabled()) {
+        if (! App::hasDebugModeEnabled()) {
             return;
         }
         $out = $this->service->news([
@@ -33,7 +33,7 @@ class LambdaServiceTest extends TestCase
 
     public function test_search(): void
     {
-        if (!App::hasDebugModeEnabled()) {
+        if (! App::hasDebugModeEnabled()) {
             return;
         }
         $out = $this->service->serp('sailing blocks', new Proxy([
@@ -50,7 +50,7 @@ class LambdaServiceTest extends TestCase
 
     public function test_page_scraper(): void
     {
-        if (!App::hasDebugModeEnabled()) {
+        if (! App::hasDebugModeEnabled()) {
             return;
         }
         $out = $this->service->page('https://li-fire.com');

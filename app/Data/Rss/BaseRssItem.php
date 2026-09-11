@@ -11,33 +11,35 @@ use SimpleXMLElement;
 
 abstract class BaseRssItem extends SimpleXMLElement implements RssItem
 {
-    abstract function imageSrc(): string;
-    abstract function publisher(): string;
-    abstract function source(): string;
+    abstract public function imageSrc(): string;
+
+    abstract public function publisher(): string;
+
+    abstract public function source(): string;
 
     public function publishedAt(): CarbonInterface|string
     {
         try {
-            return Carbon::parse((string)$this->pubDate);
+            return Carbon::parse((string) $this->pubDate);
         } catch (InvalidDateException $e) {
             Log::warning("RssItem#publishedAt: {$e->getMessage()}");
-            return (string)$this->pubDate;
+            return (string) $this->pubDate;
         }
     }
 
     public function description(): string
     {
-        return (string)$this->description;
+        return (string) $this->description;
     }
 
     public function title(): string
     {
-        return (string)$this->title;
+        return (string) $this->title;
     }
 
     public function url(): string
     {
-        return (string)$this->link;
+        return (string) $this->link;
     }
 
     public function toArray(): array

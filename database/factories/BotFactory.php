@@ -69,7 +69,6 @@ class BotFactory extends Factory
         ]);
     }
 
-
     public function neverRun(): static
     {
         return $this->state(fn (array $attributes) => [

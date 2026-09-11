@@ -24,16 +24,17 @@ class GoogleRssItem extends BaseRssItem
     private const string LINK_REGEX = '~/articles/(?P<encoded_url>[^?]+)~';
 
     private const string USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-    .'(KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+        .'(KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
     private const int RETRIES = 2;
 
     private const int TIMEOUT = 30;
 
-    function imageSrc(): string
+    public function imageSrc(): string
     {
         return '';
     }
+
     public function publisher(): string
     {
         return (string) $this->source;
@@ -182,6 +183,4 @@ class GoogleRssItem extends BaseRssItem
             ->retry(self::RETRIES, 250, throw: false)
             ->throw();
     }
-
-
 }

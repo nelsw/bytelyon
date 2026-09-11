@@ -3,10 +3,8 @@
 namespace Tests\Feature\Model;
 
 use App\Models\Page;
-use App\Models\Proxy;
 use App\Models\Serp;
 use App\Models\Sitemap;
-use Illuminate\Support\Facades\App;
 use Tests\TestCase;
 
 class PageModelTest extends TestCase

@@ -28,7 +28,7 @@ class BingRssItem extends BaseRssItem
         return (string) $this->link;
     }
 
-    function imageSrc(): string
+    public function imageSrc(): string
     {
         return (string) Arr::first(array: $this->xpath('//News:Source'), default: '');
     }

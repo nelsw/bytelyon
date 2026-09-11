@@ -18,7 +18,7 @@ class SitemapModelTest extends TestCase
             $this->assertDatabaseHas(Page::class, [
                 'pageable_id' => $page->pageable_id,
                 'pageable_type' => Sitemap::class,
-                'id' => $page->id
+                'id' => $page->id,
             ]);
         }
 

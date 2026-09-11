@@ -141,11 +141,11 @@ class Bot extends Model
     public function isRunnable(): bool
     {
         return $this->enabled && $this->lastRunAt()->add(match ($this->frequency) {
-                FrequencyType::Hourly => CarbonInterval::hour(),
-                FrequencyType::Daily => CarbonInterval::day(),
-                FrequencyType::Weekly => CarbonInterval::week(),
-                FrequencyType::Monthly => CarbonInterval::month(),
-            })->isPast();
+            FrequencyType::Hourly => CarbonInterval::hour(),
+            FrequencyType::Daily => CarbonInterval::day(),
+            FrequencyType::Weekly => CarbonInterval::week(),
+            FrequencyType::Monthly => CarbonInterval::month(),
+        })->isPast();
     }
 
     public function blacklist(): array
@@ -163,9 +163,9 @@ class Bot extends Model
         if (count($args) === 0) {
             return false;
         }
-        $str = implode(" ", $args);
-        $arr = explode(" ", $str);
+        $str = implode(' ', $args);
+        $arr = explode(' ', $str);
         $map = array_map(fn (string $item) => [trim($item) => true], $arr);
-        return array_any($this->blacklist(), fn(string $key) => isset($map[$key]));
+        return array_any($this->blacklist(), fn (string $key) => isset($map[$key]));
     }
 }

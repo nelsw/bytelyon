@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 #[Timeout(60 * 5)]
-class BotJob implements ShouldQueue, ShouldBeUnique
+class BotJob implements ShouldBeUnique, ShouldQueue
 {
     use Queueable, SerializesModels;
 

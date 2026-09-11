@@ -22,7 +22,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $name
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
- *
  * @property-read User|null $user
  *
  * @method static ProxyFactory factory($count = null, $state = [])

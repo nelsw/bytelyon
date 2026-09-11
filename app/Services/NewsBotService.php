@@ -17,16 +17,16 @@ readonly class NewsBotService extends RssService
 {
     public function __construct(
         private LambdaService $lambdaService,
-    ){}
+    ) {}
 
     public function run(Bot $bot): void
     {
         $items = collect()
             ->merge($this->bing($bot->query))
             ->merge($this->google($bot->query))
-            ->filter(fn(RssItem $item) => $bot->lastRunAt()->isBefore($item->publishedAt()))
-            ->reject(fn(RssItem $item) => $bot->blacklisted($item->title(), $item->description()))
-            ->transform(fn(RssItem $item) => [$item->url() => $item->toArray()])
+            ->filter(fn (RssItem $item) => $bot->lastRunAt()->isBefore($item->publishedAt()))
+            ->reject(fn (RssItem $item) => $bot->blacklisted($item->title(), $item->description()))
+            ->transform(fn (RssItem $item) => [$item->url() => $item->toArray()])
             ->collapse();
 
         $pages = $items

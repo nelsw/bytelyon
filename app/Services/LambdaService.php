@@ -20,7 +20,7 @@ readonly class LambdaService
     {
         $result = $this->client->invoke([
             'FunctionName' => $functionName,
-            'InvocationType' => 'RequestResponse', // Use 'Event' for asynchronous execution
+            'InvocationType' => 'RequestResponse',
             'Payload' => json_encode($payload),
         ]);
         return json_decode($result->get('Payload')->getContents(), true);

@@ -29,5 +29,4 @@ class ProxyPolicy
     {
         return $proxy->user->is($user);
     }
-
 }

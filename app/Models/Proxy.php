@@ -18,7 +18,8 @@ class Proxy extends Model
     /** @use HasFactory<ProxyFactory> */
     use HasFactory, HasUser;
 
-    public function toPayload(): array {
+    public function toPayload(): array
+    {
         return [
             'server' => $this->server,
             'username' => $this->username,

@@ -2,10 +2,8 @@
 
 namespace Tests\Feature\Model;
 
-use App\Models\Bot;
 use App\Models\Proxy;
 use App\Models\User;
-use Illuminate\Support\Facades\Process;
 use Tests\TestCase;
 
 class ProxyModelTest extends TestCase

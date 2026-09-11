@@ -3,9 +3,7 @@
 namespace Tests\Feature\Service;
 
 use App\Services\LambdaService;
-use App\Services\XmlService;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class LambdaServiceTest extends TestCase
@@ -15,7 +13,7 @@ class LambdaServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new LambdaService();
+        $this->service = new LambdaService;
     }
 
     public function test_news(): void
@@ -36,7 +34,7 @@ class LambdaServiceTest extends TestCase
             'password' => 'a1d0893a3f201adf',
         ]);
         $this->assertIsArray($out);
-        if (!App::isProduction()) {
+        if (! App::isProduction()) {
             dump($out);
         }
     }
@@ -45,10 +43,8 @@ class LambdaServiceTest extends TestCase
     {
         $out = $this->service->page('https://li-fire.com');
         $this->assertIsArray($out);
-        if (!App::isProduction()) {
+        if (! App::isProduction()) {
             dump($out);
         }
     }
-
-
 }

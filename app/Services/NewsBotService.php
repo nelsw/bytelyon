@@ -11,9 +11,9 @@ readonly class NewsBotService
 {
     public function __construct(
         private GoogleRssService $googleRssService,
-        private BingRssService   $bingRssService,
-        private LambdaService    $lambdaService,
-    ){}
+        private BingRssService $bingRssService,
+        private LambdaService $lambdaService,
+    ) {}
 
     public function run(Bot $bot): void
     {
@@ -22,7 +22,7 @@ readonly class NewsBotService
             ->merge($this->googleRssService->fetch($bot));
 
         if ($items->isEmpty()) {
-            Log::info("NewsBotService#run", [
+            Log::info('NewsBotService#run', [
                 'query' => $bot->query,
                 'items' => 0,
             ]);

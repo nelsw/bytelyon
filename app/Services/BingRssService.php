@@ -7,7 +7,6 @@ use App\Models\Bot;
 use Carbon\Exceptions\InvalidDateException;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 
 #[Singleton]
 readonly class BingRssService

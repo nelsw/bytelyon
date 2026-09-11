@@ -35,7 +35,7 @@ readonly class SitemapBotService
 
         $links = [];
         foreach ($data['links'] as $link) {
-            if (!isset($urls[$link])) {
+            if (! isset($urls[$link])) {
                 $urls[$link] = false;
                 $links[] = $link;
             }

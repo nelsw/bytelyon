@@ -9,9 +9,11 @@ return [
     ],
     'proxy' => [
         'name' => env('PROXY_NAME', 'default'),
+        'protocol' => env('PROXY_PROTOCOL', 'http'),
         'bypass' => env('PROXY_BYPASS'),
         'password' => env('PROXY_PASSWORD'),
         'server' => env('PROXY_SERVER'),
+        'port' => env('PROXY_PORT'),
         'username' => env('PROXY_USERNAME'),
     ],
 ];

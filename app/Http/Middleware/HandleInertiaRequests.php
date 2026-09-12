@@ -35,6 +35,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'isProduction' => app()->isProduction(),
             'auth' => [
                 'user' => $request->user(),
                 'canViewHorizon' => Gate::allows('viewHorizon', [$request->user()]),

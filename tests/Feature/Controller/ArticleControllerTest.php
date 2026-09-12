@@ -28,9 +28,9 @@ class ArticleControllerTest extends TestCase
 
     public function test_index()
     {
-        Article::factory()->count(3)->create(['bot_id' => $this->bot->id]);
+        Article::factory()->for($this->bot)->count(3)->create();
 
-        $response = $this->actingAs($this->user)
+        $response = $this->actingAs($this->bot->user)
             ->get(route('articles.index', $this->bot));
 
         $response->assertStatus(200)

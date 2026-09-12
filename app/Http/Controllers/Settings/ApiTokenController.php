@@ -42,7 +42,9 @@ class ApiTokenController extends Controller
 
     public function destroy(Request $request, int $token): RedirectResponse
     {
-        $request->user()->tokens()->whereKey($token)->firstOrFail()->delete();
+        /** @var PersonalAccessToken $token */
+        $token = $request->user()->tokens()->whereKey($token)->firstOrFail();
+        $token->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('API token revoked.')]);
 

@@ -17,7 +17,7 @@ class ArticleFactory extends Factory
     public function definition(): array
     {
         return [
-            'bot_id' => Bot::factory()->neverRun(),
+            'bot_id' => Bot::factory()->news()->enabled()->neverRun(),
             'url' => fake()->unique()->url(),
             'title' => fake()->sentence(),
             'img_alt' => fake()->words(3, true),

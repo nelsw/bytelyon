@@ -13,7 +13,9 @@ class ProxyResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'protocol' => $this->protocol,
             'server' => $this->server,
+            'port' => $this->port,
             'username' => $this->username,
             'password' => $this->password,
             'bypass' => $this->bypass,

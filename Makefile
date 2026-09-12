@@ -1,70 +1,67 @@
-ID := --all
-sail = ./vendor/bin/sail
-pint = ./vendor/bin/pint
-exec = docker compose exec laravel.test sh -c
-
-graph:
-	@tree -a -d -I "node_modules|vendor|__pycache__|.git|.*_cache|lib|.junie|inertia-devtools|views|assets|migrations|.idea|.venv"
-
-clean:
-	@truncate -s 0 storage/logs/browser.log storage/logs/laravel.log
-	@rm -rf bootstrap/cache/* public/reports/* storage/framework/sessions/*
-
-lint:
-	@$(pint) --parallel
-	@npm run lint
-
-install:
-	@composer install
-	@npm install
-
+#
+# Server
+#
 build:
 	COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1
-	@$(sail) build --no-cache
-
+	@vendor/bin/sail build --no-cache
 up:
-	@$(sail) up -d
-
-down:
-	@$(sail) down --remove-orphans --rmi local
-
-destroy:
-	@$(sail) down laravel.test -v --remove-orphans --rmi all
-
+	@vendor/bin/sail up -d
 run: up
-	@$(exec) "npm run dev && php artisan horizon"
+	@vendor/bin/sail npm install
+	@vendor/bin/sail npm run dev
+down:
+	@vendor/bin/sail down --remove-orphans --rmi local
+destroy:
+	@vendor/bin/sail down server -v --remove-orphans --rmi all
 
 fresh:
-	@$(exec) "php artisan optimize:clear && php artisan optimize"
+	@vendor/bin/sail artisan optimize:clear
+	@vendor/bin/sail artisan optimize
+clean:
+	@rm -rf bootstrap/cache/* public/reports/* storage/framework/sessions/*
+	@truncate -s 0 storage/logs/browser.log storage/logs/laravel.log
 
+#
+# DB
+#
 migrate:
-	@$(exec) "php artisan migrate --graceful --ansi"
-	@$(exec) "php artisan migrate --env=testing --graceful --ansi"
-
+	@vendor/bin/sail artisan migrate --graceful --env=testing
+	@vendor/bin/sail artisan migrate --graceful
+	@vendor/bin/sail artisan db:seed
 rollback:
-	@$(exec) "php artisan migrate:rollback --ansi"
-	@$(exec) "php artisan migrate:rollback --env=testing --ansi"
+	@vendor/bin/sail artisan migrate:rollback --env=testing
+	@vendor/bin/sail artisan migrate:rollback
 
-prune:
-	@$(exec) "php artisan schema:dump --prune"
+#
+# Project
+#
+meta:
+	@vendor/bin/sail artisan ide-helper:generate
+	@vendor/bin/sail artisan ide-helper:models
+	@vendor/bin/sail artisan ide-helper:meta
+scan:
+	@vendor/bin/sail artisan brain:scan
+	open http://0.0.0.0/_laravel-brain
 
-seed:
-	@$(exec) "php artisan db:seed --ansi"
-
-work:
-	@$(exec) "php artisan horizon"
-
-forget:
-	@$(exec) "php artisan horizon:forget $(ID)"
-
-helper:
-	@$(exec) "php artisan ide-helper:generate && php artisan ide-helper:models && php artisan ide-helper:meta"
-
+#
+# Test
+#
 test: fresh
 	@rm -rf public/reports/*
-	@$(sail) artisan config:clear
-	@$(sail) test --coverage-html public/reports/
-
+	@vendor/bin/sail artisan config:clear
+	@vendor/bin/sail test --coverage-html public/reports/
 cov:
 	@open public/reports/dashboard.html
 	@open public/reports/index.html
+
+#
+# ꟛƒ
+#
+logs:
+	@scripts/tail-lambda-logs.sh
+news:
+	./scripts/update-lambda-image.sh bytelyon-news-scraper --dir news-scraper
+page:
+	./scripts/update-lambda-image.sh bytelyon-page-scraper --dir page-scraper
+serp:
+	./scripts/update-lambda-image.sh bytelyon-serp-scraper --dir serp-scraper

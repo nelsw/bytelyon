@@ -45,10 +45,7 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
     protected function gate(): void
     {
         Gate::define('viewTelescope', function (User $user) {
-            if ($this->app->environment('local')) {
-                return true;
-            }
-            return $user->email === 'kowalski7012@gmail.com';
+            return $this->app->environment('local') || $user->email === config('app.admin');
         });
     }
 }

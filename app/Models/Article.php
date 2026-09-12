@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasBot;
 use Carbon\CarbonImmutable;
 use Closure;
 use Database\Factories\ArticleFactory;
@@ -76,7 +77,7 @@ use Illuminate\Support\Str;
 class Article extends Model
 {
     /** @use HasFactory<ArticleFactory> */
-    use HasFactory, SoftDeletes;
+    use HasBot, HasFactory, SoftDeletes;
 
     /** @return array<string, string> */
     protected function casts(): array

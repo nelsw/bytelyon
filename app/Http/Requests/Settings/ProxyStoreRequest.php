@@ -15,11 +15,11 @@ class ProxyStoreRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'protocol' => ['required', Rule::in(['http', 'https', 'socks5'])],
-            'server' => ['required', 'string', 'max:255'],
+            'scheme' => ['required', Rule::in(['http', 'https', 'socks5'])],
+            'host' => ['required', 'string', 'max:255'],
             'port' => ['nullable', 'integer', 'between:1,65535'],
-            'username' => ['nullable', 'string', 'max:255'],
-            'password' => ['nullable', 'string', 'max:255'],
+            'user' => ['nullable', 'string', 'max:255'],
+            'pass' => ['nullable', 'string', 'max:255'],
             'bypass' => ['nullable', 'string', 'max:255'],
         ];
     }

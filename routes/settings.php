@@ -3,6 +3,7 @@
 use App\Http\Controllers\Settings\ApiTokenController;
 use App\Http\Controllers\Settings\IntegrationsController;
 use App\Http\Controllers\Settings\ProfileController;
+use App\Http\Controllers\Settings\ProxyController;
 use App\Http\Controllers\Settings\SecurityController;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +38,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('settings/api-tokens/{token}', [ApiTokenController::class, 'destroy'])
         ->whereNumber('token')
         ->name('api-tokens.destroy');
+
+    Route::get('settings/proxies', [ProxyController::class, 'edit'])->name('proxies.edit');
+    Route::post('settings/proxies', [ProxyController::class, 'store'])->name('proxies.store');
+    Route::delete('settings/proxies/{proxy}', [ProxyController::class, 'destroy'])->name('proxies.destroy');
 });
 
 Route::get('.well-known/passkey-endpoints', function () {

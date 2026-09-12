@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import { dashboard, login, register } from '@/routes';
+
+const page = usePage();
+const iconSrc = computed(() =>
+    page.props.isProduction ? '/icon.png' : '/icon-alt.png',
+);
 </script>
 
 <template>
@@ -31,7 +37,7 @@ import { dashboard, login, register } from '@/routes';
                         <span class="spark spark-6" />
                     </div>
                     <div class="lion-float">
-                        <img src="/icon.png" alt="ByteLyon" class="lion-img" />
+                        <img :src="iconSrc" alt="ByteLyon" class="lion-img" />
                         <div class="lion-shadow" />
                     </div>
                 </div>

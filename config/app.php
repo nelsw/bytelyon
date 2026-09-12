@@ -125,13 +125,9 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Whitelist Configuration
+    | App Admin
     |--------------------------------------------------------------------------
     |
-    | Duct tape for alpha api auth.
-    |
     */
-    'whitelist' => [
-        'ips' => explode(',', env('APP_WHITELIST_IPS', '127.0.0.1')),
-    ],
+    'admin' => env('APP_ADMIN'),
 ];

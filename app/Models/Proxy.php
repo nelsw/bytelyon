@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasUser;
 use Carbon\CarbonImmutable;
 use Database\Factories\ProxyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -24,7 +25,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $name
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
- * @property-read User|null $owner
  *
  * @method static ProxyFactory factory($count = null, $state = [])
  * @method static Builder<static>|Proxy newModelQuery()
@@ -48,20 +48,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Proxy extends Model
 {
     /** @use HasFactory<ProxyFactory> */
-    use HasFactory;
-
-    /**
-     * The proxy's owning user.
-     *
-     * Named `owner` (rather than the shared `HasUser::user()` relation)
-     * because the `user` column holds the proxy's own auth username.
-     *
-     * @return BelongsTo<User, $this>
-     */
-    public function owner(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
+    use HasFactory, HasUser;
 
     public function __toString(): string {
         return "$this->scheme://$this->user:$this->pass@$this->host:$this->port";

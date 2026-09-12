@@ -127,6 +127,13 @@ from playwright.sync_api import (  # pyright: ignore[reportMissingImports]
 logger = logging.getLogger("cloakbrowser.lambda")
 logger.setLevel(logging.INFO)
 
+# awslambdaric wires the root logger with a formatter like
+# "[INFO]\t2024-01-15T10:30:45.123Z\t<uuid>\tmessage" — CloudWatch already
+# timestamps every event server-side, so repeating timestamp + request id on
+# every line just burns terminal columns. Trim to level + message.
+for _h in logging.getLogger().handlers:
+    _h.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
+
 DEFAULT_BUCKET = "bytelyon-private"
 
 # How long to wait for a raw TCP handshake with the proxy before giving up.

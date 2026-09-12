@@ -75,6 +75,13 @@ from cloakbrowser import launch_context_async
 logger = logging.getLogger("cloakbrowser.lambda")
 logger.setLevel(logging.INFO)
 
+# awslambdaric wires the root logger with a formatter like
+# "[INFO]\t2024-01-15T10:30:45.123Z\t<uuid>\tmessage" — CloudWatch already
+# timestamps every event server-side, so repeating timestamp + request id on
+# every line just burns terminal columns. Trim to level + message.
+for _h in logging.getLogger().handlers:
+    _h.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
+
 
 def _validate_url(url: str) -> None:
     """Reject non-HTTP schemes and URLs that resolve to private/internal IPs."""
@@ -99,6 +106,7 @@ def _validate_url(url: str) -> None:
 def _diag_snapshot() -> str:
     """Capture Xvfb status, Xvfb log, X11 socket state, and env for error reports."""
     import os
+
     parts = []
     try:
         r = subprocess.run(["pgrep", "-fa", "Xvfb"], capture_output=True, text=True)
@@ -106,7 +114,9 @@ def _diag_snapshot() -> str:
     except Exception as e:
         parts.append(f"pgrep failed: {e}")
     try:
-        r = subprocess.run(["ls", "-la", "/tmp/.X11-unix"], capture_output=True, text=True)
+        r = subprocess.run(
+            ["ls", "-la", "/tmp/.X11-unix"], capture_output=True, text=True
+        )
         parts.append(f"ls /tmp/.X11-unix:\n{r.stdout}{r.stderr}")
     except Exception as e:
         parts.append(f"ls /tmp/.X11-unix failed: {e}")
@@ -115,7 +125,9 @@ def _diag_snapshot() -> str:
         parts.append(f"/tmp/Xvfb.log:\n{log}")
     except Exception as e:
         parts.append(f"Xvfb log unreadable: {e}")
-    parts.append(f"env: DISPLAY={os.environ.get('DISPLAY')!r} HOME={os.environ.get('HOME')!r}")
+    parts.append(
+        f"env: DISPLAY={os.environ.get('DISPLAY')!r} HOME={os.environ.get('HOME')!r}"
+    )
     return "\n".join(parts)
 
 
@@ -141,14 +153,24 @@ def _build_launch_kwargs(event: dict) -> dict:
             *event.get("_strategy_args", []),
         ],
     }
-    for key in ("proxy", "humanize", "human_preset", "geoip",
-                "timezone", "locale", "viewport", "user_agent"):
+    for key in (
+        "proxy",
+        "humanize",
+        "human_preset",
+        "geoip",
+        "timezone",
+        "locale",
+        "viewport",
+        "user_agent",
+    ):
         if key in event:
             kwargs[key] = event[key]
     return kwargs
 
 
-async def _smart_wait(page, dom_stable_ms: int = 1500, max_settle_ms: int = 15000) -> None:
+async def _smart_wait(
+    page, dom_stable_ms: int = 1500, max_settle_ms: int = 15000
+) -> None:
     """Wait until the document HTML hasn't changed for `dom_stable_ms`.
 
     Generic stopping condition for at-scale scraping when you can't tune
@@ -179,7 +201,9 @@ async def _smart_wait(page, dom_stable_ms: int = 1500, max_settle_ms: int = 1500
 
 
 _EXPLICIT_WAIT_KEYS = (
-    "wait_for_load_state", "wait_for_selector", "wait_ms",
+    "wait_for_load_state",
+    "wait_for_selector",
+    "wait_ms",
 )
 
 
@@ -226,8 +250,9 @@ async def _launch_with_retry(event: dict, attempts: int = 3, backoff_s: float = 
             return await launch_context_async(**_build_launch_kwargs(event))
         except Exception as e:
             last_err = e
-            logger.warning("launch attempt %d/%d failed: %s",
-                           i + 1, attempts, str(e)[:200])
+            logger.warning(
+                "launch attempt %d/%d failed: %s", i + 1, attempts, str(e)[:200]
+            )
             if i + 1 < attempts:
                 await asyncio.sleep(backoff_s * (i + 1))  # 0.3s, 0.6s
     raise last_err  # type: ignore[misc]
@@ -309,8 +334,9 @@ def _raise_with_history(err: Exception, history: list[dict]) -> None:
     diag = _diag_snapshot()
     if history:
         diag = "retry_history: " + json.dumps(history, default=str) + "\n\n" + diag
-    logger.error("scrape failed (after %d retries): %s\nDIAG:\n%s",
-                 len(history), err, diag)
+    logger.error(
+        "scrape failed (after %d retries): %s\nDIAG:\n%s", len(history), err, diag
+    )
     raise RuntimeError(f"scrape failed: {err}\n--- DIAG ---\n{diag}") from err
 
 
@@ -324,7 +350,9 @@ async def _run(event: dict) -> dict:
     """
     url = event["url"]
     _validate_url(url)
-    event = {k: v for k, v in event.items() if k not in ("extra_args", "_strategy_args")}
+    event = {
+        k: v for k, v in event.items() if k not in ("extra_args", "_strategy_args")
+    }
     retries_left = max(0, int(event.get("retries", 1)))
     history: list[dict] = []
     current_event = event
@@ -338,18 +366,24 @@ async def _run(event: dict) -> dict:
             strategy = _classify_error(e)
             if strategy is None:
                 _raise_with_history(e, history)
-            history.append({
-                "attempt": len(history) + 1,
-                "error": str(e)[:300],
-                "strategy": strategy,
-            })
-            logger.warning("attempt %d failed (%s); retrying with strategy=%s",
-                           len(history), str(e)[:120], strategy)
-            merged_args = list(current_event.get("_strategy_args", [])) + list(strategy.get("_strategy_args", []))
+            history.append(
+                {
+                    "attempt": len(history) + 1,
+                    "error": str(e)[:300],
+                    "strategy": strategy,
+                }
+            )
+            logger.warning(
+                "attempt %d failed (%s); retrying with strategy=%s",
+                len(history),
+                str(e)[:120],
+                strategy,
+            )
+            merged_args = list(current_event.get("_strategy_args", [])) + list(
+                strategy.get("_strategy_args", [])
+            )
             current_event = {**current_event, **strategy, "_strategy_args": merged_args}
             retries_left -= 1
             # No backoff: strategy overrides change goto budget directly;
             # the prior failure was either fast (cert reject) or already
             # waited its full timeout. Container is warm.
-
-

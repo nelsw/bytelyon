@@ -9,27 +9,26 @@ Web Application source code running at [ByteLyon.com](https://bytelyon.com).
 
 ---
 
-***
+---
 
 ###### TODO
 
 **Server**
+
+- [ ] Utilize Proxy for HTTP request when scraping news and (sitemap) pages; don't forget the snapshot tho
 - [ ] Walk through use cases as if you're a new user or and old friend or grandma
 - [x] Have claude create a page for users to enter one to many proxies; page goes under user settings
 - [ ] Persist models by dispatching closure
-- [ ] Broadcast events once bot is complete
+- [x] Broadcast events once bot is complete
 - [x] Close drawer on mobile after sidebar menu item click
 - [ ] Telescope logs
 - [ ] Have a think on data model
 - [ ] Integrate findupon code
-- [ ] New Bot for "Parking Permit"
 
 ### Handlers
 
 - [ ] Experiment with headed in lambda
-- [ ] Log formatting my gawd
-- [ ] Page scraper logs
-- [ ] Serp scraper logs
+- [x] Log formatting my gawd
 - [ ] [Windows Fonts](https://github.com/CloakHQ/cloakbrowser#font-setup-on-linux)
 - [x] Silence Windows Fonts Warning: `CLOAKBROWSER_SUPPRESS_FONT_WARNING=1`
 - [ ] [Format AWS CloudWatch logs](https://joudwawad.medium.com/aws-cloudwatch-logs-deep-dive-d52b5bb7c40d)

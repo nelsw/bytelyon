@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\BotResultsPersisted;
 use App\Models\Bot;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Facades\Log;
@@ -24,5 +25,9 @@ readonly class SearchBotService
             'query' => $bot->query,
             'attributes' => $attributes,
         ]);
+
+        BotResultsPersisted::dispatch($bot, __('Search results updated for ":query".', [
+            'query' => $bot->query,
+        ]));
     }
 }

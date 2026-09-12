@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Contracts\RssItem;
 use App\Data\Rss\BingRssItem;
 use App\Data\Rss\GoogleRssItem;
+use App\Events\BotResultsPersisted;
 use App\Models\Bot;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Facades\Log;
@@ -53,6 +54,13 @@ readonly class NewsBotService extends RssService
             'items' => $items->count(),
             'pages' => $pages,
         ]);
+
+        if ($saved->isNotEmpty()) {
+            BotResultsPersisted::dispatch($bot, __(':count new article(s) found for ":query".', [
+                'count' => $saved->count(),
+                'query' => $bot->query,
+            ]));
+        }
     }
 
     private function bing(string $query): array

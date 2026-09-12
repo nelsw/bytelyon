@@ -1,20 +1,29 @@
-# ByteLyon
+<div align="center">
+<a href="https://bytelyon.com" target="_blank">
+<img src="public/bytelyon-banner.png" alt="ByteLyon Logo">
+</a>
 
 ![Static Badge](https://img.shields.io/badge/Laravel-13.7-red?logo=laravel&color=red)
 ![Static Badge](https://img.shields.io/badge/PHP-8.5-777BB4?logo=php)
+![Static Badge](https://img.shields.io/badge/Python-3.14-476E99?logo=python)
+
+[![Laravel Forge Site Deployment Status](https://img.shields.io/endpoint?url=https%3A%2F%2Fforge.laravel.com%2Fsite-badges%2F52d486b6-7617-4880-a09c-501c69ad25f0%3Fdate%3D1%26label%3D1&style=flat)](https://forge.laravel.com/nelsw/merciful-night-3dc/3268752)
+
 [![Laravel CI](https://github.com/nelsw/bytelyon/actions/workflows/ci.yml/badge.svg)](https://github.com/nelsw/bytelyon-laravel/actions/workflows/ci.yml)
-[![Laravel Forge Site Deployment Status](https://img.shields.io/endpoint?url=https%3A%2F%2Fforge.laravel.com%2Fsite-badges%2F52d486b6-7617-4880-a09c-501c69ad25f0&style=plastic)](https://forge.laravel.com/nelsw/merciful-night-3dc/3268752)
 
-Web Application source code running at [ByteLyon.com](https://bytelyon.com).
+</div>
 
----
 
 ---
 
 ###### TODO
 
+- [ ] Getting started blurb (fresh install)
+
 **Server**
 
+- [ ] random button for proxies - explain first is always used otherwise 
+- [ ] https://laravel.com/framework/docs/providers#deferred-providers
 - [ ] Utilize Proxy for HTTP request when scraping news and (sitemap) pages; don't forget the snapshot tho
 - [ ] Walk through use cases as if you're a new user or and old friend or grandma
 - [x] Have claude create a page for users to enter one to many proxies; page goes under user settings

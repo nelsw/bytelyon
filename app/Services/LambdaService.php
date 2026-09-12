@@ -14,7 +14,7 @@ readonly class LambdaService
 
     public function __construct()
     {
-        $this->client = new LambdaClient(config('lambda'));
+        $this->client = new LambdaClient(config('services.lambda'));
     }
 
     private function invoke(string $functionName, array $input = []): array
@@ -44,6 +44,18 @@ readonly class LambdaService
     public function page(string $url, bool $includeLinks = true): array
     {
         return $this->invoke('bytelyon-page-scraper', compact('url', 'includeLinks'));
+    }
+
+    /**
+     * @param string $url
+     * @return array
+     */
+    public function grab(string $url): array
+    {
+        return $this->invoke('bytelyon-grab', [
+            'url' => $url,
+            'goto_timeout_ms' => 10_000,
+        ]);
     }
 
     public function serp(string $query, Proxy $proxy): array

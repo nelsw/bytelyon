@@ -18,7 +18,7 @@ Web Application source code running at [ByteLyon.com](https://bytelyon.com).
 - [x] Have claude create a page for users to enter one to many proxies; page goes under user settings
 - [ ] Persist models by dispatching closure
 - [ ] Broadcast events once bot is complete
-- [ ] Close drawer on mobile after sidebar menu item click
+- [x] Close drawer on mobile after sidebar menu item click
 - [ ] Telescope logs
 - [ ] Have a think on data model
 - [ ] Integrate findupon code

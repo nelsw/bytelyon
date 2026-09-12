@@ -20,9 +20,18 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
+
+const { isMobile, setOpenMobile } = useSidebar();
+
+function handleNavigate() {
+    if (isMobile.value) {
+        setOpenMobile(false);
+    }
+}
 
 const mainNavItems: NavItem[] = [
     {
@@ -71,7 +80,7 @@ const footerNavItems: NavItem[] = [
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
-                        <Link :href="dashboard()">
+                        <Link :href="dashboard()" @click="handleNavigate">
                             <AppLogo />
                         </Link>
                     </SidebarMenuButton>

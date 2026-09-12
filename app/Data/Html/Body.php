@@ -10,6 +10,12 @@ readonly class Body implements Arrayable
 {
     public function __construct(public string $content){}
 
+
+    public static function empty(): self
+    {
+        return new self('');
+    }
+
     public static function make(string $html): self {
         $doc = HTMLDocument::createFromString($html);
         foreach (['article', 'main', 'body', 'html'] as $selector) {

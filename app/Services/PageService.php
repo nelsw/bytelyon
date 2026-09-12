@@ -21,20 +21,16 @@ readonly class PageService
         private LambdaService $lambdaService,
     ) {}
 
-    public function get(string $url, Proxy $proxy): ?Page
+    public function news(string $url, Proxy $proxy): Page
     {
         try {
-            $page = Page::fromString($url, Http::withProxy($proxy)
+            return Page::fromString($url, Http::withProxy($proxy)
                 ->withUserAgent(self::USER_AGENT)
                 ->get($url)
                 ->throw()
                 ->body());
-        } catch (Exception) {}
-
-        if ($page === null || $page->isEmpty()) {
-            $page = Page::fromArray($url, $this->lambdaService->news([$url]));
+        } catch (Exception) {
+            return Page::fromArray($url, $this->lambdaService->news([$url])[0]??[]);
         }
-
-        return $page->isEmpty() ? null : $page;
     }
 }

@@ -49,4 +49,18 @@ class Proxy extends Model
 {
     /** @use HasFactory<ProxyFactory> */
     use HasFactory, HasUser;
+
+    public function __toString(): string {
+        return "$this->protocol://$this->username:$this->password@$this->server:$this->port";
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'server' => "$this->protocol://$this->server:$this->port",
+            'username' => $this->username,
+            'password' => $this->password,
+            'bypass' => $this->bypass,
+        ];
+    }
 }

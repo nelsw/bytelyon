@@ -16,9 +16,16 @@ readonly class Page implements Arrayable
         public Body   $body,
     ){}
 
-    public function isEmpty(): bool
+
+    public static function empty(): self
     {
-        return $this->meta->isEmpty() && $this->body->isEmpty();
+        return new self(
+            url: '',
+            domain: '',
+            title: '',
+            meta: Meta::empty(),
+            body: Body::empty(),
+        );
     }
 
     public static function fromArray(string $url, array $data): self
@@ -43,6 +50,11 @@ readonly class Page implements Arrayable
             meta: $meta,
             body: Body::make($html),
         );
+    }
+
+    public function isEmpty(): bool
+    {
+        return $this->meta->isEmpty() && $this->body->isEmpty();
     }
 
     public function toArray(): array

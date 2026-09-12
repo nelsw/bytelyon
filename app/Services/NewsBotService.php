@@ -25,17 +25,25 @@ readonly class NewsBotService extends RssService
             ->filter(fn(RssItem $item) => $bot->lastRunAt()->isBefore($item->publishedAt()))
             ->reject(fn(RssItem $item) => $bot->blacklisted($item->title(), $item->description()));
 
+        Log::debug('NewsBotService::run', [
+            'query' => $bot->query,
+            'items' => $items->count(),
+        ]);
+
         $pages = 0;
         foreach ($items as $item) {
-            $page = $this->pageService->get($item->url(), $bot->randomProxy());
-            if ($page === null) {
-                continue;
+            $page = $this->pageService->news($item->url(), $bot->randomProxy());
+
+            if ($page->isEmpty()) {
+                $values = $item->toArray();
+                ++$pages;
+            } else {
+                $values = [
+                    ...$item->toArray(),
+                    ...$page->toArray(),
+                ];
             }
-            ++$pages;
-            $values = [
-                ...$item->toArray(),
-                ...$page->toArray(),
-            ];
+
             dispatch(fn() => $bot->articles()->updateOrCreate(['url' => $item->url()], $values))
                 ->catch(fn(Throwable $e) => Log::warning("NewsBotService#run {$e->getMessage()}", $values));
         }

@@ -1,7 +1,7 @@
 {
-    "name": "bytelyon/web",
+    "name": "bytelyon/server",
     "type": "project",
-    "description": "ByteLyon Web App",
+    "description": "ByteLyon Web Server Application",
     "keywords": [
         "bytelyon",
         "scraper",
@@ -21,6 +21,7 @@
         "laravel/fortify": "^1.37.2",
         "laravel/framework": "^13.7",
         "laravel/horizon": "^5.47",
+        "laravel/pail": "^1.2",
         "laravel/sanctum": "^4.3.3",
         "laravel/telescope": "^5.24",
         "laravel/wayfinder": "^0.1.14",
@@ -30,6 +31,7 @@
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.7",
         "fakerphp/faker": "^1.24",
+        "laramint/laravel-brain": "*",
         "larastan/larastan": "^3.9",
         "laravel/boost": "^2.2",
         "laravel/pao": "^1.0.6",

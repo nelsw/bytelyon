@@ -30,8 +30,13 @@
             }
         </style>
 
-        <link rel="icon" href="/favicon.ico" sizes="any">
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+        @if(app()->isProduction())
+            <link rel="icon" href="/favicon.ico" sizes="any">
+            <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+        @else
+            <link rel="icon" href="/favicon-alt.ico" sizes="any">
+            <link rel="icon" href="/favicon-alt.svg" type="image/svg+xml">
+        @endif
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
         @fonts

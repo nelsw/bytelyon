@@ -22,6 +22,17 @@ export type ApiToken = {
     last_used_at_diff: string | null;
 };
 
+export type Proxy = {
+    id: number;
+    name: string;
+    protocol: 'http' | 'https' | 'socks5';
+    server: string;
+    port: number | null;
+    username: string | null;
+    bypass: string | null;
+    created_at_diff: string | null;
+};
+
 /* @chisel-passkeys */
 export type Passkey = {
     id: number;

@@ -15,7 +15,7 @@ Web Application source code running at [ByteLyon.com](https://bytelyon.com).
 
 **Server**
 - [ ] Walk through use cases as if you're a new user or and old friend or grandma
-- [ ] Have claude create a page for users to enter one to many proxies; page goes under user settings
+- [x] Have claude create a page for users to enter one to many proxies; page goes under user settings
 - [ ] Persist models by dispatching closure
 - [ ] Broadcast events once bot is complete
 - [ ] Close drawer on mobile after sidebar menu item click

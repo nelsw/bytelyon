@@ -51,7 +51,9 @@ readonly class LambdaService
         return $this->invoke('bytelyon-serp-scraper', [
             'query' => $query,
             'proxy' => [
+                'protocol' => $proxy->protocol,
                 'server' => $proxy->server,
+                'port' => $proxy->port,
                 'username' => $proxy->username,
                 'password' => $proxy->password,
                 'bypass' => $proxy->bypass,

@@ -14,9 +14,11 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * @property int $id
+ * @property string $protocol
  * @property string $server
- * @property string $username
- * @property string $password
+ * @property int|null $port
+ * @property string|null $username
+ * @property string|null $password
  * @property string|null $bypass
  * @property int $user_id
  * @property string $name
@@ -33,12 +35,14 @@ use Illuminate\Database\Eloquent\Model;
  * @method static Builder<static>|Proxy whereId($value)
  * @method static Builder<static>|Proxy whereName($value)
  * @method static Builder<static>|Proxy wherePassword($value)
+ * @method static Builder<static>|Proxy wherePort($value)
+ * @method static Builder<static>|Proxy whereProtocol($value)
  * @method static Builder<static>|Proxy whereServer($value)
  * @method static Builder<static>|Proxy whereUpdatedAt($value)
  * @method static Builder<static>|Proxy whereUserId($value)
  * @method static Builder<static>|Proxy whereUsername($value)
  */
-#[Fillable('name', 'server', 'username', 'password', 'bypass')]
+#[Fillable('name', 'protocol', 'server', 'port', 'username', 'password', 'bypass')]
 #[UseFactory(ProxyFactory::class)]
 #[Table('proxies')]
 class Proxy extends Model

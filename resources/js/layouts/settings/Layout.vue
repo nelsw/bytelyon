@@ -9,6 +9,7 @@ import { edit as editApiTokens } from '@/routes/api-tokens';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editIntegrations } from '@/routes/integrations';
 import { edit as editProfile } from '@/routes/profile';
+import { edit as editProxies } from '@/routes/proxies';
 import { edit as editSecurity } from '@/routes/security';
 import type { NavItem } from '@/types';
 
@@ -32,6 +33,10 @@ const sidebarNavItems: NavItem[] = [
     {
         title: 'Client API',
         href: editApiTokens(),
+    },
+    {
+        title: 'Proxies',
+        href: editProxies(),
     },
 ];
 

@@ -49,4 +49,9 @@ class Proxy extends Model
 {
     /** @use HasFactory<ProxyFactory> */
     use HasFactory, HasUser;
+
+    public function __toString(): string {
+        return "$this->protocol://$this->username:$this->password@$this->server:$this->port";
+    }
+    // todo - playwright specific array
 }

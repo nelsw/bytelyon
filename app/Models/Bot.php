@@ -168,4 +168,9 @@ class Bot extends Model
         $map = array_map(fn (string $item) => [trim($item) => true], $arr);
         return array_any($this->blacklist(), fn (string $key) => isset($map[$key]));
     }
+
+    public function randomProxy(): Proxy
+    {
+        return $this->user->proxies->inRandomOrder()->first();
+    }
 }

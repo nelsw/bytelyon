@@ -12,7 +12,7 @@ class ProxyPolicy
 
     public function view(User $user, Proxy $proxy): bool
     {
-        return $proxy->owner->is($user);
+        return $proxy->user?->is($user);
     }
 
     public function create(User $user): bool
@@ -22,11 +22,11 @@ class ProxyPolicy
 
     public function update(User $user, Proxy $proxy): bool
     {
-        return $proxy->owner->is($user);
+        return $proxy->user?->is($user);
     }
 
     public function delete(User $user, Proxy $proxy): bool
     {
-        return $proxy->owner->is($user);
+        return $proxy->user?->is($user);
     }
 }

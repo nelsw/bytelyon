@@ -72,29 +72,29 @@ const selectClass =
 
                 <div class="grid gap-4 sm:grid-cols-12">
                     <div class="grid gap-2 sm:col-span-3">
-                        <Label for="proxy_protocol">Protocol</Label>
+                        <Label for="proxy_scheme">Protocol</Label>
                         <select
-                            id="proxy_protocol"
-                            name="protocol"
+                            id="proxy_scheme"
+                            name="scheme"
                             :class="selectClass"
                         >
                             <option value="http">http</option>
                             <option value="https">https</option>
                             <option value="socks5">socks5</option>
                         </select>
-                        <InputError class="mt-2" :message="errors.protocol" />
+                        <InputError class="mt-2" :message="errors.scheme" />
                     </div>
 
                     <div class="grid gap-2 sm:col-span-6">
-                        <Label for="proxy_server">Server</Label>
+                        <Label for="proxy_host">Server</Label>
                         <Input
-                            id="proxy_server"
+                            id="proxy_host"
                             class="mt-1 block w-full"
-                            name="server"
+                            name="host"
                             required
                             placeholder="proxy.example.com"
                         />
-                        <InputError class="mt-2" :message="errors.server" />
+                        <InputError class="mt-2" :message="errors.host" />
                     </div>
 
                     <div class="grid gap-2 sm:col-span-3">
@@ -114,23 +114,23 @@ const selectClass =
 
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="grid gap-2">
-                        <Label for="proxy_username">Username (optional)</Label>
+                        <Label for="proxy_user">Username (optional)</Label>
                         <Input
-                            id="proxy_username"
+                            id="proxy_user"
                             class="mt-1 block w-full"
-                            name="username"
+                            name="user"
                         />
-                        <InputError class="mt-2" :message="errors.username" />
+                        <InputError class="mt-2" :message="errors.user" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="proxy_password">Password (optional)</Label>
+                        <Label for="proxy_pass">Password (optional)</Label>
                         <PasswordInput
-                            id="proxy_password"
-                            name="password"
+                            id="proxy_pass"
+                            name="pass"
                             class="mt-1 block w-full"
                         />
-                        <InputError class="mt-2" :message="errors.password" />
+                        <InputError class="mt-2" :message="errors.pass" />
                     </div>
                 </div>
 

@@ -25,10 +25,10 @@ class ProxyController extends Controller
                 ->map(fn (Proxy $proxy) => [
                     'id' => $proxy->id,
                     'name' => $proxy->name,
-                    'protocol' => $proxy->protocol,
-                    'server' => $proxy->server,
+                    'scheme' => $proxy->scheme,
+                    'host' => $proxy->host,
                     'port' => $proxy->port,
-                    'username' => $proxy->username,
+                    'user' => $proxy->user,
                     'bypass' => $proxy->bypass,
                     'created_at_diff' => $proxy->created_at?->diffForHumans(),
                 ])

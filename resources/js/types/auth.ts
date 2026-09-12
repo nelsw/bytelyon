@@ -25,10 +25,10 @@ export type ApiToken = {
 export type Proxy = {
     id: number;
     name: string;
-    protocol: 'http' | 'https' | 'socks5';
-    server: string;
+    scheme: 'http' | 'https' | 'socks5';
+    host: string;
     port: number | null;
-    username: string | null;
+    user: string | null;
     bypass: string | null;
     created_at_diff: string | null;
 };

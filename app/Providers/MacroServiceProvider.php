@@ -4,9 +4,11 @@ namespace App\Providers;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Illuminate\Support\Stringable;
 use Ramsey\Uuid\Uuid;
 
 class MacroServiceProvider extends ServiceProvider
@@ -15,6 +17,7 @@ class MacroServiceProvider extends ServiceProvider
     {
         $this->configureArr();
         $this->configureURL();
+        $this->configureHttp();
     }
 
     private function configureArr(): void
@@ -47,9 +50,9 @@ class MacroServiceProvider extends ServiceProvider
             }
             return $url !== null
                 ? parse_url($url, PHP_URL_HOST)
-                    |> (fn ($x) => explode('.', (string) $x))
-                    |> (fn ($x) => array_slice($x, -2))
-                    |> (fn ($x) => implode('.', $x))
+                    |> (fn($x) => explode('.', (string)$x))
+                    |> (fn($x) => array_slice($x, -2))
+                    |> (fn($x) => implode('.', $x))
                 : '';
         });
 
@@ -68,5 +71,10 @@ class MacroServiceProvider extends ServiceProvider
             }
             return Uuid::uuid5(Uuid::NAMESPACE_URL, $url)->toString();
         });
+    }
+
+    private function configureHttp(): void
+    {
+        Http::macro('withProxy', fn(Stringable $proxy) => $this->withOptions(['proxy' => (string)$proxy]));
     }
 }

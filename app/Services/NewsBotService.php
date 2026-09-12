@@ -7,8 +7,6 @@ use App\Data\Rss\BingRssItem;
 use App\Data\Rss\GoogleRssItem;
 use App\Models\Bot;
 use Illuminate\Container\Attributes\Singleton;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -16,50 +14,44 @@ use Throwable;
 readonly class NewsBotService extends RssService
 {
     public function __construct(
-        private LambdaService $lambdaService,
-    ) {}
+        private PageService $pageService,
+    ){}
 
     public function run(Bot $bot): void
     {
         $items = collect()
             ->merge($this->bing($bot->query))
             ->merge($this->google($bot->query))
-            ->filter(fn (RssItem $item) => $bot->lastRunAt()->isBefore($item->publishedAt()))
-            ->reject(fn (RssItem $item) => $bot->blacklisted($item->title(), $item->description()))
-            ->transform(fn (RssItem $item) => [$item->url() => $item->toArray()])
-            ->collapse();
+            ->filter(fn(RssItem $item) => $bot->lastRunAt()->isBefore($item->publishedAt()))
+            ->reject(fn(RssItem $item) => $bot->blacklisted($item->title(), $item->description()));
 
-        $pages = $items
-            ->chunk(5)
-            ->transform(fn (Collection $chunk) => $chunk->pluck('url')->all())
-            ->map(fn (array $urls) => $this->lambdaService->news($urls))
-            ->collapse();
+        Log::debug('NewsBotService::run', [
+            'query' => $bot->query,
+            'items' => $items->count(),
+        ]);
 
-        $saved = $pages->map(function (array|string $page) use ($bot, $items): ?Model {
-            try {
-                if (is_string($page)) {
-                    Log::warning("NewsBotService#run - $page");
-                    return null;
-                }
+        $pages = 0;
+        foreach ($items as $item) {
+            $page = $this->pageService->news($item->url(), $bot->randomProxy());
 
-                return $bot->articles()->updateOrCreate(
-                    attributes: ['url' => $page['url']],
-                    values: [
-                        ...$items->get($page['url']),
-                        ...$page,
-                    ]
-                );
-            } catch (Throwable $e) {
-                Log::warning("NewsBotService#run {$e->getMessage()}", ['page' => $page]);
-                return null;
+            if ($page->isEmpty()) {
+                $values = $item->toArray();
+                ++$pages;
+            } else {
+                $values = [
+                    ...$item->toArray(),
+                    ...$page->toArray(),
+                ];
             }
-        })->filter();
+
+            dispatch(fn() => $bot->articles()->updateOrCreate(['url' => $item->url()], $values))
+                ->catch(fn(Throwable $e) => Log::warning("NewsBotService#run {$e->getMessage()}", $values));
+        }
 
         Log::info('NewsBotService::run', [
             'query' => $bot->query,
             'items' => $items->count(),
-            'pages' => $pages->count(),
-            'saved' => $saved->count(),
+            'pages' => $pages,
         ]);
     }
 

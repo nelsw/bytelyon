@@ -13,11 +13,11 @@ class ProxyResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'protocol' => $this->protocol,
-            'server' => $this->server,
+            'scheme' => $this->scheme,
+            'host' => $this->host,
             'port' => $this->port,
-            'username' => $this->username,
-            'password' => $this->password,
+            'user' => $this->user,
+            'pass' => $this->pass,
             'bypass' => $this->bypass,
             'name' => $this->name,
             'created_at' => $this->created_at,

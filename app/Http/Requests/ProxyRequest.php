@@ -10,11 +10,11 @@ class ProxyRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'protocol' => ['required', Rule::in(['http', 'https', 'socks5'])],
-            'server' => ['required'],
+            'scheme' => ['required', Rule::in(['http', 'https', 'socks5'])],
+            'host' => ['required'],
             'port' => ['nullable', 'integer', 'between:1,65535'],
-            'username' => ['nullable'],
-            'password' => ['nullable'],
+            'user' => ['nullable'],
+            'pass' => ['nullable'],
             'bypass' => ['nullable'],
             'user_id' => ['required', 'exists:users'],
             'name' => ['required'],

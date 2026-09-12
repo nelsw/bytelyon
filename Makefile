@@ -65,3 +65,5 @@ page:
 	./scripts/update-lambda-image.sh bytelyon-page-scraper --dir page-scraper
 serp:
 	./scripts/update-lambda-image.sh bytelyon-serp-scraper --dir serp-scraper
+grab:
+	./scripts/update-lambda-image.sh bytelyon-grab --dir grab

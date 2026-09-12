@@ -48,11 +48,11 @@ class ProxyTest extends TestCase
             ->actingAs($user)
             ->post(route('proxies.store'), [
                 'name' => 'My proxy',
-                'protocol' => 'socks5',
-                'server' => 'proxy.example.com',
+                'scheme' => 'socks5',
+                'host' => 'proxy.example.com',
                 'port' => 8080,
-                'username' => 'proxy-user',
-                'password' => 'secret',
+                'user' => 'proxy-user',
+                'pass' => 'secret',
                 'bypass' => 'localhost',
             ]);
 
@@ -63,11 +63,11 @@ class ProxyTest extends TestCase
         $proxy = $user->proxies()->sole();
 
         $this->assertSame('My proxy', $proxy->name);
-        $this->assertSame('socks5', $proxy->protocol);
-        $this->assertSame('proxy.example.com', $proxy->server);
+        $this->assertSame('socks5', $proxy->scheme);
+        $this->assertSame('proxy.example.com', $proxy->host);
         $this->assertSame(8080, $proxy->port);
-        $this->assertSame('proxy-user', $proxy->username);
-        $this->assertSame('secret', $proxy->password);
+        $this->assertSame('proxy-user', $proxy->user);
+        $this->assertSame('secret', $proxy->pass);
         $this->assertSame('localhost', $proxy->bypass);
     }
 
@@ -77,8 +77,8 @@ class ProxyTest extends TestCase
 
         $this->actingAs($user)
             ->post(route('proxies.store'), [])
-            ->assertSessionHasErrors(['name', 'protocol', 'server'])
-            ->assertSessionDoesntHaveErrors(['port', 'username', 'password', 'bypass']);
+            ->assertSessionHasErrors(['name', 'scheme', 'host'])
+            ->assertSessionDoesntHaveErrors(['port', 'user', 'pass', 'bypass']);
     }
 
     public function test_a_proxy_can_be_added_with_only_the_required_fields(): void
@@ -89,8 +89,8 @@ class ProxyTest extends TestCase
             ->actingAs($user)
             ->post(route('proxies.store'), [
                 'name' => 'My proxy',
-                'protocol' => 'http',
-                'server' => 'proxy.example.com',
+                'scheme' => 'http',
+                'host' => 'proxy.example.com',
             ]);
 
         $response
@@ -100,11 +100,11 @@ class ProxyTest extends TestCase
         $proxy = $user->proxies()->sole();
 
         $this->assertSame('My proxy', $proxy->name);
-        $this->assertSame('http', $proxy->protocol);
-        $this->assertSame('proxy.example.com', $proxy->server);
+        $this->assertSame('http', $proxy->scheme);
+        $this->assertSame('proxy.example.com', $proxy->host);
         $this->assertNull($proxy->port);
-        $this->assertNull($proxy->username);
-        $this->assertNull($proxy->password);
+        $this->assertNull($proxy->user);
+        $this->assertNull($proxy->pass);
         $this->assertNull($proxy->bypass);
     }
 
@@ -115,13 +115,13 @@ class ProxyTest extends TestCase
         $this->actingAs($user)
             ->post(route('proxies.store'), [
                 'name' => 'My proxy',
-                'protocol' => 'ftp',
-                'server' => 'proxy.example.com',
+                'scheme' => 'ftp',
+                'host' => 'proxy.example.com',
                 'port' => 8080,
-                'username' => 'proxy-user',
-                'password' => 'secret',
+                'user' => 'proxy-user',
+                'pass' => 'secret',
             ])
-            ->assertSessionHasErrors('protocol');
+            ->assertSessionHasErrors('scheme');
     }
 
     public function test_a_proxy_can_be_deleted(): void

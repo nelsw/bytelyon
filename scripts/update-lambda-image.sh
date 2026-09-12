@@ -105,7 +105,7 @@ fi
 
 if [ -z "$HANDLER_DIR" ]; then
   DEFAULT_DIR_NAME="${FUNCTION_NAME#bytelyon-}"
-  HANDLER_DIR="${REPO_ROOT}/${DEFAULT_DIR_NAME}"
+  HANDLER_DIR="${REPO_ROOT}/docker/lambda/${DEFAULT_DIR_NAME}"
 fi
 
 if [ ! -f "${HANDLER_DIR}/Dockerfile" ]; then

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\BotResultsPersisted;
 use App\Models\Bot;
 use App\Models\Sitemap;
 use Illuminate\Container\Attributes\Singleton;
@@ -29,6 +30,13 @@ readonly class SitemapBotService
             'domain' => $bot->query,
             'urls' => count($urls),
         ]);
+
+        if (count($urls) > 0) {
+            BotResultsPersisted::dispatch($bot, __(':count page(s) crawled for ":domain".', [
+                'count' => count($urls),
+                'domain' => $bot->query,
+            ]));
+        }
     }
 
     public function sync(Bot $bot, int $depth, array &$urls, string $url): void

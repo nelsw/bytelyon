@@ -1,3 +1,14 @@
+import type { FlashToast } from '@/types/ui';
+
+export type BotResultsPersistedEvent = {
+    toast: FlashToast;
+    bot: {
+        id: number;
+        type: string;
+        query: string;
+    };
+};
+
 export type BotRow = {
     id: number;
     childId: number;

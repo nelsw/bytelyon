@@ -36,6 +36,7 @@
     "dependencies": {
         "@inertiajs/vite": "^3.0.0",
         "@inertiajs/vue3": "^3.0.0",
+        "@laravel/echo-vue": "^2.5.0",
         "@laravel/passkeys": "^0.2.0",
         "@lucide/vue": "^1.17.0",
         "@tailwindcss/typography": "^0.5.20",
@@ -50,7 +51,9 @@
         "clsx": "^2.1.1",
         "dayjs": "^1.11.21",
         "dompurify": "^3.4.12",
+        "laravel-echo": "^2.5.0",
         "laravel-vite-plugin": "^3.0.0",
+        "pusher-js": "^8.6.0",
         "reka-ui": "^2.9.8",
         "tailwind-merge": "^3.2.0",
         "tailwindcss": "^4.1.1",

@@ -22,6 +22,7 @@
 
 **Server**
 
+- [ ] update sitemap service logic to use new lambda grab method
 - [ ] random button for proxies - explain first is always used otherwise 
 - [ ] https://laravel.com/framework/docs/providers#deferred-providers
 - [ ] Utilize Proxy for HTTP request when scraping news and (sitemap) pages; don't forget the snapshot tho

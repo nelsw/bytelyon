@@ -9,14 +9,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('proxies', function (Blueprint $table) {
-            $table->string('username')->nullable()->change();
-            $table->string('password')->nullable()->change();
+            $table->renameColumn('user', 'username');
         });
     }
 
     public function down(): void
     {
         Schema::table('proxies', function (Blueprint $table) {
+            $table->renameColumn('username', 'user');
         });
     }
 };

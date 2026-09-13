@@ -16,7 +16,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('proxies', function (Blueprint $table) {
-        });
+        Schema::table('proxies', function (Blueprint $table) {});
     }
 };

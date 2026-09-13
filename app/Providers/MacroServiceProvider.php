@@ -50,9 +50,9 @@ class MacroServiceProvider extends ServiceProvider
             }
             return $url !== null
                 ? parse_url($url, PHP_URL_HOST)
-                    |> (fn($x) => explode('.', (string)$x))
-                    |> (fn($x) => array_slice($x, -2))
-                    |> (fn($x) => implode('.', $x))
+                    |> (fn ($x) => explode('.', (string) $x))
+                    |> (fn ($x) => array_slice($x, -2))
+                    |> (fn ($x) => implode('.', $x))
                 : '';
         });
 
@@ -75,6 +75,6 @@ class MacroServiceProvider extends ServiceProvider
 
     private function configureHttp(): void
     {
-        Http::macro('withProxy', fn(Stringable $proxy) => $this->withOptions(['proxy' => (string)$proxy]));
+        Http::macro('withProxy', fn (Stringable $proxy) => $this->withOptions(['proxy' => (string) $proxy]));
     }
 }

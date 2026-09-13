@@ -6,13 +6,10 @@ use Closure;
 
 readonly class Entry
 {
-
     public function __construct(
         public ?string $key,
         public ?string $val,
-    )
-    {
-    }
+    ) {}
 
     public function isKeyEmpty(): bool
     {
@@ -33,7 +30,7 @@ readonly class Entry
     {
         return [
             'key' => $this->key,
-            'val' => $this->val
+            'val' => $this->val,
         ];
     }
 

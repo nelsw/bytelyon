@@ -16,8 +16,11 @@ class Page implements Pageable
         "name='twitter:description'",
         "name='abstract'",
     ];
+
     private const array keywordMetaKeys = ["property='article:tag'", "name='news_keywords'", "name='keywords'"];
+
     private const array imgAltMetaKeys = ["property='og:image:alt'", "name='twitter:image:alt'"];
+
     private const array imgSrcMetaKeys = [
         "name='image'",
         "property='og:image'",
@@ -26,8 +29,8 @@ class Page implements Pageable
         "name='twitter:image:src'",
     ];
 
-
     private readonly HTMLDocument $doc;
+
     public function __construct(private readonly string $url, string $html)
     {
         $this->doc = HTMLDocument::createFromString($html);
@@ -46,7 +49,7 @@ class Page implements Pageable
                 continue;
             }
 
-            if (!$allVals) {
+            if (! $allVals) {
                 return $val;
             }
 
@@ -57,18 +60,18 @@ class Page implements Pageable
         }
 
         return collect($arr)
-            ->transform(fn(string $val): string => trim($val))
+            ->transform(fn (string $val): string => trim($val))
             ->filter()
             ->all();
     }
 
     public function body(): string
     {
-        foreach (["article", "main", "body", "html"] as $tag) {
+        foreach (['article', 'main', 'body', 'html'] as $tag) {
             if ($this->doc->querySelector($tag)) {
                 return collect($this->doc->querySelector($tag)->querySelectorAll('p'))
-                    ->transform(fn(Element $e): null|string => trim($e->textContent ?? ''))
-                    ->reject(fn(string $href): bool => empty($href))
+                    ->transform(fn (Element $e): ?string => trim($e->textContent ?? ''))
+                    ->reject(fn (string $href): bool => empty($href))
                     ->join(' ');
             }
         }
@@ -79,11 +82,11 @@ class Page implements Pageable
     public function links(): array
     {
         return collect($this->doc->querySelectorAll('a'))
-            ->transform(fn(Element $e): null|string => trim($e->getAttribute('href') ?? ''))
-            ->reject(fn(string $href): bool => empty($href))
-            ->map(fn(string $href): Uri => Uri::of($href))
-            ->filter(fn(Uri $uri): bool => str($uri->host())->replace('www.', '')->isMatch($this->domain()))
-            ->transform(fn(Uri $uri): string => $uri->toString())
+            ->transform(fn (Element $e): ?string => trim($e->getAttribute('href') ?? ''))
+            ->reject(fn (string $href): bool => empty($href))
+            ->map(fn (string $href): Uri => Uri::of($href))
+            ->filter(fn (Uri $uri): bool => str($uri->host())->replace('www.', '')->isMatch($this->domain()))
+            ->transform(fn (Uri $uri): string => $uri->toString())
             ->toArray();
     }
 

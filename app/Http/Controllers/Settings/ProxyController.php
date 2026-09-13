@@ -28,7 +28,7 @@ class ProxyController extends Controller
                     'scheme' => $proxy->scheme,
                     'host' => $proxy->host,
                     'port' => $proxy->port,
-                    'user' => $proxy->user,
+                    'user' => $proxy->username,
                     'bypass' => $proxy->bypass,
                     'created_at_diff' => $proxy->created_at?->diffForHumans(),
                 ])

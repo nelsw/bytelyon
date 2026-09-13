@@ -18,15 +18,15 @@ readonly class NewsBotService extends RssService
 {
     public function __construct(
         private LambdaService $service,
-    ){}
+    ) {}
 
     public function run(Bot $bot): void
     {
         $items = collect()
             ->merge($this->bing($bot->query))
             ->merge($this->google($bot->query))
-            ->filter(fn(RssItem $item) => $bot->lastRunAt()->isBefore($item->publishedAt()))
-            ->reject(fn(RssItem $item) => $bot->blacklisted($item->title(), $item->description()));
+            ->filter(fn (RssItem $item) => $bot->lastRunAt()->isBefore($item->publishedAt()))
+            ->reject(fn (RssItem $item) => $bot->blacklisted($item->title(), $item->description()));
 
         Log::debug('NewsBotService::run', [
             'query' => $bot->query,
@@ -44,7 +44,7 @@ readonly class NewsBotService extends RssService
 
             try {
                 $bot->articles()->updateOrCreate(['url' => $item->url()], $article);
-                ++$pages;
+                $pages++;
             } catch (Throwable $e) {
                 Log::warning("NewsBotService#run: {$e->getMessage()}", compact('article'));
             }

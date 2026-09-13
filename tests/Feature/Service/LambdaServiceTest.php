@@ -36,16 +36,9 @@ class LambdaServiceTest extends TestCase
         if (! App::hasDebugModeEnabled()) {
             return;
         }
-        $out = $this->service->serp('sailing blocks', new Proxy([
-            'server' => 'socks5://gw.dataimpulse.com:824',
-            'bypass' => '.google.com',
-            'username' => '2b9bc9b578274c5e9c8f__cr.us',
-            'password' => 'a1d0893a3f201adf',
-        ]));
+
+        $out = $this->service->serp('sailing blocks', Proxy::factory()->default()->create());
         $this->assertIsArray($out);
-        if (! App::isProduction()) {
-            dump($out);
-        }
     }
 
     public function test_page_scraper(): void
@@ -55,8 +48,5 @@ class LambdaServiceTest extends TestCase
         }
         $out = $this->service->page('https://li-fire.com');
         $this->assertIsArray($out);
-        if (! App::isProduction()) {
-            dump($out);
-        }
     }
 }

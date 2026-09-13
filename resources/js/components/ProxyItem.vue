@@ -53,7 +53,7 @@ const handleDelete = () => {
             {{ proxy.port ?? '—' }}
         </td>
         <td class="px-4 py-3 align-middle text-muted-foreground">
-            {{ proxy.user ?? '—' }}
+            {{ proxy.username ?? '—' }}
         </td>
         <td class="px-4 py-3 align-middle text-muted-foreground">
             {{ proxy.bypass ?? '—' }}

@@ -33,8 +33,7 @@ class BotJob implements ShouldBeUnique, ShouldQueue
         NewsBotService $newsBotService,
         SearchBotService $searchBotService,
         SitemapBotService $sitemapBotService,
-    ): void
-    {
+    ): void {
         switch ($this->bot->type) {
             case BotType::News:
                 $newsBotService->run($this->bot);

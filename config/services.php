@@ -30,12 +30,12 @@ return [
     ],
 
     'proxy' => [
-        'name' => env('PROXY_NAME', 'default'),
-        'protocol' => env('PROXY_PROTOCOL', 'http'),
         'bypass' => env('PROXY_BYPASS'),
-        'password' => env('PROXY_PASSWORD'),
-        'server' => env('PROXY_SERVER'),
+        'host' => env('PROXY_HOST'),
+        'name' => env('PROXY_NAME', 'default'),
+        'pass' => env('PROXY_PASS'),
         'port' => env('PROXY_PORT'),
+        'scheme' => env('PROXY_SCHEME', 'http'),
         'username' => env('PROXY_USERNAME'),
-    ]
+    ],
 ];

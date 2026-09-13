@@ -4,6 +4,7 @@ namespace Tests\Feature\Settings;
 
 use App\Models\Proxy;
 use App\Models\User;
+use JsonException;
 use Tests\TestCase;
 
 class ProxyTest extends TestCase
@@ -37,9 +38,12 @@ class ProxyTest extends TestCase
 
     public function test_guests_cannot_add_a_proxy(): void
     {
-        $this->post(route('proxies.store'), [])->assertRedirect(route('login'));
+        $this->post(route('proxies.store'))->assertRedirect(route('login'));
     }
 
+    /**
+     * @throws JsonException
+     */
     public function test_a_proxy_can_be_added(): void
     {
         $user = User::factory()->create();
@@ -51,7 +55,7 @@ class ProxyTest extends TestCase
                 'scheme' => 'socks5',
                 'host' => 'proxy.example.com',
                 'port' => 8080,
-                'user' => 'proxy-user',
+                'username' => 'proxy-user',
                 'pass' => 'secret',
                 'bypass' => 'localhost',
             ]);
@@ -60,13 +64,14 @@ class ProxyTest extends TestCase
             ->assertSessionHasNoErrors()
             ->assertRedirect(route('proxies.edit'));
 
+        /** @var Proxy $proxy */
         $proxy = $user->proxies()->sole();
 
         $this->assertSame('My proxy', $proxy->name);
         $this->assertSame('socks5', $proxy->scheme);
         $this->assertSame('proxy.example.com', $proxy->host);
         $this->assertSame(8080, $proxy->port);
-        $this->assertSame('proxy-user', $proxy->user);
+        $this->assertSame('proxy-user', $proxy->username);
         $this->assertSame('secret', $proxy->pass);
         $this->assertSame('localhost', $proxy->bypass);
     }
@@ -76,11 +81,14 @@ class ProxyTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->post(route('proxies.store'), [])
+            ->post(route('proxies.store'))
             ->assertSessionHasErrors(['name', 'scheme', 'host'])
-            ->assertSessionDoesntHaveErrors(['port', 'user', 'pass', 'bypass']);
+            ->assertSessionDoesntHaveErrors(['port', 'username', 'pass', 'bypass']);
     }
 
+    /**
+     * @throws JsonException
+     */
     public function test_a_proxy_can_be_added_with_only_the_required_fields(): void
     {
         $user = User::factory()->create();
@@ -97,13 +105,14 @@ class ProxyTest extends TestCase
             ->assertSessionHasNoErrors()
             ->assertRedirect(route('proxies.edit'));
 
+        /** @var Proxy $proxy */
         $proxy = $user->proxies()->sole();
 
         $this->assertSame('My proxy', $proxy->name);
         $this->assertSame('http', $proxy->scheme);
         $this->assertSame('proxy.example.com', $proxy->host);
         $this->assertNull($proxy->port);
-        $this->assertNull($proxy->user);
+        $this->assertNull($proxy->username);
         $this->assertNull($proxy->pass);
         $this->assertNull($proxy->bypass);
     }
@@ -118,7 +127,7 @@ class ProxyTest extends TestCase
                 'scheme' => 'ftp',
                 'host' => 'proxy.example.com',
                 'port' => 8080,
-                'user' => 'proxy-user',
+                'username' => 'proxy-user',
                 'pass' => 'secret',
             ])
             ->assertSessionHasErrors('scheme');
@@ -130,7 +139,7 @@ class ProxyTest extends TestCase
         $proxy = $user->proxies()->create(Proxy::factory()->makeOne()->toArray());
 
         $this->actingAs($user)
-            ->delete(route('proxies.destroy', $proxy->id))
+            ->delete(route('proxies.destroy', $proxy->getKey()))
             ->assertRedirect(route('proxies.edit'));
 
         $this->assertSame(0, $user->proxies()->count());
@@ -143,7 +152,7 @@ class ProxyTest extends TestCase
         $proxy = $other->proxies()->create(Proxy::factory()->makeOne()->toArray());
 
         $this->actingAs($user)
-            ->delete(route('proxies.destroy', $proxy->id))
+            ->delete(route('proxies.destroy', $proxy->getKey()))
             ->assertForbidden();
 
         $this->assertSame(1, $other->proxies()->count());

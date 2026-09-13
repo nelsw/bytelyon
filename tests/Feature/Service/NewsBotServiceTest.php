@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Service;
 
-use App\Models\Article;
 use App\Models\Bot;
 use App\Services\LambdaService;
 use App\Services\NewsBotService;
@@ -34,12 +33,6 @@ class NewsBotServiceTest extends TestCase
             ->lastRunAt(now()->subHours(6))
             ->createOneQuietly();
 
-        $startedAt = now();
         $this->assertDoesntThrow(fn () => $this->service->run($bot));
-
-        dump(Article::query()
-            ->whereBotId($bot->id)
-            ->get()
-            ->toPrettyJson());
     }
 }

@@ -46,10 +46,6 @@ readonly class LambdaService
         return $this->invoke('bytelyon-page-scraper', compact('url', 'includeLinks'));
     }
 
-    /**
-     * @param string $url
-     * @return array
-     */
     public function grab(string $url): array
     {
         return $this->invoke('bytelyon-grab', [

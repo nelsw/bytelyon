@@ -25,7 +25,7 @@
 - [ ] update sitemap service logic to use new lambda grab method
 - [ ] random button for proxies - explain first is always used otherwise 
 - [ ] https://laravel.com/framework/docs/providers#deferred-providers
-- [ ] Utilize Proxy for HTTP request when scraping news and (sitemap) pages; don't forget the snapshot tho
+- [x] Utilize Proxy for HTTP request when scraping news and (sitemap) pages; don't forget the snapshot tho
 - [ ] Walk through use cases as if you're a new user or and old friend or grandma
 - [x] Have claude create a page for users to enter one to many proxies; page goes under user settings
 - [ ] Persist models by dispatching closure

@@ -20,10 +20,11 @@ destroy:
 migrate:
 	@vendor/bin/sail artisan migrate --graceful --env=testing
 	@vendor/bin/sail artisan migrate --graceful
-	@vendor/bin/sail artisan db:seed
 rollback:
 	@vendor/bin/sail artisan migrate:rollback --env=testing
 	@vendor/bin/sail artisan migrate:rollback
+seed:
+	@vendor/bin/sail artisan db:seed
 
 #
 # Project
@@ -59,10 +60,10 @@ cov: test
 logs:
 	@scripts/tail-lambda-logs.sh
 news:
-	./scripts/update-lambda-image.sh bytelyon-news-scraper --dir news-scraper
+	@scripts/update-lambda-image.sh bytelyon-news-scraper --dir news-scraper
 page:
-	./scripts/update-lambda-image.sh bytelyon-page-scraper --dir page-scraper
+	@scripts/update-lambda-image.sh bytelyon-page-scraper --dir page-scraper
 serp:
-	./scripts/update-lambda-image.sh bytelyon-serp-scraper --dir serp-scraper
+	@scripts/update-lambda-image.sh bytelyon-serp-scraper --dir serp-scraper
 grab:
-	./scripts/update-lambda-image.sh bytelyon-grab --dir grab
+	@scripts/update-lambda-image.sh bytelyon-grab --dir grab

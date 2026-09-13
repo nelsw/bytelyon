@@ -14,13 +14,6 @@ down:
 destroy:
 	@vendor/bin/sail down server -v --remove-orphans --rmi all
 
-fresh:
-	@vendor/bin/sail artisan optimize:clear
-	@vendor/bin/sail artisan optimize
-clean:
-	@rm -rf bootstrap/cache/* public/reports/* storage/framework/sessions/*
-	@truncate -s 0 storage/logs/browser.log storage/logs/laravel.log
-
 #
 # DB
 #
@@ -35,6 +28,12 @@ rollback:
 #
 # Project
 #
+clean:
+	@rm -rf bootstrap/cache/* public/reports/* storage/framework/sessions/*
+	@truncate -s 0 storage/logs/*.log
+fresh:
+	@vendor/bin/sail artisan optimize:clear
+	@vendor/bin/sail artisan optimize
 meta:
 	@vendor/bin/sail artisan ide-helper:generate
 	@vendor/bin/sail artisan ide-helper:models
@@ -50,7 +49,7 @@ test: fresh
 	@rm -rf public/reports/*
 	@vendor/bin/sail artisan config:clear
 	@vendor/bin/sail test --coverage-html public/reports/
-cov:
+cov: test
 	@open public/reports/dashboard.html
 	@open public/reports/index.html
 

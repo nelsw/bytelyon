@@ -37,4 +37,12 @@ readonly class RssService
             'ceid' => 'US:en',
         ]);
     }
+
+    public function news(string $query): array
+    {
+        return array_merge(
+            $this->bing($query),
+            $this->google($query),
+        );
+    }
 }

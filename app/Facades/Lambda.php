@@ -3,12 +3,13 @@
 namespace App\Facades;
 
 use App\Data\Lambda\Payload;
+use App\Models\Proxy;
 use App\Services\LambdaService;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @method static array<string, mixed> invoke(string $functionName, array<string, mixed> $input = [])
  * @method static Payload scrape(string $url)
+ * @method static array<string, mixed> serp(string $query, Proxy $proxy)
  */
 class Lambda extends Facade
 {

@@ -15,6 +15,7 @@ class SitemapFactory extends Factory
         return [
             'bot_id' => Bot::factory()
                 ->sitemap()
+                ->query($domain)
                 ->headless()
                 ->enabled()
                 ->lastRunAt(now()->subYear()),
@@ -26,6 +27,14 @@ class SitemapFactory extends Factory
                 "https://$domain/blog/docs/getting-started",
             ],
         ];
+    }
+
+    public function domain(string $domain): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'domain' => $domain,
+            'urls' => [],
+        ]);
     }
 
     public function deleted(): static

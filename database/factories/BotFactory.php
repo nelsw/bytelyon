@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\BotType;
 use App\Enums\FrequencyType;
 use App\Models\Bot;
+use App\Models\Sitemap;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -99,14 +100,17 @@ class BotFactory extends Factory
         ]);
     }
 
-    public function sitemap(): static
+    public function sitemap(?string $domain = null): static
     {
+        if ($domain === null) {
+            $domain = $this->faker->domainName();
+        }
         return $this->state(fn (array $attributes) => [
             ...$attributes,
             ...[
                 'type' => BotType::Sitemap,
-                'query' => fake()->domainName(),
+                'query' => $domain,
             ],
-        ]);
+        ])->has(Sitemap::factory()->domain($domain));
     }
 }

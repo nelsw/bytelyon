@@ -20,25 +20,6 @@ readonly class LambdaService
         $this->client = new LambdaClient(config('services.lambda'));
     }
 
-    private function invoke(string $functionName, array $input = []): array
-    {
-        $result = $this->client->invoke([
-            'FunctionName' => $functionName,
-            'InvocationType' => self::invocationType,
-            'Payload' => json_encode($input),
-        ]);
-
-        $output = json_decode($result->get('Payload')->getContents(), true);
-
-        Log::debug('LambdaService#invoke', [
-            'ƒ' => $functionName,
-            'in' => $input,
-            'out' => $output,
-        ]);
-
-        return $output;
-    }
-
     public function scrape(string $url): Payload
     {
         return Payload::make($this->client->invoke([
@@ -53,17 +34,21 @@ readonly class LambdaService
 
     public function serp(string $query, Proxy $proxy): array
     {
-        return $this->invoke('bytelyon-serp-scraper', [
-            'query' => $query,
-            'proxy' => [
-                'protocol' => $proxy->scheme,
-                'server' => $proxy->host,
-                'port' => $proxy->port,
-                'username' => $proxy->username,
-                'password' => $proxy->pass,
-                'bypass' => $proxy->bypass,
-            ],
-            'geoip' => true,
-        ]);
+        return json_decode($this->client->invoke([
+            'FunctionName' => 'bytelyon-serp-scraper',
+            'InvocationType' => self::invocationType,
+            'Payload' => json_encode([
+                'query' => $query,
+                'proxy' => [
+                    'protocol' => $proxy->scheme,
+                    'server' => $proxy->host,
+                    'port' => $proxy->port,
+                    'username' => $proxy->username,
+                    'password' => $proxy->pass,
+                    'bypass' => $proxy->bypass,
+                ],
+                'geoip' => true,
+            ]),
+        ])->get('Payload')->getContents(), true);
     }
 }

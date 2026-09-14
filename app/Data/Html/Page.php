@@ -73,6 +73,32 @@ class Page implements Pageable
             ->join(',');
     }
 
+    /** @return array<string, string> */
+    public function meta(): array
+    {
+        $meta = [];
+
+        $tags = $this->doc->querySelectorAll('meta');
+        foreach ($tags as $tag) {
+            $val = trim($tag->getAttribute('content') ?? '');
+            if (empty($val)) {
+                continue;
+            }
+
+            $key = trim($tag->getAttribute('name') ?? '');
+            if (empty($key)) {
+                $key = trim($tag->getAttribute('property') ?? '');
+                if (empty($key)) {
+                    continue;
+                }
+            }
+
+            $meta[$key] = $val;
+        }
+
+        return $meta;
+    }
+
     public function body(): string
     {
         foreach (['article', 'main', 'body', 'html'] as $tag) {

@@ -2,18 +2,19 @@
 
 namespace App\Services;
 
+use App\Data\Html\Page;
 use App\Events\BotResultsPersisted;
+use App\Facades\Lambda;
 use App\Models\Bot;
 use App\Models\Sitemap;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 #[Singleton]
 readonly class SitemapBotService
 {
-    public function __construct(private LambdaService $service) {}
-
     public function run(Bot $bot): void
     {
         Log::info("SitemapBotService::run - domain=[$bot->query]");
@@ -41,7 +42,9 @@ readonly class SitemapBotService
 
     public function sync(Bot $bot, int $depth, array &$urls, string $url): void
     {
-        $data = $this->service->page($url);
+        $payload = Lambda::scrape($url);
+
+        $page = new Page($url, Storage::disk('s3')->get($payload->contentKey));
 
         try {
             $bot->sitemap->pages()->updateOrCreate(
@@ -52,9 +55,9 @@ readonly class SitemapBotService
                 ],
                 values: [
                     'domain' => $bot->query,
-                    'title' => $data['title'],
-                    'screenshot_key' => $data['screenshot_key'],
-                    'meta' => $data['meta'],
+                    'title' => $page->title(),
+                    'screenshot_key' => $payload->screenshotKey,
+                    'meta' => $page->meta(),
                 ],
             );
             $urls[$url] = true;
@@ -67,7 +70,7 @@ readonly class SitemapBotService
             ]);
         }
 
-        foreach ($data['links'] as $link) {
+        foreach ($page->links() as $link) {
             if ($urls[$link] ?? false) {
                 continue;
             }

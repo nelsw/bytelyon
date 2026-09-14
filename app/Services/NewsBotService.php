@@ -4,9 +4,8 @@ namespace App\Services;
 
 use App\Contracts\RssItem;
 use App\Data\Html\Page;
-use App\Data\Rss\BingRssItem;
-use App\Data\Rss\GoogleRssItem;
 use App\Events\BotResultsPersisted;
+use App\Facades\Lambda;
 use App\Models\Bot;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Facades\Log;
@@ -16,10 +15,6 @@ use Throwable;
 #[Singleton]
 readonly class NewsBotService extends RssService
 {
-    public function __construct(
-        private LambdaService $service,
-    ) {}
-
     public function run(Bot $bot): void
     {
         $items = collect()
@@ -36,9 +31,8 @@ readonly class NewsBotService extends RssService
         $pages = 0;
         foreach ($items as $item) {
 
-            $out = $this->service->grab($item->url());
-
-            $page = new Page($item->url(), Storage::disk('s3')->get($out['content_key']));
+            $payload = Lambda::scrape($item->url());
+            $page = new Page($item->url(), Storage::disk('s3')->get($payload->contentKey));
 
             $article = [...$item->toArray(), ...$page->toArray()];
 
@@ -62,23 +56,5 @@ readonly class NewsBotService extends RssService
                 'query' => $bot->query,
             ]));
         }
-    }
-
-    private function bing(string $query): array
-    {
-        return $this->items(BingRssItem::class, 'https://www.bing.com/news/search', [
-            'q' => $query,
-            'format' => 'rss',
-        ]);
-    }
-
-    private function google(string $query): array
-    {
-        return $this->items(GoogleRssItem::class, 'https://news.google.com/rss/search', [
-            'q' => $query,
-            'hl' => 'en-US',
-            'gl' => 'US',
-            'ceid' => 'US:en',
-        ]);
     }
 }

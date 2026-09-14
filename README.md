@@ -13,32 +13,3 @@
 
 </div>
 
-
----
-
-###### TODO
-
-- [ ] Getting started blurb (fresh install)
-
-**Server**
-
-- [ ] update sitemap service logic to use new lambda grab method
-- [ ] random button for proxies - explain first is always used otherwise 
-- [ ] https://laravel.com/framework/docs/providers#deferred-providers
-- [x] Utilize Proxy for HTTP request when scraping news and (sitemap) pages; don't forget the snapshot tho
-- [ ] Walk through use cases as if you're a new user or and old friend or grandma
-- [x] Have claude create a page for users to enter one to many proxies; page goes under user settings
-- [ ] Persist models by dispatching closure
-- [x] Broadcast events once bot is complete
-- [x] Close drawer on mobile after sidebar menu item click
-- [ ] Telescope logs
-- [ ] Have a think on data model
-- [ ] Integrate findupon code
-
-### Handlers
-
-- [ ] Experiment with headed in lambda
-- [x] Log formatting my gawd
-- [ ] [Windows Fonts](https://github.com/CloakHQ/cloakbrowser#font-setup-on-linux)
-- [x] Silence Windows Fonts Warning: `CLOAKBROWSER_SUPPRESS_FONT_WARNING=1`
-- [ ] [Format AWS CloudWatch logs](https://joudwawad.medium.com/aws-cloudwatch-logs-deep-dive-d52b5bb7c40d)

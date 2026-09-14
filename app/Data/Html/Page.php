@@ -6,8 +6,8 @@ use App\Contracts\Pageable;
 use Dom\Element;
 use Dom\HTMLDocument;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Uri;
-use URL;
 
 class Page implements Pageable
 {

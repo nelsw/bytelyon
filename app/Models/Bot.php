@@ -150,7 +150,7 @@ class Bot extends Model
 
     public function blacklist(): array
     {
-        return empty(trim($this->blacklist)) ? [] : explode("\n", $this->blacklist);
+        return empty(trim($this->blacklist ?? '')) ? [] : explode("\n", $this->blacklist);
     }
 
     public function lastRunAt(): CarbonInterface
@@ -167,10 +167,5 @@ class Bot extends Model
         $arr = explode(' ', $str);
         $map = array_map(fn (string $item) => [trim($item) => true], $arr);
         return array_any($this->blacklist(), fn (string $key) => isset($map[$key]));
-    }
-
-    public function randomProxy(): Proxy
-    {
-        return $this->user->proxies->inRandomOrder()->first();
     }
 }

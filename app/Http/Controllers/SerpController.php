@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Page;
 use App\Models\Serp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\URL;
@@ -38,21 +39,18 @@ class SerpController extends Controller
                 'data' => $serp->data ?? [],
                 'similarQueries' => $serp->data['similar_queries'] ?? [],
                 'screenshotUrl' => $serp->screenshotUrl(),
-                'pages' => $serp->pages()
-                    ->get(['id', 'kind', 'index', 'title', 'url', 'domain', 'created_at', 'screenshot_key', 'meta'])
-                    ->map(fn ($page) => [
-                        'id' => $page->id,
-                        'faviconUrl' => URL::toFavicon($page->url, 32),
-                        'kind' => str($page->kind)->replace('_', ' ')->title(),
-                        'index' => $page->index,
-                        'title' => $page->title,
-                        'url' => $page->url,
-                        'domain' => $page->domain,
-                        'created_at' => $page->created_at,
-                        'meta' => $page->meta ?? [],
-                        'screenshotUrl' => $page->screenshotUrl(),
-                    ])
-                    ->all(),
+                'pages' => $serp->pages->map(fn (Page $page) => [
+                    'id' => $page->id,
+                    'faviconUrl' => URL::toFavicon($page->url, 32),
+                    'kind' => str($page->kind)->replace('_', ' ')->title(),
+                    'index' => $page->index,
+                    'title' => $page->title,
+                    'url' => $page->url,
+                    'domain' => $page->domain,
+                    'created_at' => $page->created_at,
+                    'meta' => $page->meta ?? [],
+                    'screenshotUrl' => $page->screenshotUrl(),
+                ])->all(),
             ],
         ]);
     }

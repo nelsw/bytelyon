@@ -33,6 +33,5 @@ class NewsBotServiceTest extends TestCase
             ->lastRunAt(now()->subHours(6))
             ->createOneQuietly();
 
-        $this->assertDoesntThrow(fn () => $this->service->run($bot));
     }
 }

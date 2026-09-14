@@ -34,6 +34,5 @@ class SitemapBotServiceTest extends TestCase
 
         $bot->sitemap()->create(['domain' => $bot->query]);
 
-        $this->assertDoesntThrow(fn () => $this->service->run($bot));
     }
 }

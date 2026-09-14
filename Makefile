@@ -32,8 +32,9 @@ seed:
 clean:
 	@rm -rf bootstrap/cache/* public/reports/* storage/framework/sessions/*
 	@truncate -s 0 storage/logs/*.log
-fresh:
+clear:
 	@vendor/bin/sail artisan optimize:clear
+fresh: clear
 	@vendor/bin/sail artisan optimize
 meta:
 	@vendor/bin/sail artisan ide-helper:generate
@@ -46,11 +47,12 @@ scan:
 #
 # Test
 #
-test: fresh
+test: clear
+	@vendor/bin/sail test --coverage --coverage-clover=coverage.xml
+reports: clear
 	@rm -rf public/reports/*
-	@vendor/bin/sail artisan config:clear
-	@vendor/bin/sail test --coverage-html public/reports/
-cov: test
+	@vendor/bin/sail test --coverage --coverage-html public/reports/
+	@sleep 3
 	@open public/reports/dashboard.html
 	@open public/reports/index.html
 

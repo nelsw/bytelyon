@@ -5,6 +5,7 @@ namespace App\Data\Html;
 use App\Contracts\Pageable;
 use Dom\Element;
 use Dom\HTMLDocument;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Uri;
 use URL;
 
@@ -36,8 +37,12 @@ class Page implements Pageable
         $this->doc = HTMLDocument::createFromString($html);
     }
 
-    private function metaVal(array $attrs, bool $allVals = false): string|array
+    /**
+     * @param  array<string>  $attrs
+     */
+    private function metaVal(array $attrs, bool $allVals = false): string
     {
+        /** @var array<string> $arr */
         $arr = [];
         foreach ($attrs as $attr) {
 
@@ -53,16 +58,19 @@ class Page implements Pageable
                 return $val;
             }
 
-            $arr[] = [
+            $arr = [
                 ...$arr,
                 ...explode(',', $val),
             ];
         }
 
-        return collect($arr)
+        /** @var Collection<int, string> $c */
+        $c = collect($arr);
+
+        return $c
             ->transform(fn (string $val): string => trim($val))
             ->filter()
-            ->all();
+            ->join(',');
     }
 
     public function body(): string
@@ -70,7 +78,7 @@ class Page implements Pageable
         foreach (['article', 'main', 'body', 'html'] as $tag) {
             if ($this->doc->querySelector($tag)) {
                 return collect($this->doc->querySelector($tag)->querySelectorAll('p'))
-                    ->transform(fn (Element $e): ?string => trim($e->textContent ?? ''))
+                    ->transform(fn (Element $e): string => trim($e->textContent ?? ''))
                     ->reject(fn (string $href): bool => empty($href))
                     ->join(' ');
             }
@@ -79,10 +87,13 @@ class Page implements Pageable
         return '';
     }
 
+    /**
+     * @return array<string>
+     */
     public function links(): array
     {
         return collect($this->doc->querySelectorAll('a'))
-            ->transform(fn (Element $e): ?string => trim($e->getAttribute('href') ?? ''))
+            ->transform(fn (Element $e): string => trim($e->getAttribute('href') ?? ''))
             ->reject(fn (string $href): bool => empty($href))
             ->map(fn (string $href): Uri => Uri::of($href))
             ->filter(fn (Uri $uri): bool => str($uri->host())->replace('www.', '')->isMatch($this->domain()))
@@ -120,9 +131,12 @@ class Page implements Pageable
         return $this->metaVal(self::imgSrcMetaKeys);
     }
 
+    /**
+     * @return array<string>
+     */
     public function keywords(): array
     {
-        return $this->metaVal(self::keywordMetaKeys, true);
+        return explode(',', $this->metaVal(self::keywordMetaKeys, true));
     }
 
     public function toArray(): array
@@ -133,6 +147,7 @@ class Page implements Pageable
             'domain' => $this->domain(),
             'img_alt' => $this->imgAlt(),
             'img_src' => $this->imgSrc(),
+            'keywords' => $this->keywords(),
             'title' => $this->title(),
             'url' => $this->url(),
         ];

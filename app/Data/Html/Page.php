@@ -110,7 +110,7 @@ class Page implements Pageable
             }
         }
 
-        return '';
+        return ''; // @codeCoverageIgnore
     }
 
     /**
@@ -122,7 +122,7 @@ class Page implements Pageable
             ->transform(fn (Element $e): string => trim($e->getAttribute('href') ?? ''))
             ->reject(fn (string $href): bool => empty($href))
             ->map(fn (string $href): Uri => Uri::of($href))
-            ->filter(fn (Uri $uri): bool => str($uri->host())->replace('www.', '')->isMatch($this->domain()))
+            ->filter(fn (Uri $uri): bool => str($uri->host())->replace('www.', '')->is($this->domain()))
             ->transform(fn (Uri $uri): string => $uri->toString())
             ->toArray();
     }

@@ -4,7 +4,7 @@ namespace App\Data\Rss;
 
 use App\Contracts\RssItem;
 use Carbon\CarbonInterface;
-use Carbon\Exceptions\InvalidDateException;
+use Carbon\Exceptions\InvalidArgumentException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use SimpleXMLElement;
@@ -21,7 +21,7 @@ abstract class BaseRssItem extends SimpleXMLElement implements RssItem
     {
         try {
             return Carbon::parse((string) $this->pubDate);
-        } catch (InvalidDateException $e) {
+        } catch (InvalidArgumentException $e) {
             Log::warning("RssItem#publishedAt: {$e->getMessage()}");
             return (string) $this->pubDate;
         }

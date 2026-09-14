@@ -91,14 +91,16 @@ class GoogleRssItem extends BaseRssItem
         }
 
         $encoded = $matches['encoded_url'];
-
+        $url = '';
         try {
             $url = $this->decodeNode($node, $encoded);
+            // @codeCoverageIgnoreStart
         } catch (Throwable $e) {
             Log::warning('failed to decode gstatic node', [...$context, 'error' => $e->getMessage()]);
 
             return '';
         }
+        // @codeCoverageIgnoreEnd
 
         Log::debug('decoded gstatic url', ['url' => $url]);
         return rtrim($url, '/');

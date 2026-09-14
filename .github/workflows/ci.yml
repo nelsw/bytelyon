@@ -44,7 +44,7 @@ jobs:
         with:
           php-version: "8.5"
           extensions: mbstring, dom, fileinfo, pdo_pgsql, redis
-          coverage: none
+          coverage: xdebug
 
       - name: Copy Environment File
         run: php -r "file_exists('.env') || copy('.env.example', '.env');"

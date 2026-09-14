@@ -57,6 +57,8 @@ class BotJob implements ShouldBeUnique, ShouldQueue
 
     public function failed(?Throwable $e): void
     {
+        $this->bot->update(['last_run_at' => now()->utc()]);
+
         Log::error('BotJob::failed', [
             'exception' => $e,
             'id' => $this->bot->id,

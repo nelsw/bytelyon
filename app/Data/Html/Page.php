@@ -34,7 +34,7 @@ class Page implements Pageable
 
     private readonly HTMLDocument $doc;
 
-    public function __construct(private readonly string $url, string $html)
+    public function __construct(private readonly string $url, ?string $html = null)
     {
         try {
             $this->doc = HTMLDocument::createFromString($html);

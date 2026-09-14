@@ -9,7 +9,7 @@ class PageTest extends TestCase
 {
     private function html(string $head, string $body): string
     {
-        return "<!DOCTYPE html><html><head>{$head}</head><body>{$body}</body></html>";
+        return "<!DOCTYPE html><html lang=\"en\"><head>$head</head><body>$body</body></html>";
     }
 
     public function test_title_url_and_domain(): void
@@ -137,7 +137,7 @@ class PageTest extends TestCase
             'description' => 'Article description',
             'domain' => 'example.com',
             'img_alt' => 'Alt text',
-            'img_src' => 'https://example.com/img.png',
+            'img_url' => 'https://example.com/img.png',
             'keywords' => ['one', 'two'],
             'title' => 'Article Title',
             'url' => 'https://www.example.com/article',

@@ -182,7 +182,7 @@ class Page implements Pageable
             'description' => $this->description(),
             'domain' => $this->domain(),
             'img_alt' => $this->imgAlt(),
-            'img_src' => $this->imgSrc(),
+            'img_url' => $this->imgSrc(),
             'keywords' => $this->keywords(),
             'title' => $this->title(),
             'url' => $this->url(),

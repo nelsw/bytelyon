@@ -1,4 +1,4 @@
-name: ByteLyon CI (Laravel)
+name: CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: ["main"]
 
 jobs:
-  laravel-tests:
+  main:
     runs-on: ubuntu-latest
 
     services:
@@ -44,7 +44,7 @@ jobs:
         with:
           php-version: "8.5"
           extensions: mbstring, dom, fileinfo, pdo_pgsql, redis
-          coverage: none
+          coverage: xdebug
 
       - name: Copy Environment File
         run: php -r "file_exists('.env') || copy('.env.example', '.env');"
@@ -84,3 +84,8 @@ jobs:
           REDIS_HOST: 127.0.0.1
           REDIS_PORT: 6379
         run: php artisan test
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

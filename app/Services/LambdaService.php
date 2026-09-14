@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Data\Lambda\Payload;
 use App\Models\Proxy;
 use Aws\Lambda\LambdaClient;
 use Illuminate\Container\Attributes\Singleton;
@@ -10,18 +11,20 @@ use Illuminate\Support\Facades\Log;
 #[Singleton]
 readonly class LambdaService
 {
+    private const string invocationType = 'RequestResponse';
+
     private LambdaClient $client;
 
     public function __construct()
     {
-        $this->client = new LambdaClient(config('lambda'));
+        $this->client = new LambdaClient(config('services.lambda'));
     }
 
     private function invoke(string $functionName, array $input = []): array
     {
         $result = $this->client->invoke([
             'FunctionName' => $functionName,
-            'InvocationType' => 'RequestResponse',
+            'InvocationType' => self::invocationType,
             'Payload' => json_encode($input),
         ]);
 
@@ -36,14 +39,16 @@ readonly class LambdaService
         return $output;
     }
 
-    public function news(array $urls): array
+    public function scrape(string $url): Payload
     {
-        return $this->invoke('bytelyon-news-scraper', compact('urls'));
-    }
-
-    public function page(string $url, bool $includeLinks = true): array
-    {
-        return $this->invoke('bytelyon-page-scraper', compact('url', 'includeLinks'));
+        return Payload::make($this->client->invoke([
+            'FunctionName' => 'bytelyon-grab',
+            'InvocationType' => self::invocationType,
+            'Payload' => json_encode([
+                'url' => $url,
+                'goto_timeout_ms' => 10_000,
+            ]),
+        ]));
     }
 
     public function serp(string $query, Proxy $proxy): array
@@ -54,7 +59,7 @@ readonly class LambdaService
                 'protocol' => $proxy->scheme,
                 'server' => $proxy->host,
                 'port' => $proxy->port,
-                'username' => $proxy->user,
+                'username' => $proxy->username,
                 'password' => $proxy->pass,
                 'bypass' => $proxy->bypass,
             ],

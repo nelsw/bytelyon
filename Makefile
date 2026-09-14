@@ -14,27 +14,28 @@ down:
 destroy:
 	@vendor/bin/sail down server -v --remove-orphans --rmi all
 
-fresh:
-	@vendor/bin/sail artisan optimize:clear
-	@vendor/bin/sail artisan optimize
-clean:
-	@rm -rf bootstrap/cache/* public/reports/* storage/framework/sessions/*
-	@truncate -s 0 storage/logs/browser.log storage/logs/laravel.log
-
 #
 # DB
 #
 migrate:
 	@vendor/bin/sail artisan migrate --graceful --env=testing
 	@vendor/bin/sail artisan migrate --graceful
-	@vendor/bin/sail artisan db:seed
 rollback:
 	@vendor/bin/sail artisan migrate:rollback --env=testing
 	@vendor/bin/sail artisan migrate:rollback
+seed:
+	@vendor/bin/sail artisan db:seed
 
 #
 # Project
 #
+clean:
+	@rm -rf bootstrap/cache/* public/reports/* storage/framework/sessions/*
+	@truncate -s 0 storage/logs/*.log
+clear:
+	@vendor/bin/sail artisan optimize:clear
+fresh: clear
+	@vendor/bin/sail artisan optimize
 meta:
 	@vendor/bin/sail artisan ide-helper:generate
 	@vendor/bin/sail artisan ide-helper:models
@@ -46,13 +47,11 @@ scan:
 #
 # Test
 #
-test: fresh
-	@rm -rf public/reports/*
-	@vendor/bin/sail artisan config:clear
-	@vendor/bin/sail test --coverage-html public/reports/
-cov:
-	@open public/reports/dashboard.html
-	@open public/reports/index.html
+test: clear
+	@vendor/bin/sail test --coverage
+	@sleep 3
+	@open reports/dashboard.html
+	@open reports/index.html
 
 #
 # ꟛƒ
@@ -60,10 +59,10 @@ cov:
 logs:
 	@scripts/tail-lambda-logs.sh
 news:
-	./scripts/update-lambda-image.sh bytelyon-news-scraper --dir news-scraper
+	@scripts/update-lambda-image.sh bytelyon-news-scraper --dir news-scraper
 page:
-	./scripts/update-lambda-image.sh bytelyon-page-scraper --dir page-scraper
+	@scripts/update-lambda-image.sh bytelyon-page-scraper --dir page-scraper
 serp:
-	./scripts/update-lambda-image.sh bytelyon-serp-scraper --dir serp-scraper
+	@scripts/update-lambda-image.sh bytelyon-serp-scraper --dir serp-scraper
 grab:
-	./scripts/update-lambda-image.sh bytelyon-grab --dir grab
+	@scripts/update-lambda-image.sh bytelyon-grab --dir grab

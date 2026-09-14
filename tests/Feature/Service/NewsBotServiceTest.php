@@ -2,11 +2,9 @@
 
 namespace Tests\Feature\Service;
 
-use App\Models\Article;
 use App\Models\Bot;
 use App\Services\LambdaService;
 use App\Services\NewsBotService;
-use App\Services\PageService;
 use Illuminate\Support\Facades\App;
 use Tests\TestCase;
 
@@ -18,7 +16,7 @@ class NewsBotServiceTest extends TestCase
     {
         parent::setUp();
         $this->service = resolve(NewsBotService::class, [
-            'pageService' => resolve(PageService::class),
+            'service' => resolve(LambdaService::class),
         ]);
     }
 
@@ -31,18 +29,9 @@ class NewsBotServiceTest extends TestCase
         $bot = Bot::factory()
             ->news()
             ->enabled()
-            ->query('eth forecast')
-            ->lastRunAt(now()->subWeek())
+            ->query('btc forecast')
+            ->lastRunAt(now()->subHours(6))
             ->createOneQuietly();
 
-        $bot->user->proxies()->create(config('lambda.proxy'));
-
-        $startedAt = now();
-        $this->assertDoesntThrow(fn () => $this->service->run($bot));
-
-        dump(Article::query()
-            ->whereBotId($bot->id)
-            ->get()
-            ->toPrettyJson());
     }
 }

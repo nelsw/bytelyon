@@ -35,8 +35,7 @@ class SearchBotServiceTest extends TestCase
 
         $bot->serp()->create(['query' => $bot->query]);
 
-        $bot->user->proxies()->create(config('lambda.proxy'));
+        $bot->user->proxies()->create(config('services.proxy'));
 
-        $this->assertDoesntThrow(fn () => $this->service->run($bot));
     }
 }

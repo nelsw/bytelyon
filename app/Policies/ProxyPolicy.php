@@ -10,6 +10,11 @@ class ProxyPolicy
 {
     use HandlesAuthorization;
 
+    public function viewAny(User $user): bool
+    {
+        return true;
+    }
+
     public function view(User $user, Proxy $proxy): bool
     {
         return $proxy->user_id === $user->id;

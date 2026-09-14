@@ -9,7 +9,7 @@ use Illuminate\Validation\Rule;
 class ProxyStoreRequest extends FormRequest
 {
     /**
-     * @return array<string, ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array|string>
      */
     public function rules(): array
     {
@@ -18,7 +18,7 @@ class ProxyStoreRequest extends FormRequest
             'scheme' => ['required', Rule::in(['http', 'https', 'socks5'])],
             'host' => ['required', 'string', 'max:255'],
             'port' => ['nullable', 'integer', 'between:1,65535'],
-            'user' => ['nullable', 'string', 'max:255'],
+            'username' => ['nullable', 'string', 'max:255'],
             'pass' => ['nullable', 'string', 'max:255'],
             'bypass' => ['nullable', 'string', 'max:255'],
         ];

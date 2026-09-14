@@ -20,4 +20,22 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'lambda' => [
+        'version' => env('LAMBDA_VERSION', 'latest'),
+        'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+        'credentials' => [
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+        ],
+    ],
+
+    'proxy' => [
+        'bypass' => env('PROXY_BYPASS'),
+        'host' => env('PROXY_HOST'),
+        'name' => env('PROXY_NAME', 'default'),
+        'pass' => env('PROXY_PASS'),
+        'port' => env('PROXY_PORT'),
+        'scheme' => env('PROXY_SCHEME', 'http'),
+        'username' => env('PROXY_USERNAME'),
+    ],
 ];

@@ -21,7 +21,6 @@ use Laravel\Telescope\Watchers\RequestWatcher;
 use Laravel\Telescope\Watchers\ScheduleWatcher;
 use Laravel\Telescope\Watchers\ViewWatcher;
 
-
 return [
 
     /*

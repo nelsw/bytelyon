@@ -21,25 +21,25 @@ class BotObserver
             case BotType::News:
                 break;
         }
-        BotJob::dispatch($bot);
+        BotJob::dispatchIf($bot->isRunnable(), $bot);
     }
 
     public function updated(Bot $bot): void
     {
-        BotJob::dispatch($bot);
+        BotJob::dispatchIf($bot->isRunnable(), $bot);
     }
 
     public function deleting(Bot $bot): void
     {
         switch ($bot->type) {
             case BotType::News:
-                $bot->articles->each(fn (Article $article) => $article->delete());
+                $bot->articles?->each(fn (Article $article) => $article->delete());
                 break;
             case BotType::Search:
-                $bot->serp->delete();
+                $bot->serp?->delete();
                 break;
             case BotType::Sitemap:
-                $bot->sitemap->delete();
+                $bot->sitemap?->delete();
         }
     }
 }

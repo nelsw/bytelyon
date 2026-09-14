@@ -28,7 +28,7 @@ export type Proxy = {
     scheme: 'http' | 'https' | 'socks5';
     host: string;
     port: number | null;
-    user: string | null;
+    username: string | null;
     bypass: string | null;
     created_at_diff: string | null;
 };

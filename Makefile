@@ -48,13 +48,10 @@ scan:
 # Test
 #
 test: clear
-	@vendor/bin/sail test --coverage --coverage-clover=coverage.xml
-reports: clear
-	@rm -rf public/reports/*
-	@vendor/bin/sail test --coverage --coverage-html public/reports/
+	@vendor/bin/sail test --coverage
 	@sleep 3
-	@open public/reports/dashboard.html
-	@open public/reports/index.html
+	@open reports/dashboard.html
+	@open reports/index.html
 
 #
 # ꟛƒ

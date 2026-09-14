@@ -6,8 +6,10 @@ use App\Contracts\Pageable;
 use Dom\Element;
 use Dom\HTMLDocument;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Uri;
+use Throwable;
 
 class Page implements Pageable
 {
@@ -34,7 +36,15 @@ class Page implements Pageable
 
     public function __construct(private readonly string $url, string $html)
     {
-        $this->doc = HTMLDocument::createFromString($html);
+        try {
+            $this->doc = HTMLDocument::createFromString($html);
+        } catch (Throwable $e) {
+            Log::error("Page - {$e->getMessage()}", [
+                'url' => $this->url,
+                'exception' => $e,
+            ]);
+            $this->doc = HTMLDocument::createEmpty();
+        }
     }
 
     /**

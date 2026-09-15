@@ -14,24 +14,14 @@ class ArticleControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected User $user;
-
-    protected Bot $bot;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->user = User::factory()->verified()->create();
-        $this->bot = Bot::factory()->create(['user_id' => $this->user->id]);
-    }
-
     public function test_index()
     {
-        Article::factory()->for($this->bot)->count(3)->create();
+        $article = Article::factory()->createOneQuietly();
 
-        $response = $this->actingAs($this->bot->user)
-            ->get(route('articles.index', $this->bot));
+        Article::factory()->for($article->bot)->count(2)->createQuietly();
+
+        $response = $this->actingAs($article->bot->user)
+            ->get(route('articles.index', $article->bot));
 
         $response->assertStatus(200)
             ->assertInertia(fn (Assert $page) => $page
@@ -43,10 +33,10 @@ class ArticleControllerTest extends TestCase
 
     public function test_show()
     {
-        $article = Article::factory()->create(['bot_id' => $this->bot->id]);
+        $article = Article::factory()->createOneQuietly();
 
-        $response = $this->actingAs($this->user)
-            ->get(route('articles.show', ['bot' => $this->bot, 'article' => $article]));
+        $response = $this->actingAs($article->bot->user)
+            ->get(route('articles.show', ['bot' => $article->bot, 'article' => $article]));
 
         $response->assertStatus(200)
             ->assertInertia(fn (Assert $page) => $page
@@ -58,10 +48,10 @@ class ArticleControllerTest extends TestCase
 
     public function test_edit()
     {
-        $article = Article::factory()->create(['bot_id' => $this->bot->id]);
+        $article = Article::factory()->createOneQuietly();
 
-        $response = $this->actingAs($this->user)
-            ->get(route('articles.edit', ['bot' => $this->bot, 'article' => $article]));
+        $response = $this->actingAs($article->bot->user)
+            ->get(route('articles.edit', ['bot' => $article->bot, 'article' => $article]));
 
         $response->assertStatus(200)
             ->assertInertia(fn (Assert $page) => $page
@@ -74,10 +64,10 @@ class ArticleControllerTest extends TestCase
 
     public function test_update()
     {
-        $article = Article::factory()->create(['bot_id' => $this->bot->id]);
+        $article = Article::factory()->createOneQuietly();
         $newData = [
             'body' => 'Updated body',
-            'bot_id' => $this->bot->id,
+            'bot_id' => $article->bot_id,
             'description' => 'Updated description',
             'img_alt' => 'Updated alt',
             'img_url' => 'https://example.com/image.jpg',
@@ -88,12 +78,12 @@ class ArticleControllerTest extends TestCase
             'title' => 'Updated Title',
         ];
 
-        $response = $this->actingAs($this->user)
+        $response = $this->actingAs($article->bot->user)
             ->withoutMiddleware(PreventRequestForgery::class)
-            ->put(route('articles.update', ['bot' => $this->bot, 'article' => $article]), $newData);
+            ->put(route('articles.update', ['bot' => $article->bot, 'article' => $article]), $newData);
 
         $response->assertSessionHasNoErrors()
-            ->assertRedirect(route('articles.edit', ['bot' => $this->bot, 'article' => $article]));
+            ->assertRedirect(route('articles.edit', ['bot' => $article->bot, 'article' => $article]));
         $this->assertDatabaseHas('articles', [
             'id' => $article->id,
             'title' => 'Updated Title',
@@ -103,8 +93,7 @@ class ArticleControllerTest extends TestCase
 
     public function test_update_without_source_or_bot_id_still_saves()
     {
-        $article = Article::factory()->create([
-            'bot_id' => $this->bot->id,
+        $article = Article::factory()->createOneQuietly([
             'source' => 'Original source',
         ]);
 
@@ -119,12 +108,12 @@ class ArticleControllerTest extends TestCase
             'title' => 'Updated Title',
         ];
 
-        $response = $this->actingAs($this->user)
+        $response = $this->actingAs($article->bot->user)
             ->withoutMiddleware(PreventRequestForgery::class)
-            ->put(route('articles.update', ['bot' => $this->bot, 'article' => $article]), $newData);
+            ->put(route('articles.update', ['bot' => $article->bot, 'article' => $article]), $newData);
 
         $response->assertSessionHasNoErrors()
-            ->assertRedirect(route('articles.edit', ['bot' => $this->bot, 'article' => $article]));
+            ->assertRedirect(route('articles.edit', ['bot' => $article->bot, 'article' => $article]));
         $this->assertDatabaseHas('articles', [
             'id' => $article->id,
             'title' => 'Updated Title',
@@ -135,16 +124,15 @@ class ArticleControllerTest extends TestCase
 
     public function test_cannot_access_other_users_bot_articles()
     {
-        $otherUser = User::factory()->create();
-        $otherBot = Bot::factory()->create(['user_id' => $otherUser->id]);
-        $article = Article::factory()->create(['bot_id' => $otherBot->id]);
+        $other = Article::factory()->createOneQuietly();
+        $article = Article::factory()->createOneQuietly();
 
-        $this->actingAs($this->user)
-            ->get(route('articles.index', $otherBot))
+        $this->actingAs($article->bot->user)
+            ->get(route('articles.index', $other->bot))
             ->assertForbidden();
 
-        $this->actingAs($this->user)
-            ->get(route('articles.show', ['bot' => $otherBot, 'article' => $article]))
+        $this->actingAs($article->bot->user)
+            ->get(route('articles.show', ['bot' => $other->bot, 'article' => $other]))
             ->assertForbidden();
     }
 }

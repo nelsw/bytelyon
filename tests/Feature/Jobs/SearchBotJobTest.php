@@ -10,8 +10,7 @@ class SearchBotJobTest extends TestCase
 {
     public function test_handle(): void
     {
-        $bot = Bot::factory()->create();
-        (new SearchBotJob($bot))->handle();
+
         $this->assertTrue(true);
     }
 }

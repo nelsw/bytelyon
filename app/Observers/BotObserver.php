@@ -30,30 +30,19 @@ class BotObserver
 
     public function updated(Bot $bot): void
     {
-        switch ($bot->type) {
-            case BotType::Search:
-                SearchBotJob::dispatch($bot);
-                return;
-            case BotType::Sitemap:
-                SitemapBotJob::dispatch($bot);
-                return;
-            case BotType::News:
-                NewsBotJob::dispatch($bot);
-                return;
-        }
+        match ($bot->type) {
+            BotType::News => SearchBotJob::dispatch($bot),
+            BotType::Search => SitemapBotJob::dispatch($bot),
+            BotType::Sitemap => NewsBotJob::dispatch($bot),
+        };
     }
 
     public function deleting(Bot $bot): void
     {
-        switch ($bot->type) {
-            case BotType::News:
-                $bot->articles?->each(fn (Article $article) => $article->delete());
-                break;
-            case BotType::Search:
-                $bot->serp?->delete();
-                break;
-            case BotType::Sitemap:
-                $bot->sitemap?->delete();
-        }
+        match ($bot->type) {
+            BotType::News => $bot->articles->each(fn (Article $article) => $article->delete()),
+            BotType::Search => $bot->serp?->delete(),
+            BotType::Sitemap => $bot->sitemap?->delete(),
+        };
     }
 }

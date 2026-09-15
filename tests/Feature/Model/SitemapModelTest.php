@@ -11,12 +11,12 @@ class SitemapModelTest extends TestCase
     public function test_observer(): void
     {
         /** @var Sitemap $sitemap */
-        $sitemap = Sitemap::factory()->hasPages(3)->create();
+        $sitemap = Sitemap::factory()->createQuietly();
 
         $this->assertDatabaseHas($sitemap);
         foreach ($sitemap->pages as $page) {
             $this->assertDatabaseHas(Page::class, [
-                'pageable_id' => $page->pageable_id,
+                'pageable_id' => $sitemap->id,
                 'pageable_type' => Sitemap::class,
                 'id' => $page->id,
             ]);

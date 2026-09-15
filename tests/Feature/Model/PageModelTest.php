@@ -11,7 +11,7 @@ class PageModelTest extends TestCase
 {
     public function test_sitemap_pages(): void
     {
-        $sitemap = Sitemap::factory()->create();
+        $sitemap = Sitemap::factory()->createQuietly();
 
         $this->assertEmpty($sitemap->pages()->get());
 

@@ -49,9 +49,6 @@ scan:
 #
 test: clear
 	@vendor/bin/sail test --coverage
-	@sleep 3
-	@open reports/dashboard.html
-	@open reports/index.html
 
 #
 # ꟛƒ

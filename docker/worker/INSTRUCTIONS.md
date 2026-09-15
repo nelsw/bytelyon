@@ -43,6 +43,32 @@ main Laravel app, in PHP, not scattered across Python handlers — one place,
 one language, easy to test and iterate on without rebuilding/redeploying a
 worker image.
 
+### Two browser providers, one image
+
+CloakBrowser Pro's license caps concurrent sessions at **5 seats**.
+`handlers/serp.py` actually needs CloakBrowser's Google-specific stealth
+patches and always uses it. `handlers/generic.py` (news/sitemap) doesn't —
+ordinary websites are far less aggressive about bot detection — so it
+defaults to **SeleniumBase's Stealthy Playwright Mode** instead
+(`../images/seleniumbase-base/seleniumbase_playwright.py`, copied into this
+image at build time), which has no such seat limit. That means news/sitemap
+jobs never compete with serp jobs for one of the 5 coveted cloak seats, no
+matter how many run concurrently.
+
+Both providers are baked into the one image (see the Dockerfile's
+multi-stage `COPY --from=` of the SeleniumBase shim). Set the _starting_
+provider per job with a `provider` field in the SQS message (`"cloakbrowser"`
+or `"seleniumbase"`), or fleet-wide with the `GENERIC_BROWSER_PROVIDER` env
+var.
+
+**Automatic fallback is wired up**: if the starting attempt raises (launch
+or navigation failure) or comes back with a block-shaped HTTP status
+(403/429/503), `handlers/generic.py` retries once with `cloakbrowser` --
+never the other direction, and never past `cloakbrowser` (nothing left to
+escalate to). A plain `page.goto` timeout is still treated as best-effort
+(capture whatever loaded) rather than a trigger -- plenty of ordinary slow
+pages hit that without being blocked at all.
+
 At-least-once delivery: if a worker crashes or the callback POST fails, the
 message is left alone (not deleted) and SQS redelivers it automatically
 after the queue's visibility timeout (300s) — up to 3 attempts before it
@@ -78,6 +104,7 @@ token shown once.
 
 **2. AWS resources** (already created, nothing to do unless rebuilding from
 scratch):
+
 - SQS queue: `bytelyon-scrape-jobs` (300s visibility timeout, 20s long-poll,
   4-day retention, redrive to `bytelyon-scrape-jobs-dlq` after 3 receives)
 - IAM user `bytelyon-worker`, scoped to `sqs:ReceiveMessage` /
@@ -100,10 +127,16 @@ docker run -d --name bytelyon-worker --restart unless-stopped \
   -e SCRAPE_JOBS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/138305277395/bytelyon-scrape-jobs \
   -e LARAVEL_BASE_URL=http://host.docker.internal \
   -e LARAVEL_WORKER_TOKEN=<plaintext token from step 1> \
+  -e GENERIC_BROWSER_PROVIDER=seleniumbase \
   bytelyon-worker:arm64
 
 docker logs -f bytelyon-worker
 ```
+
+`GENERIC_BROWSER_PROVIDER` is optional — defaults to `seleniumbase` already
+(see "Two browser providers, one image" above); only set it to
+`cloakbrowser` if you want news/sitemap jobs to use CloakBrowser fleet-wide
+instead.
 
 `LARAVEL_BASE_URL=http://host.docker.internal` reaches the Sail app's port
 80 on the Docker host — works out of the box on Docker Desktop for Mac.
@@ -153,7 +186,7 @@ aws sqs send-message --queue-url <queue> --region us-east-1 \
 - **No aggregate "N found" notification** for sitemap crawls (there's no
   single point in time that "the crawl finished" in a distributed,
   re-enqueueing design without extra completion-tracking infra). News still
-  fires `BotResultsPersisted` at *enqueue* time ("N articles queued"),
+  fires `BotResultsPersisted` at _enqueue_ time ("N articles queued"),
   reworded from the old "N articles found" since the actual scraping now
   happens later, asynchronously.
 - **SERP link resolution**: `App\Support\Serp::resolveUrl()` only decodes

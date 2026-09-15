@@ -15,7 +15,15 @@ This is a sibling of [`../news-scraper`](../news-scraper), [`../page-scraper`](.
 
 Chromium's underlying `--proxy-server` flag has no concept of credentials embedded in a URL. If you pass `"proxy": "http://user:pass@host:port"`, the handler automatically splits the credentials into separate `username`/`password` fields before launching (see `_normalize_proxy` in `lambda_handler.py`, which returns a `cloakbrowser.ProxySettings` dict) — this is what actually makes proxy authentication work. Without that split, Chromium connects to the proxy, silently drops the embedded credentials, gets a `407 Proxy Authentication Required` response, and the navigation hangs with no clear error until the Lambda function times out. If you already have a `ProxySettings`-shaped dict (`{"server", "username", "password", "bypass"}`), pass it as-is — it's used unchanged. Dict form is also the only way to set `bypass` or use a non-`http` proxy scheme (e.g. `socks5://`).
 
+**Don't set `bypass` to `.google.com` (or anything matching it).** `bypass` tells Chromium which hosts should skip the proxy and connect _directly_ instead — the opposite of what you want here, since the whole point of `proxy` in this handler is to route the Google search request through it. Bypassing google.com sends that request straight from Lambda's own datacenter IP, which is exactly the IP-reputation block described above. Only use `bypass` for other hosts you specifically want excluded from the proxy.
+
 A fast TCP preflight (`_preflight_proxy`, ~8s timeout) runs before every browser launch and raises a clear error if nothing is listening on the proxy's host:port, instead of silently hanging for the full function timeout. It only checks that a TCP connection can be opened — it does not attempt authentication or a CONNECT tunnel, so a pass here doesn't guarantee the proxy will actually route traffic.
+
+## Retries on a bad proxy connection
+
+Rotating residential/mobile proxies typically hand out a fresh exit IP per TCP connection, with no session stickiness. At any given moment some fraction of exit peers in a shared pool are already rate-limited or blocked by Google — this was confirmed empirically: a small back-to-back sample of plain HTTP requests through a real residential proxy came back 3x `200`, 1x `429`, 1x `403` straight from Google, with the proxy connection itself succeeding every single time in under 1.5s (no proxy-side blocking or slowness at all). A full browser session opens far more concurrent connections than a single request, so it's proportionally more likely to land at least one bad peer — usually surfacing as a hard `page.goto` failure (`net::ERR_CONNECTION_CLOSED`, `net::ERR_TIMED_OUT`, etc.) rather than a slow load.
+
+On a hard navigation failure, the handler closes the browser and relaunches a fresh one — a new browser means a new proxy connection, which means a new (hopefully clean) exit IP — up to `goto_retry_attempts` (default `3`) total attempts before giving up and raising. A `PlaywrightTimeoutError` (page loaded, just slowly) does **not** count as a failure and is not retried; only a hard connection-level error does.
 
 ## Files in this directory
 
@@ -54,9 +62,10 @@ curl -sS -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations
   -d '{"query":"openai","proxy":"http://user:pass@proxy-host:port"}'
 
 # ...or dict form (required for non-http proxy schemes, e.g. socks5, and to
-# set `bypass`; also what the string form above is normalized into internally):
+# set `bypass`; also what the string form above is normalized into internally).
+# Do NOT set `bypass` to ".google.com" here — see "A note on proxy credentials" above:
 curl -sS -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" \
-  -d '{"query":"openai","proxy":{"server":"socks5://proxy-host:port","username":"user","password":"pass","bypass":".google.com"}}'
+  -d '{"query":"openai","proxy":{"server":"socks5://proxy-host:port","username":"user","password":"pass"}}'
 ```
 
 Other invocation surfaces stay intact (these match the canonical CloakHQ image):
@@ -71,73 +80,76 @@ docker run --rm -it bytelyon-serp-scraper:arm64 node                            
 
 ## Event schema
 
-| Field                            | Type                  | Default                                                                                                                                                                                                                                                                                                                                |
-| -------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `query`                          | str                   | required — the search query                                                                                                                                                                                                                                                                                                            |
-| `hl`                             | str                   | `"en"` — Google UI language                                                                                                                                                                                                                                                                                                            |
-| `gl`                             | str                   | `"us"` — Google country                                                                                                                                                                                                                                                                                                                |
-| `num`                            | int                   | `10` — requested result count (Google may ignore or cap this)                                                                                                                                                                                                                                                                          |
-| `proxy`                          | str / `ProxySettings` | none — **strongly recommended**, see above. Either `"http://user:pass@host:port"` (credentials are split out into `username`/`password` automatically — see "A note on proxy credentials" below) or a `cloakbrowser.ProxySettings` dict: `{"server": "socks5://host:port", "username": ..., "password": ..., "bypass": ".google.com"}` |
-| `geoip`                          | bool                  | `false` — auto-derive timezone/locale from the proxy's exit IP; only meaningful when `proxy` is set. A timezone/locale that doesn't match the proxy's geolocation is itself a detection signal.                                                                                                                                        |
-| `headless`                       | bool                  | `true`                                                                                                                                                                                                                                                                                                                                 |
-| `humanize`                       | bool                  | `true`                                                                                                                                                                                                                                                                                                                                 |
-| `human_preset`                   | str                   | `"careful"`                                                                                                                                                                                                                                                                                                                            |
-| `goto_timeout_ms`                | int                   | `30000`                                                                                                                                                                                                                                                                                                                                |
-| `wait_for_load_state_timeout_ms` | int                   | `5000`                                                                                                                                                                                                                                                                                                                                 |
-| `url_resolve_timeout_ms`         | int                   | `10000` — per-link timeout when resolving a result/product link to its final destination URL                                                                                                                                                                                                                                           |
-| `bucket`                         | str                   | `"bytelyon-private"` — S3 bucket for the saved page content + screenshot                                                                                                                                                                                                                                                               |
-| `prefix`                         | str                   | `"serp-scrapes/{aws_request_id}/"` — S3 key prefix for both uploads                                                                                                                                                                                                                                                                    |
+| Field                            | Type                  | Default                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `query`                          | str                   | required — the search query                                                                                                                                                                                                                                                                                                                                                                                        |
+| `hl`                             | str                   | `"en"` — Google UI language                                                                                                                                                                                                                                                                                                                                                                                        |
+| `gl`                             | str                   | `"us"` — Google country                                                                                                                                                                                                                                                                                                                                                                                            |
+| `num`                            | int                   | `10` — requested result count (Google may ignore or cap this)                                                                                                                                                                                                                                                                                                                                                      |
+| `proxy`                          | str / `ProxySettings` | none — **strongly recommended**, see above. Either `"http://user:pass@host:port"` (credentials are split out into `username`/`password` automatically — see "A note on proxy credentials" below) or a `cloakbrowser.ProxySettings` dict: `{"server": "socks5://host:port", "username": ..., "password": ...}`. Do **not** set `bypass` to `.google.com` — see "A note on proxy credentials" above.                 |
+| `geoip`                          | bool                  | `false` — auto-derive timezone/locale from the proxy's exit IP; only meaningful when `proxy` is set. A timezone/locale that doesn't match the proxy's geolocation is itself a detection signal.                                                                                                                                                                                                                    |
+| `headless`                       | bool                  | `true`                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `humanize`                       | bool                  | `true`                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `human_preset`                   | str                   | `"careful"`                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `goto_timeout_ms`                | int                   | `30000`                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `goto_retry_attempts`            | int                   | `3` — rotating residential/mobile proxies hand out a fresh exit IP per connection with no stickiness, and any individual peer may already be rate-limited/blocked by Google independent of this proxy/account (confirmed empirically — see below). On a hard navigation failure the browser is closed and relaunched — a fresh proxy connection means a fresh exit IP — up to this many attempts before giving up. |
+| `wait_for_load_state_timeout_ms` | int                   | `5000`                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `url_resolve_timeout_ms`         | int                   | `10000` — per-link timeout when resolving a result/product link to its final destination URL                                                                                                                                                                                                                                                                                                                       |
+| `bucket`                         | str                   | `"bytelyon-private"` — S3 bucket for the saved page content + screenshot                                                                                                                                                                                                                                                                                                                                           |
+| `prefix`                         | str                   | `"serp-scrapes/{aws_request_id}/"` — S3 key prefix for both uploads                                                                                                                                                                                                                                                                                                                                                |
 
 ### Response
 
 ```json
 {
-  "query": "openai",
-  "url": "https://www.google.com/search?q=openai&hl=en&gl=us",
-  "screenshot_key": "serp-scrapes/<request-id>/openai-<hash>.png",
-  "content_key": "serp-scrapes/<request-id>/openai-<hash>.html",
-  "data": {
-    "sponsored_results": [
-      {
-        "kind": "sponsored_result",
-        "index": 0,
-        "title": "...",
-        "brand": "...",
-        "url": "https://...",
-        "domain": "example.com"
-      }
-    ],
-    "sponsored_products": [
-      {
-        "kind": "sponsored_product",
-        "index": 0,
-        "domain": "example.com",
-        "url": "https://...",
-        "image": "https://...",
-        "title": "...",
-        "price": "$19.99",
-        "brand": "..."
-      }
-    ],
-    "organic_results": [
-      {
-        "kind": "organic_result",
-        "index": 0,
-        "title": "...",
-        "url": "https://...",
-        "domain": "example.com"
-      }
-    ],
-    "organic_products": [
-      {
-        "kind": "organic_product",
-        "index": 0,
-        "title": "...",
-        "image": "https://..."
-      }
-    ],
-    "similar_queries": [{ "kind": "similar_query", "index": 0, "value": "..." }]
-  }
+    "query": "openai",
+    "url": "https://www.google.com/search?q=openai&hl=en&gl=us",
+    "screenshot_key": "serp-scrapes/<request-id>/openai-<hash>.png",
+    "content_key": "serp-scrapes/<request-id>/openai-<hash>.html",
+    "data": {
+        "sponsored_results": [
+            {
+                "kind": "sponsored_result",
+                "index": 0,
+                "title": "...",
+                "brand": "...",
+                "url": "https://...",
+                "domain": "example.com"
+            }
+        ],
+        "sponsored_products": [
+            {
+                "kind": "sponsored_product",
+                "index": 0,
+                "domain": "example.com",
+                "url": "https://...",
+                "image": "https://...",
+                "title": "...",
+                "price": "$19.99",
+                "brand": "..."
+            }
+        ],
+        "organic_results": [
+            {
+                "kind": "organic_result",
+                "index": 0,
+                "title": "...",
+                "url": "https://...",
+                "domain": "example.com"
+            }
+        ],
+        "organic_products": [
+            {
+                "kind": "organic_product",
+                "index": 0,
+                "title": "...",
+                "image": "https://..."
+            }
+        ],
+        "similar_queries": [
+            { "kind": "similar_query", "index": 0, "value": "..." }
+        ]
+    }
 }
 ```
 
@@ -171,14 +183,14 @@ In addition to `AWSLambdaBasicExecutionRole` (CloudWatch Logs), the execution ro
 
 ```json
 {
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": ["s3:PutObject"],
-      "Resource": ["arn:aws:s3:::bytelyon-private/*"]
-    }
-  ]
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": ["s3:PutObject"],
+            "Resource": ["arn:aws:s3:::bytelyon-private/*"]
+        }
+    ]
 }
 ```
 

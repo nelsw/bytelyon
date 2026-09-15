@@ -1,0 +1,5 @@
+# Real Windows/Office fonts are proprietary — never commit them. Only this
+# directory's own README.md (and this .gitignore) are tracked.
+*
+!.gitignore
+!README.md

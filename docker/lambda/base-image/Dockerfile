@@ -91,6 +91,33 @@ RUN chmod +x /entrypoint.sh
 ADD https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb \
     /root/.cloakbrowser/geoip/GeoLite2-City.mmdb
 
+# ─── Real Microsoft fonts (for Windows-fingerprint spoofing) ─────────────────
+# CloakBrowser's own guidance (https://github.com/CloakHQ/cloakbrowser#font-setup-on-linux):
+# a bare Linux image's font list is itself a detection signal when spoofing a
+# Windows fingerprint — every launch otherwise logs "Incomplete Windows font
+# set". `ttf-mscorefonts-installer` is Debian's packaging of Microsoft's own
+# "Core Fonts for the Web" (Arial, Times New Roman, Courier New, Georgia,
+# Verdana, ...) — genuine Microsoft font files fetched from Sourceforge at
+# build time under Microsoft's redistribution EULA (auto-accepted below via
+# debconf-set-selections, the standard hands-off way to script this package;
+# lives in the "contrib" component, which isn't enabled by default). This is
+# real Microsoft font data, not a metric-compatible substitute like
+# fonts-liberation (already present upstream, and left in place — more
+# font coverage only helps).
+#
+# CloakBrowser's own docs call this "not enough" by itself — a real Windows
+# install has 200+ fonts, Office adds ~50 more, versus ~13 here. See
+# ./fonts/README.md for how to add the rest if you have legal access to them;
+# that directory is empty by default (just its own README, which fc-cache
+# silently ignores) so this COPY is always valid even with nothing added.
+RUN sed -i 's/Components: main$/Components: main contrib/' /etc/apt/sources.list.d/debian.sources \
+    && echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ttf-mscorefonts-installer fontconfig \
+    && rm -rf /var/lib/apt/lists/*
+COPY fonts/ /usr/share/fonts/windows/
+RUN fc-cache -f
+
 # ─── Lambda non-root readability fix ──────────────────────────────────────────
 # The canonical image bakes the Chromium binary at /root/.cloakbrowser/ (root's
 # HOME at build time). Lambda runs the container as a non-root user that can't
@@ -119,9 +146,25 @@ RUN python3 -c 'import pathlib, cloakbrowser.download as m; p = pathlib.Path(m._
 # under /tmp). CLOAKBROWSER_CACHE_DIR points at the baked binary location since
 # HOME=/tmp would otherwise make get_cache_dir() resolve to /tmp/.cloakbrowser
 # (empty). Auto-update is disabled because the runtime FS is read-only.
+#
+# CLOAKBROWSER_SUPPRESS_FONT_WARNING: same read-only-FS problem as the welcome
+# banner above, applied to a check we can only ever partially satisfy. The
+# "Incomplete Windows font set" warning (browser.py's _maybe_warn_windows_fonts)
+# requires ALL of 8 specific fonts to be present: Segoe UI, Segoe UI Light,
+# Calibri, Marlett, MS UI Gothic, Franklin Gothic, Consolas, Courier New. The
+# real-Microsoft-fonts step above (ttf-mscorefonts-installer) only covers
+# Courier New — the other 7 are Windows-OS/Office-exclusive system fonts with
+# no legal, freely-redistributable source; they aren't part of any apt package,
+# core-fonts-for-the-web included (see ./fonts/README.md if you have licensed
+# access to add them yourself). Since the check can never fully pass here, and
+# its "shown once" marker lives under this same read-only CLOAKBROWSER_CACHE_DIR
+# (the write silently fails every time, so without this it would otherwise
+# reprint on every single cold start, forever — confirmed in practice),
+# suppress it outright rather than let an unactionable warning spam CloudWatch.
 ENV HOME=/tmp \
     CLOAKBROWSER_CACHE_DIR=/root/.cloakbrowser \
-    CLOAKBROWSER_AUTO_UPDATE=false
+    CLOAKBROWSER_AUTO_UPDATE=false \
+    CLOAKBROWSER_SUPPRESS_FONT_WARNING=1
 
 ENTRYPOINT ["/entrypoint.sh"]
 

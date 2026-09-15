@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Data\Rss;
+namespace App\Support\Rss;
 
 use App\Enums\NewsSource;
 use Illuminate\Support\Arr;

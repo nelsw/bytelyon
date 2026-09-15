@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Data\Rss;
+namespace App\Support\Rss;
 
 use App\Contracts\RssItem;
 use Carbon\CarbonInterface;

@@ -4,7 +4,6 @@ namespace Database\Factories;
 
 use App\Enums\BotType;
 use App\Enums\FrequencyType;
-use App\Models\Article;
 use App\Models\Bot;
 use App\Models\Serp;
 use App\Models\Sitemap;

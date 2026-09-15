@@ -10,18 +10,6 @@ use Illuminate\Support\Facades\Log;
 
 class NewsBotJob extends BaseBotJob
 {
-    /**
-     * Creates an Article stub per new RSS item (title/description/etc. only)
-     * and enqueues a scrape job per item onto the shared
-     * bytelyon-scrape-jobs SQS queue instead of blocking on a synchronous
-     * Lambda::scrape() call per item. A local worker
-     * (docker/worker/worker.py) fetches the actual article page and reports
-     * back via POST /api/scrape-jobs/news/{article}/complete, which layers
-     * the parsed page content (body/description/img/keywords — see
-     * App\Data\Html\Page) on top of the RSS-derived stub, same field
-     * precedence as the old synchronous flow (scraped page data overrides
-     * RSS feed data for any overlapping key).
-     */
     public function handle(): void
     {
         $items = collect(Rss::news($this->bot->query))

@@ -22,7 +22,7 @@ class SitemapBotJobTest extends TestCase
             ->once()
             ->with('sitemap', $bot->id, ['url' => 'https://bytelyon.com', 'depth' => 5]);
 
-        (new SitemapBotJob($bot))->handle();
+        new SitemapBotJob($bot)->handle();
 
         $this->assertNotNull($bot->refresh()->last_run_at);
     }

@@ -1,8 +1,8 @@
 <?php
 
-namespace Tests\Unit\Data\Rss;
+namespace Tests\Unit\Support\Rss;
 
-use App\Data\Rss\BaseRssItem;
+use App\Support\Rss\BaseRssItem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
@@ -29,15 +29,13 @@ class BaseRssItemTest extends TestCase
 {
     private function makeItem(string $pubDate): ConcreteRssItem
     {
-        $xml = <<<XML
-        <?xml version="1.0"?>
-        <item>
-        <title>Item Title</title>
-        <link>https://example.com/article</link>
-        <description>Item description</description>
-        <pubDate>{$pubDate}</pubDate>
-        </item>
-        XML;
+        $xml = "<?xml version=\"1.0\"?>
+<item>
+<title>Item Title</title>
+<link>https://example.com/article</link>
+<description>Item description</description>
+<pubDate>$pubDate</pubDate>
+</item>";
 
         return new ConcreteRssItem($xml);
     }

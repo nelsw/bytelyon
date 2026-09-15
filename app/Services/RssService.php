@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Data\Rss\BingRssItem;
-use App\Data\Rss\GoogleRssItem;
+use App\Support\Rss\BingRssItem;
+use App\Support\Rss\GoogleRssItem;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;

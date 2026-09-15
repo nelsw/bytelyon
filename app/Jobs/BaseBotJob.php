@@ -15,6 +15,7 @@ class BaseBotJob implements ShouldBeUnique, ShouldQueue
     use Queueable, SerializesModels;
 
     public int $timeout = 0;
+
     public function __construct(
         public readonly Bot $bot,
     ) {

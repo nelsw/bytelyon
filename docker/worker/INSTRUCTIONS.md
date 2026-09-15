@@ -83,7 +83,7 @@ the following need to exist there too before any callback endpoint works:
 
 - `routes/api.php` (the three `scrape-jobs/{type}/{id}/complete` routes)
 - `app/Http/Controllers/Api/ScrapeJobController.php`
-- `app/Http/Requests/Api/ScrapeJobCompleteRequest.php`
+- `../../app/Http/Requests/Api/PageSaveRequest.php`
 - `app/Support/Serp.php`
 - `app/Services/SqsService.php`
 - `app/Facades/Sqs.php`

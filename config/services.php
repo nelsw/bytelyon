@@ -36,7 +36,7 @@ return [
             'key' => env('AWS_ACCESS_KEY_ID'),
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
         ],
-        'scrape_jobs_queue_url' => env('SQS_SCRAPE_JOBS_QUEUE_URL'),
+        'scrape_jobs_queue_url' => env('SQS_SCRAPE_JOBS_QUEUE_URL', 'MyQueue.fifo'),
     ],
 
     'proxy' => [

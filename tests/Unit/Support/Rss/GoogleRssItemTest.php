@@ -1,9 +1,9 @@
 <?php
 
-namespace Tests\Unit\Data\Rss;
+namespace Tests\Unit\Support\Rss;
 
-use App\Data\Rss\GoogleRssItem;
 use App\Enums\NewsSource;
+use App\Support\Rss\GoogleRssItem;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -30,16 +30,14 @@ class GoogleRssItemTest extends TestCase
 
     private function makeXml(string $link, string $title = 'Article Title - Google News', string $source = 'Example Source'): string
     {
-        return <<<XML
-        <?xml version="1.0"?>
-        <item>
-        <title>{$title}</title>
-        <link>{$link}</link>
-        <description>Google description</description>
-        <pubDate>Mon, 01 Jan 2024 10:00:00 GMT</pubDate>
-        <source>{$source}</source>
-        </item>
-        XML;
+        return "<?xml version=\"1.0\"?>
+<item>
+<title>$title</title>
+<link>$link</link>
+<description>Google description</description>
+<pubDate>Mon, 01 Jan 2024 10:00:00 GMT</pubDate>
+<source>$source</source>
+</item>";
     }
 
     private function batchExecuteBody(?string $decodedUrl): string
@@ -111,9 +109,9 @@ class GoogleRssItemTest extends TestCase
         $link = 'https://news.google.com/rss/articles/ENCNOWIZ?hl=en';
         Cache::forget('gnews:decoded:'.sha1($link));
 
-        Http::fake([
+        Http::fake(callback: [
             'https://news.google.com/rss/articles/*' => Http::response(
-                '<!DOCTYPE html><html><body><p>no wiz here</p></body></html>',
+                '<!DOCTYPE html><html lang=""><body><p>no wiz here</p></body></html>',
                 200,
             ),
         ]);
@@ -130,7 +128,7 @@ class GoogleRssItemTest extends TestCase
 
         Http::fake([
             'https://news.google.com/rss/articles/*' => Http::response(
-                '<!DOCTYPE html><html><body><c-wiz><div></div></c-wiz></body></html>',
+                '<!DOCTYPE html><html lang=""><body><c-wiz><div></div></c-wiz></body></html>',
                 200,
             ),
         ]);
@@ -148,7 +146,7 @@ class GoogleRssItemTest extends TestCase
 
         Http::fake([
             'https://news.google.com/rss/articles/*' => Http::response(
-                '<!DOCTYPE html><html><body><c-wiz><div data-n-a-sg="SIG" data-n-a-ts="12345"></div></c-wiz></body></html>',
+                '<!DOCTYPE html><html lang="en"><body><c-wiz><div data-n-a-sg="SIG" data-n-a-ts="12345"></div></c-wiz></body></html>',
                 200,
             ),
             self::ENDPOINT => Http::response($this->batchExecuteBody('https://example.com/decoded-article/'), 200),

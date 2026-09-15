@@ -1,15 +1,17 @@
 <?php
 
-namespace Tests\Unit\Data\Html;
+namespace Tests\Unit\Support\Sqs;
 
-use App\Data\Html\Page;
+use App\Support\Sqs\Page;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PageTest extends TestCase
 {
     private function html(string $head, string $body): string
     {
-        return "<!DOCTYPE html><html lang=\"en\"><head>$head</head><body>$body</body></html>";
+        Storage::put('page/test', "<!DOCTYPE html><html lang=\"en\"><head>$head</head><body>$body</body></html>");
+        return 'page/test';
     }
 
     public function test_title_url_and_domain(): void
@@ -20,7 +22,7 @@ class PageTest extends TestCase
         );
 
         $this->assertSame('My Great Article - Site Name', $page->title());
-        $this->assertSame('https://www.example.com/articles/1', $page->url());
+        $this->assertSame('https://www.example.com/articles/1', $page->url);
         $this->assertSame('example.com', $page->domain());
     }
 

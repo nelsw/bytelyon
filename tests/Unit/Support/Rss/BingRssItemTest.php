@@ -1,25 +1,23 @@
 <?php
 
-namespace Tests\Unit\Data\Rss;
+namespace Tests\Unit\Support\Rss;
 
-use App\Data\Rss\BingRssItem;
 use App\Enums\NewsSource;
+use App\Support\Rss\BingRssItem;
 use Tests\TestCase;
 
 class BingRssItemTest extends TestCase
 {
     private function makeItem(string $link, string $sourceTag = ''): BingRssItem
     {
-        $xml = <<<XML
-        <?xml version="1.0"?>
-        <item xmlns:News="http://schemas.microsoft.com/HealthVault/2007/thing/News">
-        <title>Bing Article Title</title>
-        <link>{$link}</link>
-        <description>Bing description</description>
-        <pubDate>Mon, 01 Jan 2024 10:00:00 GMT</pubDate>
-        {$sourceTag}
-        </item>
-        XML;
+        $xml = "<?xml version=\"1.0\"?>
+<item >
+<title>Bing Article Title</title>
+<link>$link</link>
+<description>Bing description</description>
+<pubDate>Mon, 01 Jan 2024 10:00:00 GMT</pubDate>
+{$sourceTag}
+</item>";
 
         return new BingRssItem($xml);
     }

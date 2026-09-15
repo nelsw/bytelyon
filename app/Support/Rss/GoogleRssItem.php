@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Data\Rss;
+namespace App\Support\Rss;
 
 use App\Enums\NewsSource;
 use Dom\Element;
@@ -92,6 +92,7 @@ class GoogleRssItem extends BaseRssItem
 
         $encoded = $matches['encoded_url'];
         $url = '';
+
         try {
             $url = $this->decodeNode($node, $encoded);
             // @codeCoverageIgnoreStart

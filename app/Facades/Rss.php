@@ -2,8 +2,8 @@
 
 namespace App\Facades;
 
-use App\Data\Rss\BaseRssItem;
 use App\Services\RssService;
+use App\Support\Rss\BaseRssItem;
 use Illuminate\Support\Facades\Facade;
 
 /**

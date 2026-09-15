@@ -9,11 +9,11 @@ use App\Facades\Lambda;
 use App\Facades\Rss;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Throwable;
 
 class NewsBotJob extends BaseBotJob
 {
-    public function handle(): void {
+    public function handle(): void
+    {
 
         $items = collect(Rss::news($this->bot->query))
             ->filter(fn (RssItem $item) => $this->bot->lastRunAt()->isBefore($item->publishedAt()))

@@ -8,18 +8,17 @@ use Illuminate\Support\Uri;
 readonly class Html
 {
     final public function __construct(
-        public string       $url,
-        public string       $domain,
+        public string $url,
+        public string $domain,
         private HTMLDocument $doc,
-    ){}
+    ) {}
 
     public static function of(string $url, ?string $content = null): static
     {
         return new static(Uri::clean($url), Uri::domain($url), rescue(
-            fn() => HTMLDocument::createFromString($content, LIBXML_NOERROR | LIBXML_HTML_NOIMPLIED),
+            fn () => HTMLDocument::createFromString($content, LIBXML_NOERROR | LIBXML_HTML_NOIMPLIED),
             HTMLDocument::createEmpty()));
     }
-
 
     /** @return array<string, bool> */
     public function links(): array
@@ -56,7 +55,7 @@ readonly class Html
                 }
             }
 
-            if (!isset($meta[$key])) {
+            if (! isset($meta[$key])) {
                 $meta[$key] = $val;
             }
         }

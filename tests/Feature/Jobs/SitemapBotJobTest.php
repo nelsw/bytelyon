@@ -16,7 +16,7 @@ class SitemapBotJobTest extends TestCase
             ->headless()
             ->neverRun()
             ->createOneQuietly();
-            
+
         (new SitemapBotJob($bot))->handle();
 
         $this->assertNotEmpty($bot->refresh()->sitemap->pages);

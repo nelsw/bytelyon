@@ -89,7 +89,7 @@ class MacroServiceProvider extends ServiceProvider
 
     private function configureUri(): void
     {
-        Uri::macro('clean', fn(?string $url):string => str($url)->trim()->rtrim('/')->toString());
+        Uri::macro('clean', fn (?string $url): string => str($url)->trim()->rtrim('/')->toString());
         Uri::macro('domain', function (?string $url): string {
             return $url === null ? '' : parse_url($url, PHP_URL_HOST)
                     |> (fn ($x) => explode('.', (string) $x))

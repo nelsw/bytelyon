@@ -13,7 +13,8 @@ class SearchBotJob extends BaseBotJob
         return now()->plus(minutes: 3);
     }
 
-    public function handle(): void {
+    public function handle(): void
+    {
 
         $attributes = Lambda::serp(
             query: $this->bot->query,

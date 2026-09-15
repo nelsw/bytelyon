@@ -36,7 +36,7 @@ class SerpFactory extends Factory
             'query' => $query,
         ]);
     }
-    
+
     public function deleted(): static
     {
         return $this->state(fn (array $attributes) => [

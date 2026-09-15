@@ -6,7 +6,6 @@ use App\Data\Lambda\Payload;
 use App\Models\Proxy;
 use Aws\Lambda\LambdaClient;
 use Illuminate\Container\Attributes\Singleton;
-use Illuminate\Support\Facades\Log;
 
 #[Singleton]
 readonly class LambdaService

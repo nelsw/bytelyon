@@ -14,7 +14,7 @@ class UpdateOrCreateSitemapPage
     use SitemapPageValidationRules;
 
     /**
-     * @param string[] $meta
+     * @param  string[]  $meta
      */
     public function __invoke(Bot $bot, string $url, string $title, string $screenshotKey, array $meta): void
     {
@@ -35,7 +35,7 @@ class UpdateOrCreateSitemapPage
             'pageable_id' => $bot->sitemap?->id,
         ], $values);
 
-        Log::debug('Page '. ($page->wasRecentlyCreated ? 'created' : 'updated'), [
+        Log::debug('Page '.($page->wasRecentlyCreated ? 'created' : 'updated'), [
             'id' => $page->id,
             'sitemap' => $bot->sitemap?->id,
             'domain' => $bot->sitemap?->domain,

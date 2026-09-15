@@ -12,8 +12,8 @@ readonly class Payload
         public string $contentKey,
         public string $screenshotKey,
         public string $url,
-        public Html   $html,
-    ){}
+        public Html $html,
+    ) {}
 
     public static function make(ResultInterface $result): static
     {

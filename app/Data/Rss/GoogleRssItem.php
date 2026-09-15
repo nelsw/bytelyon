@@ -92,6 +92,7 @@ class GoogleRssItem extends BaseRssItem
 
         $encoded = $matches['encoded_url'];
         $url = '';
+
         try {
             $url = $this->decodeNode($node, $encoded);
             // @codeCoverageIgnoreStart

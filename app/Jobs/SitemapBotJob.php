@@ -10,10 +10,11 @@ use Illuminate\Support\Facades\Log;
 
 class SitemapBotJob extends BaseBotJob
 {
-    public function handle(): void {
+    public function handle(): void
+    {
 
         /** @var array<string, bool> $urls */
-        $urls = $this->crawl( 5, [], ["https://{$this->bot->query}" => false]);
+        $urls = $this->crawl(5, [], ["https://{$this->bot->query}" => false]);
         (new UpdateSitemap)($this->bot, $urls);
 
         $this->bot->update(['last_run_at' => now()->utc()]);
@@ -45,10 +46,9 @@ class SitemapBotJob extends BaseBotJob
     }
 
     /**
-     * @param array<string, bool> $done
-     * @param array<string, bool> $todo
+     * @param  array<string, bool>  $done
+     * @param  array<string, bool>  $todo
      * @return array<string, bool>
-     *
      */
     public function crawl(int $depth, array $done, array $todo): array
     {

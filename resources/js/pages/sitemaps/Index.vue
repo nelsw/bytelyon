@@ -56,6 +56,7 @@ function openSitemap(sitemapId: number): void {
         </div>
 
         <Card class="gap-0 py-0">
+            <pre>{{ sitemaps }}</pre>
             <div
                 v-if="sitemaps.length === 0"
                 class="rounded-lg border border-dashed p-8 text-center"

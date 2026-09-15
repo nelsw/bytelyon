@@ -10,7 +10,7 @@ run: up
 	@vendor/bin/sail npm install
 	@vendor/bin/sail npm run dev
 down:
-	@vendor/bin/sail down --remove-orphans --rmi local
+	@vendor/bin/sail --
 destroy:
 	@vendor/bin/sail down server -v --remove-orphans --rmi all
 

@@ -27,7 +27,14 @@ builds `FROM` it and adds only its own `lambda_handler.py`.
 | ---------------------- | ------------------------------------------------------------------------------------------------------ |
 | `Dockerfile`           | `FROM cloakhq/cloakbrowser` plus all shared Lambda glue. No handler code, no `lambda_handler.py` COPY. |
 | `lambda-entrypoint.sh` | Dual-mode entrypoint, identical to what every handler used to carry individually.                      |
+| `fonts/`               | Empty by default (just its own README) — optional real Windows/Office fonts, see below.                |
 | `INSTRUCTIONS.md`      | This file.                                                                                             |
+
+## Windows font spoofing
+
+CloakBrowser warns (`[cloakbrowser] Incomplete Windows font set ...`) when spoofing a Windows fingerprint without a full Windows font set installed — a bare Linux font list is itself a detection signal. The `Dockerfile` installs `ttf-mscorefonts-installer` (Debian's packaging of Microsoft's real "Core Fonts for the Web": Arial, Times New Roman, Courier New, Georgia, Verdana, etc. — genuine MS font files under Microsoft's own redistribution EULA, not metric-compatible substitutes), which is a legitimate, fully-automatable improvement.
+
+It cannot fully satisfy CloakBrowser's check, though: that requires 8 specific fonts (`Segoe UI`, `Segoe UI Light`, `Calibri`, `Marlett`, `MS UI Gothic`, `Franklin Gothic`, `Consolas`, `Courier New`), and 7 of those 8 are Windows-OS/Office-exclusive system fonts with no legal, freely-redistributable source — they're not in `ttf-mscorefonts-installer` or any other apt package. If you have legal access to them (e.g. a licensed Windows/Office install), drop the `.ttf`/`.otf` files into `fonts/` before building — see `fonts/README.md`. The warning is suppressed by default (`CLOAKBROWSER_SUPPRESS_FONT_WARNING=1` in the `Dockerfile`'s `ENV`) since it can otherwise never fully resolve here, and its "shown once" marker lives on the same read-only-at-runtime path as the welcome banner (see the `Dockerfile` comment), so it would otherwise reprint on every single cold start.
 
 ## A note on AWS Lambda Layers (the actual `Layers` API field)
 
@@ -90,4 +97,3 @@ the image **digest** Lambda resolved at the most recent
 until each is explicitly redeployed, but two handlers built against `:latest`
 at different times can silently end up on different digests. Tagging
 deliberately avoids that ambiguity.
-

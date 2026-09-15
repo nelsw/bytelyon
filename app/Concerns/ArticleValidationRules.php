@@ -7,7 +7,7 @@ use Illuminate\Validation\Rule;
 
 trait ArticleValidationRules
 {
-    /** @return array<int, string> */
+    /** @return array<string, array> */
     protected function articleRules(?CarbonInterface $after = null): array
     {
         return [

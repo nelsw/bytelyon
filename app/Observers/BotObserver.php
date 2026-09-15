@@ -3,7 +3,9 @@
 namespace App\Observers;
 
 use App\Enums\BotType;
-use App\Jobs\BotJob;
+use App\Jobs\NewsBotJob;
+use App\Jobs\SearchBotJob;
+use App\Jobs\SitemapBotJob;
 use App\Models\Article;
 use App\Models\Bot;
 
@@ -14,19 +16,31 @@ class BotObserver
         switch ($bot->type) {
             case BotType::Search:
                 $bot->serp()->create(['query' => $bot->query]);
-                break;
+                SearchBotJob::dispatch($bot);
+                return;
             case BotType::Sitemap:
                 $bot->sitemap()->create(['domain' => $bot->query]);
-                break;
+                SitemapBotJob::dispatch($bot);
+                return;
             case BotType::News:
-                break;
+                NewsBotJob::dispatch($bot);
+                return;
         }
-        BotJob::dispatchIf($bot->isRunnable(), $bot);
     }
 
     public function updated(Bot $bot): void
     {
-        BotJob::dispatchIf($bot->isRunnable(), $bot);
+        switch ($bot->type) {
+            case BotType::Search:
+                SearchBotJob::dispatch($bot);
+                return;
+            case BotType::Sitemap:
+                SitemapBotJob::dispatch($bot);
+                return;
+            case BotType::News:
+                NewsBotJob::dispatch($bot);
+                return;
+        }
     }
 
     public function deleting(Bot $bot): void

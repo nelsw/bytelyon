@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Jobs;
 
+use App\Facades\Sqs;
 use App\Jobs\SitemapBotJob;
 use App\Models\Bot;
 use Tests\TestCase;
@@ -16,9 +17,13 @@ class SitemapBotJobTest extends TestCase
             ->headless()
             ->neverRun()
             ->createOneQuietly();
-            
+
+        Sqs::shouldReceive('enqueueScrape')
+            ->once()
+            ->with('sitemap', $bot->id, ['url' => 'https://bytelyon.com', 'depth' => 5]);
+
         (new SitemapBotJob($bot))->handle();
 
-        $this->assertNotEmpty($bot->refresh()->sitemap->pages);
+        $this->assertNotNull($bot->refresh()->last_run_at);
     }
 }

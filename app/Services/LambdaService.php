@@ -92,6 +92,17 @@ readonly class LambdaService
      * instead, where each retry attempt is actually visible. No-op for other
      * providers (e.g. DataImpulse's `__cr.us` convention uses incompatible
      * syntax and must not get a `customer-` prefix).
+     *
+     * Deliberately does NOT append a `-cc-<country>` segment either, even
+     * though Oxylabs supports it and it's tempting for matching `geoip`'s
+     * timezone/locale more tightly. Confirmed empirically (see
+     * docker/lambda/serp-scraper/INSTRUCTIONS.md) that adding `-cc-US` here
+     * measurably *hurt* the Google-block rate compared to the plain,
+     * untargeted username — several consecutive blocks with `-cc-US` across
+     * different exit IPs and queries, then an immediate clean success the
+     * moment it was removed. Whatever Oxylabs' country-targeted sub-pool is,
+     * it's smaller/more commonly flagged than the default pool right now.
+     * Don't reintroduce country targeting without re-verifying this.
      */
     private function proxyUsername(Proxy $proxy): ?string
     {

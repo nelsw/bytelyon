@@ -61,7 +61,10 @@ Event schema:
                                                  content + screenshot
     prefix                            str        "serp-scrapes/{aws_request_id}/" — S3 key
                                                  prefix for both uploads
-    headless                         bool       true
+    headless                         bool       false — headed via Xvfb (:99, baked into
+                                                 the base image); CloakBrowser's own guidance is
+                                                 that some sites detect headless even with the
+                                                 stealth patches
     humanize                         bool       true
     human_preset                     str        "careful"
     goto_timeout_ms                  int        30000
@@ -613,7 +616,15 @@ def handler(event: dict, context: Any) -> dict:
 
     geoip = event.get("geoip", False)
     launch_kwargs: dict[str, Any] = {
-        "headless": event.get("headless", True),
+        # CloakBrowser's own "recommended config for anti-bot sites" is
+        # explicit: "most blocks come from missing one of these three things"
+        # — residential proxy, geoip, and *headed* mode — "not from browser
+        # fingerprint detection": "some sites detect headless even with our
+        # C++ patches." We already had the first two; defaulting to headed
+        # here closes the gap. Works in Lambda because the base image's
+        # entrypoint always starts Xvfb on :99 (with DISPLAY=:99 baked into
+        # the canonical image's own ENV) regardless of this setting.
+        "headless": event.get("headless", False),
         "humanize": event.get("humanize", True),
         "human_preset": event.get("human_preset", "careful"),
         "args": [
@@ -622,6 +633,14 @@ def handler(event: dict, context: Any) -> dict:
             # Lambda's restricted process model can't fork from Chromium's
             # zygote — without this, child renderer processes fail to spawn.
             "--no-zygote",
+            # Aligns font metrics with the spoofed Windows platform — without
+            # it, font metrics leak the real Linux host underneath, a signal
+            # FingerprintJS-style "browser tampering" checks pick up on.
+            # Chromium 148+ binary only (we're on Pro 151); needs Windows
+            # fonts installed to have any effect — see ../base-image/Dockerfile
+            # (real MS core fonts) and ../base-image/fonts/README.md (the rest,
+            # if you have licensed access) — harmless no-op without them.
+            "--fingerprint-windows-font-metrics",
         ],
     }
     # `proxy` deliberately isn't in `launch_kwargs` above — it's computed fresh

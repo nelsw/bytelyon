@@ -20,7 +20,8 @@ message at a time).
 ```
 SearchBotJob / NewsBotJob / SitemapBotJob  (Laravel)
   -> Sqs::enqueueScrape($type, $id, $fields)
-  -> SQS queue: bytelyon-scrape-jobs  (DLQ: bytelyon-scrape-jobs-dlq, maxReceive=3)
+  -> SQS queue: bytelyon-scrape-jobs[-dev]  (DLQ: ...-dlq, maxReceive=3)
+       one queue pair per environment -- see "One-time setup" below
   -> worker.py (any number of machines, long-polling)
        -> handlers/serp.py    (type=serp)     launch+navigate w/ DataImpulse proxy
        -> handlers/generic.py (type=news|sitemap)  plain page.goto(url)
@@ -88,7 +89,10 @@ the following need to exist there too before any callback endpoint works:
 - `app/Facades/Sqs.php`
 - `app/Jobs/SearchBotJob.php`, `app/Jobs/NewsBotJob.php`, `app/Jobs/SitemapBotJob.php`
 - `config/services.php` (`sqs` block)
-- `.env` — add `SQS_SCRAPE_JOBS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/138305277395/bytelyon-scrape-jobs`
+- `.env` — add `SQS_SCRAPE_JOBS_QUEUE_URL=...` pointing at whichever queue
+  matches that checkout's own environment (`bytelyon-scrape-jobs-dev` for a
+  local/dev app, `bytelyon-scrape-jobs` for production — see "One-time
+  setup" below for why these must stay paired with a matching worker)
 - `tests/Feature/Jobs/{Search,News,Sitemap}BotJobTest.php` (updated to mock `Sqs` instead of asserting synchronous side effects)
 
 Easiest path is probably pushing this branch and pulling/merging it into the
@@ -103,51 +107,85 @@ the `worker` ability (`ApiTokenController::store`). Copy the plaintext
 token shown once.
 
 **2. AWS resources** (already created, nothing to do unless rebuilding from
-scratch):
+scratch) — **one queue pair per environment**, not one shared queue:
 
-- SQS queue: `bytelyon-scrape-jobs` (300s visibility timeout, 20s long-poll,
-  4-day retention, redrive to `bytelyon-scrape-jobs-dlq` after 3 receives)
-- IAM user `bytelyon-worker`, scoped to `sqs:ReceiveMessage` /
-  `sqs:DeleteMessage` / `sqs:GetQueueAttributes` on that queue and
-  `s3:PutObject` on `bytelyon-private/worker-scrapes/*`. Rotate its access
-  key via `aws iam create-access-key --user-name bytelyon-worker` /
-  `aws iam delete-access-key ...` if needed.
+|                                      | Production                 | Dev/local                      |
+| ------------------------------------ | -------------------------- | ------------------------------ |
+| Queue                                | `bytelyon-scrape-jobs`     | `bytelyon-scrape-jobs-dev`     |
+| DLQ                                  | `bytelyon-scrape-jobs-dlq` | `bytelyon-scrape-jobs-dev-dlq` |
+| `.env`'s `SQS_SCRAPE_JOBS_QUEUE_URL` | points at the prod queue   | points at the dev queue        |
+
+Both pairs use the same settings (300s visibility timeout, 20s long-poll,
+4-day retention, redrive after 3 receives) and the same IAM user,
+`bytelyon-worker` — its policy already covers `sqs:ReceiveMessage` /
+`sqs:DeleteMessage` / `sqs:GetQueueAttributes` on _both_ queues, plus
+`s3:PutObject` on `bytelyon-private/worker-scrapes/*`. Rotate its access key
+via `aws iam create-access-key --user-name bytelyon-worker` /
+`aws iam delete-access-key ...` if needed.
+
+**Why two queues instead of one `--laravel-base-url` switch on a shared
+queue**: a job's `id` only means anything against the database it was
+enqueued from. A dev-enqueued job picked up by a prod-pointed worker (or
+vice versa) would either 404 or silently complete a same-numbered but
+totally unrelated production/dev record. Keeping the queues themselves
+separate makes that class of mistake structurally impossible instead of
+relying on remembering to set the right env var every time.
 
 ## Running a worker
+
+Every setting has both a CLI flag and an env var — the flag wins if both are
+given. Env vars suit `docker run -e`; flags suit one-off overrides or
+running the script directly. `python3 worker.py --help` lists all of them.
 
 ```bash
 # From this directory:
 docker buildx build --platform linux/arm64 --provenance=false --sbom=false \
   -t bytelyon-worker:arm64 --load .
+```
 
+**Local dev** (points at `bytelyon-scrape-jobs-dev` + this machine's own Sail app):
+
+```bash
+docker run -d --name bytelyon-worker-dev --restart unless-stopped \
+  -e AWS_ACCESS_KEY_ID=<bytelyon-worker access key> \
+  -e AWS_SECRET_ACCESS_KEY=<bytelyon-worker secret key> \
+  bytelyon-worker:arm64 python3 worker.py \
+  --queue-url https://sqs.us-east-1.amazonaws.com/138305277395/bytelyon-scrape-jobs-dev \
+  --laravel-base-url http://host.docker.internal \
+  --worker-token <dev-app Sanctum token>
+```
+
+**Production** (points at `bytelyon-scrape-jobs` + the public site):
+
+```bash
 docker run -d --name bytelyon-worker --restart unless-stopped \
   -e AWS_ACCESS_KEY_ID=<bytelyon-worker access key> \
   -e AWS_SECRET_ACCESS_KEY=<bytelyon-worker secret key> \
-  -e AWS_DEFAULT_REGION=us-east-1 \
-  -e SCRAPE_JOBS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/138305277395/bytelyon-scrape-jobs \
-  -e LARAVEL_BASE_URL=http://host.docker.internal \
-  -e LARAVEL_WORKER_TOKEN=<plaintext token from step 1> \
-  -e GENERIC_BROWSER_PROVIDER=seleniumbase \
-  bytelyon-worker:arm64
-
-docker logs -f bytelyon-worker
+  bytelyon-worker:arm64 python3 worker.py \
+  --queue-url https://sqs.us-east-1.amazonaws.com/138305277395/bytelyon-scrape-jobs \
+  --laravel-base-url https://bytelyon.com \
+  --worker-token <production Sanctum token>
 ```
 
-`GENERIC_BROWSER_PROVIDER` is optional — defaults to `seleniumbase` already
-(see "Two browser providers, one image" above); only set it to
-`cloakbrowser` if you want news/sitemap jobs to use CloakBrowser fleet-wide
-instead.
+`docker logs -f bytelyon-worker` (or `-dev`) either way.
 
-`LARAVEL_BASE_URL=http://host.docker.internal` reaches the Sail app's port
-80 on the Docker host — works out of the box on Docker Desktop for Mac.
-Adjust if running the worker on a genuinely different machine (needs a
-real, reachable URL for the Laravel app — a public one if the worker isn't
-on the same LAN).
+`http://host.docker.internal` reaches the Sail app's port 80 on the Docker
+host — works out of the box on Docker Desktop for Mac. If the worker runs
+on a genuinely different machine than the Laravel app it's reporting to (a
+separate box on the same LAN, or a machine reporting to production over the
+internet), it needs a real, reachable URL instead — that's exactly what
+`--laravel-base-url`/`LARAVEL_BASE_URL` is for.
 
-Run this on as many machines as you want — they all pull from the same
-queue and handle whatever job type comes up (serp/news/sitemap), and SQS's
-visibility timeout guarantees no two workers process the same job
-concurrently.
+`GENERIC_BROWSER_PROVIDER` (env-only, no CLI flag currently) is optional —
+defaults to `seleniumbase` already (see "Two browser providers, one image"
+above); only set it to `cloakbrowser` if you want news/sitemap jobs to use
+CloakBrowser fleet-wide instead.
+
+Run as many workers as you want _per environment_ — they all pull from
+their one queue and handle whatever job type comes up (serp/news/sitemap),
+and SQS's visibility timeout guarantees no two workers process the same job
+concurrently. Don't point a dev and a prod worker at the same queue (see
+above for why).
 
 **Always stop workers before rebuilding**
 (`docker stop bytelyon-worker && docker rm bytelyon-worker`) — a running
@@ -159,19 +197,22 @@ racing to poll the same queue with old vs new code.
 Enqueue a job directly (bypassing the Bot jobs) to test a handler + S3 side
 in isolation — the callback POST will 404/fail until a real record + live
 route exist, which is expected; the worker just leaves the message for
-redrive in that case:
+redrive in that case. Use the **dev** queue for this so stray test jobs
+never land in front of a production worker:
 
 ```bash
+DEV_QUEUE=https://sqs.us-east-1.amazonaws.com/138305277395/bytelyon-scrape-jobs-dev
+
 # serp
-aws sqs send-message --queue-url <queue> --region us-east-1 \
+aws sqs send-message --queue-url $DEV_QUEUE --region us-east-1 \
   --message-body '{"type":"serp","id":1,"query":"sailing blocks"}'
 
 # news
-aws sqs send-message --queue-url <queue> --region us-east-1 \
+aws sqs send-message --queue-url $DEV_QUEUE --region us-east-1 \
   --message-body '{"type":"news","id":1,"url":"https://www.bbc.com/news"}'
 
 # sitemap (root of a crawl)
-aws sqs send-message --queue-url <queue> --region us-east-1 \
+aws sqs send-message --queue-url $DEV_QUEUE --region us-east-1 \
   --message-body '{"type":"sitemap","id":1,"url":"https://bytelyon.com","depth":5}'
 ```
 

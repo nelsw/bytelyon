@@ -19,7 +19,7 @@ class SitemapController extends Controller
                 ->byDomain()
                 ->with('bot')
                 ->withCount('pages')
-                ->get()->all(),
+                ->get(),
         ]);
     }
 

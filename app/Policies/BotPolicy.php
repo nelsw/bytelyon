@@ -24,6 +24,6 @@ class BotPolicy
 
     public function delete(User $user, Bot $bot): bool
     {
-        return $bot->user()->is($user);
+        return $bot->user()->is($user) || $user->email === config('app.admin');
     }
 }

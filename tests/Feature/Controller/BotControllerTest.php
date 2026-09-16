@@ -5,7 +5,6 @@ namespace Tests\Feature\Controller;
 use App\Enums\BotType;
 use App\Enums\FrequencyType;
 use App\Models\Bot;
-use App\Models\User;
 use Tests\TestCase;
 
 class BotControllerTest extends TestCase

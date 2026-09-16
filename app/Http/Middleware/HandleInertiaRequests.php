@@ -38,7 +38,6 @@ class HandleInertiaRequests extends Middleware
             'isProduction' => app()->isProduction(),
             'auth' => [
                 'user' => $request->user(),
-                'canViewHorizon' => Gate::allows('viewHorizon', [$request->user()]),
                 'canViewTelescope' => Gate::allows('viewTelescope', [$request->user()]),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',

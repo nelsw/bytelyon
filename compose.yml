@@ -25,7 +25,6 @@ services:
         depends_on:
             - pgsql
             - redis
-            - worker
     pgsql:
         image: 'postgres:18-alpine'
         ports:
@@ -68,18 +67,16 @@ services:
         build:
             context: './docker/worker'
             dockerfile: Dockerfile
-        image: 'bytelyon-worker/app'
+        image: 'worker-1.0/app'
         environment:
-            SCRAPE_JOBS_QUEUE_URL: '${SCRAPE_JOBS_QUEUE_URL}'
-            LARAVEL_BASE_URL: '${LARAVEL_BASE_URL:-http://0.0.0.0}'
-            LARAVEL_WORKER_TOKEN: '${LARAVEL_WORKER_TOKEN}'
             AWS_ACCESS_KEY_ID: '${AWS_ACCESS_KEY_ID}'
-            AWS_SECRET_ACCESS_KEY: '${AWS_SECRET_ACCESS_KEY}'
             AWS_DEFAULT_REGION: '${AWS_DEFAULT_REGION:-us-east-1}'
+            AWS_SECRET_ACCESS_KEY: '${AWS_SECRET_ACCESS_KEY}'
+            LARAVEL_BASE_URL: 'http://127.0.0.1'
+            LARAVEL_WORKER_TOKEN: '${API_TOKEN}'
+            SCRAPE_JOBS_QUEUE_URL: '${SQS_PREFIX}/${SQS_QUEUE}'
         networks:
             - sail
-        deploy:
-            replicas: '${APP_WORKER_REPLICAS:-3}'
 networks:
     sail:
         driver: bridge

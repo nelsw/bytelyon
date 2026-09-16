@@ -61,15 +61,7 @@ const footerNavItems: NavItem[] = [
         title: 'Telescope',
         href: '/telescope',
         icon: Telescope,
-        show:
-            usePage().props.auth.canViewHorizon &&
-            usePage().props.auth.canViewTelescope,
-    },
-    {
-        title: 'Horizon',
-        href: '/horizon',
-        icon: Sunrise,
-        show: usePage().props.auth.canViewHorizon,
+        show: usePage().props.auth.canViewTelescope,
     },
 ].filter((item) => item.show);
 </script>

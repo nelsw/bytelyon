@@ -118,6 +118,6 @@ class BotFactory extends Factory
                 'type' => BotType::Sitemap,
                 'query' => $domain,
             ],
-        ])->has(Sitemap::factory()->domain($domain));
+        ])->has(Sitemap::factory()->domain($domain)->hasPages(3));
     }
 }

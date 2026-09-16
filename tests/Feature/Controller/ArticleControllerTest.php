@@ -4,7 +4,6 @@ namespace Tests\Feature\Controller;
 
 use App\Models\Article;
 use App\Models\Bot;
-use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -127,7 +126,7 @@ class ArticleControllerTest extends TestCase
         $a = Article::factory()->for($bot)->createOneQuietly();
 
         $this->actingAs($tob->user)
-            ->get(route('articles.index', $a))
+            ->get(route('articles.index', $bot))
             ->assertForbidden();
 
         $this->actingAs($tob->user)

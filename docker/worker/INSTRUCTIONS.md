@@ -75,15 +75,22 @@ final, post-navigation/redirect URL) always wins over any `url` the
 original SQS message carried. Concretely, per job type:
 
 ```jsonc
-// POST /api/scrape-jobs/serp/42/complete
-// SQS message was {"type": "serp", "id": 42, "query": "sailing blocks"}
+// POST /api/scrape-jobs/search/42/complete
+// SQS message was {"type": "search", "id": 42, "query": "sailing blocks"}
 {
     "query": "sailing blocks", // passthrough — untouched by this worker
     "url": "https://www.google.com/search?q=sailing+blocks",
     "screenshot_key": "worker-scrapes/serp/3f9e.../www.google.com/search-a1b2c3d4e5.png",
-    "content_key": "worker-scrapes/serp/3f9e.../www.google.com/search-a1b2c3d4e5.html"
+    "content_key": "worker-scrapes/serp/3f9e.../www.google.com/search-a1b2c3d4e5.html",
 }
 ```
+
+(The `search` job type's own S3 key prefix and route parameter name are
+still `serp`/`{serp}` — `handlers/serp.py` hardcodes `job_type="serp"` for
+its S3 folder naming, and `routes/api.php` binds the `Serp` model via
+`{serp}` — only the URI segment and SQS `type` field needed to agree on
+`search` to fix the callback 404 this section used to describe
+incorrectly.)
 
 ```jsonc
 // POST /api/scrape-jobs/news/17/complete
@@ -91,7 +98,7 @@ original SQS message carried. Concretely, per job type:
 {
     "url": "https://www.bbc.com/news/some-article", // handler's result.url overrides passthrough's
     "screenshot_key": "worker-scrapes/news/7c1d.../www.bbc.com/news/some-article-5f6a7b8c9d.png",
-    "content_key": "worker-scrapes/news/7c1d.../www.bbc.com/news/some-article-5f6a7b8c9d.html"
+    "content_key": "worker-scrapes/news/7c1d.../www.bbc.com/news/some-article-5f6a7b8c9d.html",
 }
 ```
 
@@ -102,7 +109,7 @@ original SQS message carried. Concretely, per job type:
     "depth": 4, // passthrough — read by ScrapeJobController::sitemap() to gate re-enqueueing discovered links
     "url": "https://bytelyon.com/about",
     "screenshot_key": "worker-scrapes/sitemap/9a2b.../bytelyon.com/about-1a2b3c4d5e.png",
-    "content_key": "worker-scrapes/sitemap/9a2b.../bytelyon.com/about-1a2b3c4d5e.html"
+    "content_key": "worker-scrapes/sitemap/9a2b.../bytelyon.com/about-1a2b3c4d5e.html",
 }
 ```
 

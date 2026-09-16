@@ -1,4 +1,4 @@
-"""Generic SQS polling worker for all bytelyon scrape job types (serp, news,
+"""Generic SQS polling worker for all bytelyon scrape job types (search, news,
 sitemap, ...) — the single consolidated location this whole worker fleet
 lives in, replacing what used to be a per-job-type Lambda function.
 
@@ -20,7 +20,7 @@ app/Support/Serp.php), reached via one callback endpoint per job.
 
 Flow, per message:
     1. Long-poll receive from SQS (`--queue-url` / `SCRAPE_JOBS_QUEUE_URL`).
-    2. Parse `{"type": "serp"|"news"|"sitemap", "id": int, ...}` from the
+    2. Parse `{"type": "search"|"news"|"sitemap", "id": int, ...}` from the
        message body. `type` picks the handler; `id` identifies which
        record to update on the Laravel side (its meaning is type-specific
        — see routes/api.php and ScrapeJobController for what `id` means
@@ -151,7 +151,7 @@ logging.basicConfig(level=logging.INFO, handlers=[_handler])
 logger = logging.getLogger("worker")
 
 _HANDLERS = {
-    "serp": serp.run,
+    "search": serp.run,
     "news": generic.run,
     "sitemap": generic.run,
 }
@@ -167,7 +167,7 @@ class Config:
 
 def _parse_config(argv: list[str] | None = None) -> Config:
     parser = argparse.ArgumentParser(
-        description="bytelyon scrape-jobs SQS worker (serp/news/sitemap)"
+        description="bytelyon scrape-jobs SQS worker (search/news/sitemap)"
     )
     parser.add_argument(
         "--queue-url",

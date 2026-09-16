@@ -4,10 +4,10 @@ namespace App\Console\Commands;
 
 use App\Jobs\BotJob;
 use App\Models\Bot;
-use Bus;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Bus;
 use Throwable;
 
 #[Signature('run:bots')]

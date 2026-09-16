@@ -65,8 +65,8 @@ test: clear
 # Bots
 #
 work:
-	$(sail) up worker
+	$(sail) start worker
 rest:
-	$(sail) down worker
+	$(sail) stop worker
 queues:
 	$(sail) artisan queue:work -v

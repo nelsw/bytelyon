@@ -62,8 +62,7 @@ sequenceDiagram
     Handler->>S3: put_object(screenshot png)
     Handler-->>Worker: {url, screenshot_key, content_key}
     Worker->>Api: POST /api/scrape-jobs/{type}/{id}/complete
-    Note right of Worker: body = {...passthrough, url,
-    screenshot_key, content_key}
+    Note right of Worker: body = {...passthrough, url, screenshot_key, content_key}
     Api-->>Worker: 204 No Content
     Worker->>SQS: delete_message
 ```

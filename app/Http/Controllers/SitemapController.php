@@ -22,7 +22,7 @@ class SitemapController extends Controller
                 ->user($request->user())
                 ->type(BotType::Sitemap)
                 ->get()
-                ->map(fn(Bot $bot) => $bot->sitemap)
+                ->map(fn (Bot $bot) => $bot->sitemap)
                 ->sortBy('domain'),
         ]);
     }
@@ -46,7 +46,7 @@ class SitemapController extends Controller
                 'urls' => $sitemap->urls ?? [],
                 'pages' => $sitemap->pages()
                     ->get(['id', 'url', 'title', 'meta', 'screenshot_key'])
-                    ->map(fn(Page $page) => [
+                    ->map(fn (Page $page) => [
                         'id' => $page->id,
                         'url' => $page->url,
                         'title' => $page->title,

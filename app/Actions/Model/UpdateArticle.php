@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Actions;
+namespace App\Actions\Model;
 
 use App\Concerns\ArticleValidationRules;
 use App\Models\Article;

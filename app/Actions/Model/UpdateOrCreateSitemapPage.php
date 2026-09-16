@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Actions;
+namespace App\Actions\Model;
 
 use App\Concerns\SitemapPageValidationRules;
 use App\Models\Bot;

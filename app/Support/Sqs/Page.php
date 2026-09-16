@@ -11,7 +11,9 @@ class Page extends Html
     use HasLinks;
 
     public readonly string $url;
+
     public readonly string $domain;
+
     public function __construct(
         private readonly string $rawUrl = '',
         public readonly ?string $contentKey = null,

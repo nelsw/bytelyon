@@ -21,7 +21,8 @@ trait HasLinks
             ->transform(self::toUri($this->url))
             ->filter(self::sameSite($this->domain))
             ->transform(self::toString())
-            ->unique();
+            ->unique()
+            ->values();
     }
 
     private function anchorElements(): Collection
@@ -40,26 +41,26 @@ trait HasLinks
     {
         return function (Stringable $href): bool {
             return $href->isEmpty()
-                || $href->is('/')
+                || $href->length() === 1
                 || $href->endsWith('#')
-                || !$href->startsWith(['https://', '/']);
+                || $href->startsWith('http://');
         };
     }
 
     private static function toUri(string $url): callable
     {
-        return fn(Stringable $href): Uri => $href
-            ->whenStartsWith('/', fn(): Stringable => $href->prepend($url))
+        return fn (Stringable $href): Uri => $href
+            ->whenStartsWith('/', fn (): Stringable => $href->prepend($url))
             ->toUri();
     }
 
     private static function sameSite(string $domain): callable
     {
-        return fn(Uri $uri): bool => str_ends_with($uri->host(), $domain);
+        return fn (Uri $uri): bool => str_ends_with($uri->host(), $domain);
     }
 
     private static function toString(): callable
     {
-        return fn(Uri $uri): string => $uri->value();
+        return fn (Uri $uri): string => $uri->value();
     }
 }

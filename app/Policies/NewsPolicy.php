@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Models\Article;
-use App\Models\Bot;
 use App\Models\User;
 
 class NewsPolicy

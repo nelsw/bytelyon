@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Actions\UpdateBotRunTimestamp;
+use App\Actions\Model\UpdateBotRunTimestamp;
 use App\Enums\BotType;
 use App\Events\BotResultsPersisted;
 use App\Facades\Rss;

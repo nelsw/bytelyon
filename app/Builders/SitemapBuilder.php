@@ -3,7 +3,6 @@
 namespace App\Builders;
 
 use App\Models\Sitemap;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
 /** @extends Builder<Sitemap> */

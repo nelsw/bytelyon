@@ -7,7 +7,6 @@ use App\Enums\BotType;
 use App\Enums\FrequencyType;
 use App\Observers\BotObserver;
 use App\Policies\BotPolicy;
-use App\Traits\HasContext;
 use App\Traits\HasUser;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;

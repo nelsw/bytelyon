@@ -1,13 +1,12 @@
 <?php
 
-namespace App\Actions;
+namespace App\Actions\Model;
 
 use App\Models\Sitemap;
 use Illuminate\Support\Facades\Log;
 
 class UpdateSitemapUrls
 {
-
     public function __invoke(Sitemap $sitemap): void
     {
         ksort($sitemap->urls);

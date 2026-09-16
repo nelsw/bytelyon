@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Actions\UpdateArticle;
-use App\Actions\UpdateOrCreateSitemapPage;
-use App\Actions\UpdateSitemapUrls;
+use App\Actions\Model\UpdateArticle;
+use App\Actions\Model\UpdateOrCreateSitemapPage;
+use App\Actions\Model\UpdateSitemapUrls;
 use App\Facades\Sqs;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\PageSaveRequest;
@@ -19,7 +19,6 @@ use Illuminate\Support\Facades\Log;
 
 class ScrapeJobController extends Controller
 {
-
     public function serp(PageSaveRequest $request, Serp $serp): Response
     {
         $parsed = new SearchPage(
@@ -77,38 +76,23 @@ class ScrapeJobController extends Controller
             $page->meta(),
         );
 
-        /*
-         * Update the sitemap with this url if not set
-         */
-        if (!isset($bot->sitemap->urls[$page->url])) {
-            // insert url as TRUE because it's been scraped
+        if (! isset($bot->sitemap->urls[$page->url])) {
             $bot->sitemap->urls[$page->url] = true;
             (new UpdateSitemapUrls)($bot->sitemap);
         }
 
-        /*
-         * FIRST - check if we can fail fast
-         */
         $links = $page->links();
         if ($links->isEmpty()) {
             return response()->noContent();
         }
 
-        /*
-         * SECOND - check if permitted to crawl links
-         */
         if ($request->integer('depth') < 0) {
-            // add these links to the sitemap as FALSE
-            $links->each(fn(string $link) => $bot->sitemap->urls[$link] = false);
-            // and update before returning home
+            $links->each(fn (string $link) => $bot->sitemap->urls[$link] = false);
             (new UpdateSitemapUrls)($bot->sitemap);
             return response()->noContent();
         }
 
-        /*
-         * LAST - transform link into a generic payload as add to end of queue
-         */
-        $links->transform(fn(string $link) => [
+        $links->transform(fn (string $link) => [
             'type' => $bot->type,
             'id' => $bot->id,
             'url' => $link,

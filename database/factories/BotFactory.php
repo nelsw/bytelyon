@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\BotType;
 use App\Enums\FrequencyType;
 use App\Models\Bot;
+use App\Models\Proxy;
 use App\Models\Serp;
 use App\Models\Sitemap;
 use App\Models\User;
@@ -77,6 +78,13 @@ class BotFactory extends Factory
             ...$attributes,
             ...['last_run_at' => null],
         ]);
+    }
+
+    public function withProxies(int $count = 1): static
+    {
+        return $this->afterCreating(function (Bot $bot) use ($count) {
+            $bot->proxies()->saveMany(Proxy::factory($count)->create(['user_id' => $bot->user_id]));
+        });
     }
 
     public function news(?string $topic = null): static

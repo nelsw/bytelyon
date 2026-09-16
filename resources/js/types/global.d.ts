@@ -23,6 +23,7 @@ declare module '@inertiajs/core' {
             sidebarOpen: boolean;
             typeOptions: Option[];
             frequencyOptions: Option[];
+            proxyOptions: { value: number; label: string }[];
             [key: string]: unknown;
         };
     }

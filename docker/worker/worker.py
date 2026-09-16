@@ -24,9 +24,14 @@ Flow, per message:
        message body. `type` picks the handler; `id` identifies which
        record to update on the Laravel side (its meaning is type-specific
        — see routes/api.php and ScrapeJobController for what `id` means
-       per type). Any other fields (e.g. sitemap's `depth`) are opaque to
+       per type). Most other fields (e.g. sitemap's `depth`) are opaque to
        this worker — it doesn't need to understand them, just carry them
-       through to the callback unchanged.
+       through to the callback unchanged. The exception is `proxy`
+       (`{scheme, host, port, username, pass, bypass}`, present whenever
+       the enqueuing bot has one or more proxies configured -- Laravel's
+       `BotJob` picks one at random when there's more than one): handlers
+       consume it directly (see common.proxy_settings()) and it is *not*
+       forwarded to the completion callback.
     3. Run the matching handler's `run(job)` -> {url, screenshot_key,
        content_key}.
     4. POST {**passthrough fields, url, screenshot_key, content_key} to
@@ -195,11 +200,17 @@ def _handle_message(config: Config, sqs, message: dict) -> None:
         )
         return
 
-    # Everything except type/id/headless rides through to the callback
-    # unchanged (e.g. sitemap's `depth`) — this worker doesn't need to
-    # understand it, only the handler (for its own inputs, e.g. `query` or
-    # `url`) and the Laravel callback (for continuing the workflow) do.
-    passthrough = {k: v for k, v in job.items() if k not in ("type", "id", "headless")}
+    # Everything except type/id/headless/proxy rides through to the
+    # callback unchanged (e.g. sitemap's `depth`) — this worker doesn't need
+    # to understand it, only the handler (for its own inputs, e.g. `query`
+    # or `url`) and the Laravel callback (for continuing the workflow) do.
+    # `proxy` is deliberately excluded: it's only meant for the handler (see
+    # handlers/serp.py, handlers/generic.py, common.proxy_settings()) —
+    # there's no reason to send proxy credentials back over the wire in the
+    # completion callback, and the callback endpoints don't expect it.
+    passthrough = {
+        k: v for k, v in job.items() if k not in ("type", "id", "headless", "proxy")
+    }
 
     logger.info("job received: type=%s id=%s", job_type, job_id)
     try:

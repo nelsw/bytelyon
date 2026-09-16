@@ -18,6 +18,7 @@ export type BotRow = {
     blacklist: string;
     enabled: boolean;
     headless: boolean;
+    proxies: number[];
     processedAt: string | null;
     createdAt: string;
     updatedAt: string;
@@ -32,6 +33,7 @@ export type BotFormData = {
     blacklist: string;
     enabled: boolean;
     headless: boolean;
+    proxies: number[];
 };
 
 export type BotFilters = {

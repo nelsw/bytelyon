@@ -7,6 +7,7 @@ use App\Events\BotResultsPersisted;
 use App\Facades\Rss;
 use App\Facades\Sqs;
 use App\Models\Bot;
+use App\Models\Proxy;
 use App\Support\Rss\BaseRssItem;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -62,7 +63,7 @@ class BotJob implements ShouldBeUnique, ShouldQueue
 
         foreach ($items as $item) {
             $article = $this->bot->articles()->updateOrCreate(['url' => $item->url()], $item->toArray());
-            Sqs::enqueueScrape('news', $article->id, ['url' => $item->url()]);
+            Sqs::enqueueScrape('news', $article->id, ['url' => $item->url(), ...$this->proxyFields()]);
         }
 
         $this->bot->update(['last_run_at' => now()->utc()]);
@@ -83,14 +84,41 @@ class BotJob implements ShouldBeUnique, ShouldQueue
 
     public function handleSearch(): void
     {
-        Sqs::enqueueScrape('serp', $this->bot->serp->id, ['query' => $this->bot->query]);
+        Sqs::enqueueScrape('serp', $this->bot->serp->id, ['query' => $this->bot->query, ...$this->proxyFields()]);
     }
 
     public function handleSitemap(): void
     {
         $root = "https://{$this->bot->query}";
 
-        Sqs::enqueueScrape('sitemap', $this->bot->id, ['url' => $root, 'depth' => 5]);
+        Sqs::enqueueScrape('sitemap', $this->bot->id, ['url' => $root, 'depth' => 5, ...$this->proxyFields()]);
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    protected function proxyFields(): array
+    {
+        $proxy = $this->bot->randomProxy();
+
+        if ($proxy === null) {
+            return [];
+        }
+
+        return ['proxy' => $this->proxyPayload($proxy)];
+    }
+
+    /** @return array<string, mixed> */
+    protected function proxyPayload(Proxy $proxy): array
+    {
+        return [
+            'scheme' => $proxy->scheme,
+            'host' => $proxy->host,
+            'port' => $proxy->port,
+            'username' => $proxy->username,
+            'pass' => $proxy->pass,
+            'bypass' => $proxy->bypass,
+        ];
     }
 
     public function failed(?Throwable $e): void

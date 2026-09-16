@@ -23,6 +23,39 @@ import boto3
 DEFAULT_BUCKET = "bytelyon-private"
 
 
+def proxy_settings(job: dict) -> dict | None:
+    """Convert the bot's selected-proxy payload -- added to the SQS message
+    by `App\\Jobs\\BotJob::proxyPayload()` on the Laravel side as
+    `{scheme, host, port, username, pass, bypass}` -- into the
+    Playwright-compatible `ProxySettings` shape (`{server, username?,
+    password?, bypass?}`) that both `cloakbrowser.launch()` and
+    `seleniumbase_playwright.launch()` accept as their `proxy` kwarg.
+
+    `BotJob` picks one proxy at random (server-side, in PHP) whenever a bot
+    has more than one configured -- this worker only ever sees the single
+    already-chosen proxy for a given job, if any. Returns None when the job
+    carries no `proxy` field at all (the bot has none configured), so
+    callers can pass the result straight through as `proxy=...` without a
+    None-check of their own.
+    """
+    proxy = job.get("proxy")
+    if not proxy or not proxy.get("host"):
+        return None
+
+    scheme = proxy.get("scheme") or "http"
+    port = proxy.get("port")
+    server = f"{scheme}://{proxy['host']}" + (f":{port}" if port else "")
+
+    settings: dict = {"server": server}
+    if proxy.get("username"):
+        settings["username"] = proxy["username"]
+    if proxy.get("pass"):
+        settings["password"] = proxy["pass"]
+    if proxy.get("bypass"):
+        settings["bypass"] = proxy["bypass"]
+    return settings
+
+
 def s3_key(prefix: str, url: str, ext: str) -> str:
     parsed = urlparse(url)
     path = parsed.path.strip("/") or "index"

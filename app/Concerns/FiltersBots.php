@@ -43,6 +43,7 @@ trait FiltersBots
         }
 
         $bots = $request->user()->bots()
+            ->with('proxies')
             ->when(
                 $filters['query'] !== '',
                 fn ($query) => $query->whereRaw('LOWER(query) LIKE ?', ['%'.strtolower($filters['query']).'%']),

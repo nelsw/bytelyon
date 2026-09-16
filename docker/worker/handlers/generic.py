@@ -3,10 +3,14 @@ any future job type that's just "go to this URL and save it"). Local-worker
 equivalent of ../../lambda/grab/lambda_handler.py's core logic, trimmed to
 this worker fleet's shared contract.
 
-No proxy: news/sitemap targets are ordinary websites, not Google — nowhere
-near as aggressive about datacenter-vs-residential IP reputation, and this
-worker's home-network egress is already more trustworthy than Lambda's own
-IPs were anyway. Add a proxy here later if a specific target needs it.
+Proxy optional: news/sitemap targets are ordinary websites, not Google —
+nowhere near as aggressive about datacenter-vs-residential IP reputation,
+and this worker's home-network egress is already more trustworthy than
+Lambda's own IPs were anyway. So unlike handlers/serp.py, there's no
+default proxy here — jobs run proxy-less unless the bot that enqueued them
+had one or more proxies configured in Settings, in which case Laravel's
+`BotJob` picks one at random and rides it along as the job's `proxy` field
+(see common.proxy_settings()).
 
 Two interchangeable browser providers, both exposing the same
 `launch(...) -> Browser`-with-`.new_page()`/`.close()` interface:
@@ -42,7 +46,7 @@ import logging
 import os
 
 from cloakbrowser import launch as _cloakbrowser_launch
-from common import capture_and_upload
+from common import capture_and_upload, proxy_settings
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from seleniumbase_playwright import launch as _seleniumbase_launch
@@ -64,10 +68,13 @@ DEFAULT_PROVIDER = (
 _BLOCK_STATUS_CODES = {403, 429, 503}
 
 
-def _attempt(url: str, job_type: str, headless: bool, provider: str) -> dict:
+def _attempt(
+    url: str, job_type: str, headless: bool, provider: str, proxy: dict | None
+) -> dict:
     launch = _LAUNCHERS[provider]
     browser = launch(
         headless=headless,
+        proxy=proxy,
         args=["--disable-dev-shm-usage", "--no-zygote"],
     )
     try:
@@ -96,9 +103,10 @@ def run(job: dict) -> dict:
     provider = str(job.get("provider", DEFAULT_PROVIDER)).strip().lower()
     if provider not in _LAUNCHERS:
         provider = "seleniumbase"
+    proxy = proxy_settings(job)
 
     try:
-        return _attempt(url, job_type, headless, provider)
+        return _attempt(url, job_type, headless, provider, proxy)
     except Exception as e:
         if provider == "cloakbrowser":
             # Already the strongest provider available — nothing left to
@@ -110,4 +118,4 @@ def run(job: dict) -> dict:
             e,
             url,
         )
-        return _attempt(url, job_type, headless, "cloakbrowser")
+        return _attempt(url, job_type, headless, "cloakbrowser", proxy)

@@ -9,8 +9,10 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * @property int $id
@@ -24,6 +26,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $name
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
+ * @property-read Collection<int, Bot> $bots
+ * @property-read int|null $bots_count
  *
  * @method static ProxyFactory factory($count = null, $state = [])
  * @method static Builder<static>|Proxy newModelQuery()
@@ -52,5 +56,11 @@ class Proxy extends Model
     public function __toString(): string
     {
         return "$this->scheme://$this->username:$this->pass@$this->host:$this->port";
+    }
+
+    /** @return BelongsToMany<Bot, $this> */
+    public function bots(): BelongsToMany
+    {
+        return $this->belongsToMany(Bot::class);
     }
 }

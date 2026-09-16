@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Form } from '@inertiajs/vue3';
+import { Form, Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { edit as editProxies } from '@/routes/proxies';
 import type { BotFormData } from '@/types/bots';
 
 type Option = {
@@ -13,14 +14,21 @@ type Option = {
     label: string;
 };
 
+type ProxyOption = {
+    value: number;
+    label: string;
+};
+
 const props = withDefaults(
     defineProps<{
         typeOptions: Option[];
         frequencyOptions: Option[];
+        proxyOptions?: ProxyOption[];
         bot?: Partial<BotFormData>;
         showCancel?: boolean;
     }>(),
     {
+        proxyOptions: () => [],
         bot: () => ({}),
         showCancel: false,
     },
@@ -47,6 +55,7 @@ const frequency = ref(props.bot.frequency ?? params.get('frequency') ?? '');
 const blacklist = ref(props.bot.blacklist ?? '');
 const enabled = ref(props.bot.enabled ?? true);
 const headless = ref(props.bot.headless ? '1' : '0');
+const proxies = ref<number[]>(props.bot.proxies ?? []);
 
 const textareaClass =
     'dark:bg-input/30 border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex min-h-24 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50';
@@ -195,6 +204,39 @@ const selectClass =
                     Headless bots run without a visible browser window.
                 </p>
                 <InputError :message="errors.headless" />
+            </div>
+
+            <div class="space-y-2">
+                <Label>Proxies</Label>
+                <div v-if="proxyOptions.length" class="space-y-2">
+                    <label
+                        v-for="proxyOption in proxyOptions"
+                        :key="proxyOption.value"
+                        class="flex items-center gap-2 text-sm font-normal"
+                    >
+                        <input
+                            type="checkbox"
+                            name="proxies[]"
+                            :value="proxyOption.value"
+                            v-model="proxies"
+                            class="size-4 rounded border border-input text-primary shadow-xs focus-visible:ring-[3px] focus-visible:ring-ring"
+                        />
+                        {{ proxyOption.label }}
+                    </label>
+                    <p class="text-sm text-muted-foreground">
+                        Select one or more proxies for this bot to use. When
+                        multiple are selected, one is picked at random each time
+                        the bot runs.
+                    </p>
+                </div>
+                <p v-else class="text-sm text-muted-foreground">
+                    No proxies configured yet.
+                    <Link :href="editProxies()" class="underline"
+                        >Add one in settings</Link
+                    >
+                    to use it with this bot.
+                </p>
+                <InputError :message="errors.proxies" />
             </div>
         </div>
 

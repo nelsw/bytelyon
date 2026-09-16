@@ -9,6 +9,13 @@ verbatim from the script that ran reliably against Google overnight — do
 not "improve" or re-tune any of that without re-validating against a live
 run first.
 
+The DataImpulse proxy is only the *fallback*: if the bot that enqueued this
+job has one or more proxies configured in Settings, Laravel's `BotJob`
+picks one at random and rides it along as the job's `proxy` field (see
+common.proxy_settings()), which takes priority over DataImpulse. Bots with
+no proxy of their own keep using DataImpulse, since Google needs *some*
+residential/trusted-geo egress to reliably avoid a block/CAPTCHA page.
+
 Unlike the Lambda version this was derived from, this runs in a normal
 Docker container (not AWS Lambda), so:
   - `geoip=True` is used directly. cloakbrowser's own httpx-based geoip
@@ -29,7 +36,7 @@ from __future__ import annotations
 import logging
 
 from cloakbrowser import ProxySettings, launch
-from common import capture_and_upload
+from common import capture_and_upload, proxy_settings
 from playwright.sync_api import Browser, Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
@@ -56,15 +63,23 @@ _CONSENT_SELECTORS = [
 SCRAPE_ATTEMPTS = 2
 
 
-def _launch(headless: bool) -> Browser:
-    proxy = ProxySettings(
+def _default_proxy() -> ProxySettings:
+    return ProxySettings(
         username=PROXY_USERNAME,
         password=PROXY_PASSWORD,
         bypass=".google.com",
         server=f"socks5://{PROXY_HOST}:{PROXY_PORT}",
     )
+
+
+def _launch(headless: bool, proxy: ProxySettings | None) -> Browser:
+    # A bot-configured proxy (picked at random on the Laravel side when a
+    # bot has more than one -- see common.proxy_settings()) always wins;
+    # this DataImpulse SOCKS5 endpoint is only the fallback for bots with no
+    # proxy of their own, since Google needs *some* residential/trusted-geo
+    # egress to reliably avoid a block/CAPTCHA page.
     common_kwargs = dict(
-        proxy=proxy,
+        proxy=proxy or _default_proxy(),
         headless=headless,
         human_preset="careful",
         args=["--disable-dev-shm-usage", "--no-zygote"],
@@ -90,8 +105,8 @@ def _dismiss_consent(page: Page) -> None:
             continue
 
 
-def _attempt(query: str, headless: bool) -> dict:
-    browser = _launch(headless)
+def _attempt(query: str, headless: bool, proxy: ProxySettings | None) -> dict:
+    browser = _launch(headless, proxy)
     try:
         page: Page = browser.new_page()
         page.goto(GOOGLE_URL, timeout=45_000)
@@ -119,10 +134,11 @@ def _attempt(query: str, headless: bool) -> dict:
 def run(job: dict) -> dict:
     query = job["query"]
     headless = job.get("headless", False)
+    proxy = proxy_settings(job)
     last_err: Exception | None = None
     for attempt in range(1, SCRAPE_ATTEMPTS + 1):
         try:
-            return _attempt(query, headless)
+            return _attempt(query, headless, proxy)
         except Exception as e:
             last_err = e
             logger.warning("serp attempt %d/%d failed: %s", attempt, SCRAPE_ATTEMPTS, e)

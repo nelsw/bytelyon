@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Builders\SitemapBuilder;
 use App\Observers\SitemapObserver;
 use App\Traits\HasBot;
 use App\Traits\HasPages;
@@ -11,8 +10,8 @@ use Database\Factories\SitemapFactory;
 use Eloquent;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
-use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,16 +29,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read Collection<int, Page> $pages
  * @property-read int|null $pages_count
  *
- * @method static SitemapBuilder byDomain()
- * @method static SitemapBuilder notDeleted()
- * @method static SitemapBuilder query()
+ * @method static Builder<Sitemap|static> query()
  * @method static SitemapFactory factory($count = null, $state = [])
  *
  * @mixin Eloquent
  */
 #[Fillable('domain', 'urls')]
 #[ObservedBy(SitemapObserver::class)]
-#[UseEloquentBuilder(SitemapBuilder::class)]
 #[UseFactory(SitemapFactory::class)]
 class Sitemap extends Model
 {

@@ -122,15 +122,16 @@ class ArticleControllerTest extends TestCase
 
     public function test_cannot_access_other_users_bot_articles()
     {
-        $user = User::factory()->createQuietly();
-        $bot = Bot::factory()->createOneQuietly();
+        $tob = Bot::factory()->createQuietly();
+        $bot = Bot::factory()->news()->createOneQuietly();
+        $a = Article::factory()->for($bot)->createOneQuietly();
 
-        $this->actingAs($user)
-            ->get(route('articles.index', Article::factory()->createOneQuietly()))
+        $this->actingAs($tob->user)
+            ->get(route('articles.index', $a))
             ->assertForbidden();
 
-        $this->actingAs($user)
-            ->get(route('articles.show', ['bot' => $bot, 'article' => Article::factory()->createOneQuietly()]))
+        $this->actingAs($tob->user)
+            ->get(route('articles.show', ['bot' => $bot, 'article' => $a]))
             ->assertForbidden();
     }
 }

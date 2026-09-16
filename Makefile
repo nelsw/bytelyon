@@ -60,3 +60,13 @@ test: clear
 	$(sail) test --compact --coverage --coverage-html=./reports
 	@sleep 3
 	@open ./reports/index.html
+
+#
+# Bots
+#
+work:
+	$(sail) up worker
+rest:
+	$(sail) down worker
+queues:
+	$(sail) artisan queue:work -v

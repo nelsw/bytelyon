@@ -78,7 +78,7 @@ services:
         networks:
             - sail
         deploy:
-            replicas: ${WORKER_REPLICAS:-5}
+            replicas: ${WORKER_REPLICAS:-10}
 networks:
     sail:
         driver: bridge

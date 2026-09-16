@@ -18,8 +18,8 @@ class BotControllerTest extends TestCase
             'enabled' => true,
             'headless' => true,
             'frequency' => FrequencyType::values()[0],
-            'type' => BotType::News->value,
-            'query' => 'laravel release notes',
+            'type' => $bot->type->value,
+            'query' => $bot->query,
         ]);
 
         $response->assertSessionHasErrors('query');

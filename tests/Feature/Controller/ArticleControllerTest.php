@@ -16,10 +16,11 @@ class ArticleControllerTest extends TestCase
 
     public function test_index()
     {
-        $article = Article::factory()->count(3)->createQuietly();
+        $bot = Bot::factory()->createOneQuietly();
+        $article = Article::factory()->for($bot)->count(3)->createQuietly();
 
-        $response = $this->actingAs($article->bot->user)
-            ->get(route('articles.index', $article->bot));
+        $response = $this->actingAs($bot->user)
+            ->get(route('articles.index', $bot));
 
         $response->assertStatus(200)
             ->assertInertia(fn (Assert $page) => $page

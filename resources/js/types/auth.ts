@@ -11,7 +11,6 @@ export type User = {
 
 export type Auth = {
     user: User;
-    canViewHorizon: boolean;
     canViewTelescope: boolean;
 };
 

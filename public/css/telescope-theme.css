@@ -1,0 +1,315 @@
+/*
+ * Telescope reskin — brings Laravel Telescope's Bootstrap-4-based UI
+ * (vendor/laravel/telescope, see resources/sass/*.scss in that package) in
+ * line with the app's own design system (resources/css/app.css). Loaded
+ * after Telescope::css()'s inlined <style> tags (see the override at
+ * resources/views/vendor/telescope/layout.blade.php), so equal-specificity
+ * rules here win the cascade without needing !important everywhere —
+ * !important is only used where Telescope's own SCSS already used it
+ * (box-shadow resets) or where an inline/JS-set style would otherwise win.
+ *
+ * Values below are copied from resources/css/app.css's :root block rather
+ * than referenced as CSS custom properties — Telescope's own compiled CSS
+ * doesn't define those variables, and this file is static (served straight
+ * from /public, not part of the Vite build), so there's no build step here
+ * to resolve them either. Re-copy by hand if the app's palette changes.
+ */
+
+:root {
+    --tele-pink: #e4056f;
+    --tele-pink-600: #c2005d;
+    --tele-pink-700: #9b0049;
+    --tele-pink-100: #fde3ef;
+
+    --tele-gray-0: #ffffff;
+    --tele-gray-25: #fbfbfd;
+    --tele-gray-50: #f5f6f9;
+    --tele-gray-100: #eaecf2;
+    --tele-gray-200: #d7dae3;
+    --tele-gray-300: #b7bccb;
+    --tele-gray-400: #8c93a8;
+    --tele-gray-500: #666e85;
+    --tele-gray-600: #4b5268;
+    --tele-gray-700: #363b4d;
+    --tele-gray-800: #22252f;
+    --tele-gray-900: #12131a;
+
+    --tele-success: #12b76a;
+    --tele-success-tint: #d8f6e7;
+    --tele-success-strong: #0a7a46;
+    --tele-warning: #f5a524;
+    --tele-warning-tint: #fdf0d5;
+    --tele-warning-strong: #9a6300;
+    --tele-danger: #e4362b;
+    --tele-danger-tint: #fce1de;
+    --tele-danger-strong: #a11f17;
+    --tele-info: #2e90fa;
+    --tele-info-tint: #dcebff;
+    --tele-info-strong: #1a5aa8;
+
+    --tele-radius-sm: 4px;
+    --tele-radius-md: 6px;
+    --tele-radius-lg: 10px;
+}
+
+/* ── Type ─────────────────────────────────────────────────────────────── */
+body {
+    font-family: Manrope, ui-sans-serif, system-ui, sans-serif;
+    background-color: var(--tele-gray-25);
+    color: var(--tele-gray-900);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.02em;
+}
+
+code, pre, .code-bg {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+/* ── Header / logo ────────────────────────────────────────────────────── */
+.header {
+    border-bottom-color: var(--tele-gray-200);
+    background-color: var(--tele-gray-0);
+}
+
+.header .logo {
+    color: var(--tele-gray-900);
+}
+
+.fill-primary {
+    fill: var(--tele-pink) !important;
+}
+
+/* ── Links & primary color everywhere Bootstrap's $primary shows up ─────── */
+a {
+    color: var(--tele-pink);
+}
+
+a:hover {
+    color: var(--tele-pink-600);
+}
+
+.text-primary {
+    color: var(--tele-pink) !important;
+}
+
+.btn-primary {
+    background-color: var(--tele-pink);
+    border-color: var(--tele-pink);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: var(--tele-pink-600);
+    border-color: var(--tele-pink-600);
+}
+
+.btn-primary:not(:disabled):not(.disabled):active {
+    background-color: var(--tele-pink-700);
+    border-color: var(--tele-pink-700);
+}
+
+.btn-outline-primary {
+    color: var(--tele-pink);
+    border-color: var(--tele-pink);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary.active {
+    background-color: var(--tele-pink);
+    border-color: var(--tele-pink);
+    color: #fff;
+}
+
+.btn, .badge, .form-control, .card, .dropdown-menu {
+    border-radius: var(--tele-radius-md);
+}
+
+.card {
+    border-radius: var(--tele-radius-lg);
+}
+
+.btn:focus,
+.form-control:focus,
+.custom-control-input:focus ~ .custom-control-label::before {
+    box-shadow: 0 0 0 3px var(--tele-pink-100) !important;
+    border-color: var(--tele-pink) !important;
+}
+
+/* ── Sidebar nav ──────────────────────────────────────────────────────── */
+.sidebar .nav-item a {
+    color: var(--tele-gray-600);
+    border-radius: var(--tele-radius-md);
+}
+
+.sidebar .nav-item a svg {
+    fill: var(--tele-gray-400);
+}
+
+.sidebar .nav-item a:hover {
+    background-color: var(--tele-gray-50);
+    color: var(--tele-pink);
+}
+
+.sidebar .nav-item a.active {
+    background-color: var(--tele-pink-100);
+    color: var(--tele-pink-700);
+}
+
+.sidebar .nav-item a.active svg {
+    fill: var(--tele-pink);
+}
+
+/* ── Muted / secondary buttons (recording, clear, auto-load, monitoring) ── */
+.btn-muted {
+    color: var(--tele-gray-600);
+    background: var(--tele-gray-50);
+    border-radius: var(--tele-radius-md);
+}
+
+.btn-muted:hover,
+.btn-muted:focus {
+    color: var(--tele-gray-900);
+    background: var(--tele-gray-100);
+}
+
+.btn-muted.active {
+    color: #fff;
+    background: var(--tele-pink);
+}
+
+/* ── Cards & tables ───────────────────────────────────────────────────── */
+.card {
+    box-shadow: 0 1px 2px rgb(18 19 26 / 0.06);
+    background-color: var(--tele-gray-0);
+}
+
+.card .card-header {
+    background-color: var(--tele-gray-0);
+    border-bottom: 1px solid var(--tele-gray-100);
+}
+
+.card .table th {
+    background-color: var(--tele-gray-50);
+    color: var(--tele-gray-600);
+}
+
+.card .table td {
+    border-top-color: var(--tele-gray-100) !important;
+}
+
+.table-hover tbody tr:hover {
+    background-color: var(--tele-gray-25);
+}
+
+.card-bg-secondary {
+    background: var(--tele-gray-50);
+}
+
+/* ── Badges (HTTP methods, status codes, queue status, watcher type…) ──── */
+.badge-secondary {
+    background: var(--tele-gray-100);
+    color: var(--tele-gray-600);
+}
+
+.badge-success {
+    background: var(--tele-success-tint);
+    color: var(--tele-success-strong);
+}
+
+.badge-info {
+    background: var(--tele-info-tint);
+    color: var(--tele-info-strong);
+}
+
+.badge-warning {
+    background: var(--tele-warning-tint);
+    color: var(--tele-warning-strong);
+}
+
+.badge-danger {
+    background: var(--tele-danger-tint);
+    color: var(--tele-danger-strong);
+}
+
+.fill-danger { fill: var(--tele-danger); }
+.fill-warning { fill: var(--tele-warning); }
+.fill-info { fill: var(--tele-info); }
+.fill-success { fill: var(--tele-success); }
+
+.disabled-watcher {
+    background: var(--tele-danger);
+}
+
+/* ── Pills (tabs inside a record's detail view) ──────────────────────── */
+.card .nav-pills .nav-link {
+    color: var(--tele-gray-500);
+}
+
+.card .nav-pills .nav-link:hover,
+.card .nav-pills .nav-link:focus {
+    color: var(--tele-gray-800);
+}
+
+.card .nav-pills .nav-link.active {
+    color: var(--tele-pink);
+    border-bottom-color: var(--tele-pink);
+}
+
+/* ── Newly-arrived-entry highlight flash ─────────────────────────────── */
+.list-enter:not(.dontanimate),
+.list-leave-to:not(.dontanimate) {
+    background: var(--tele-pink-100);
+}
+
+/* ── Control action icons (copy/expand/etc. on a record row) ─────────── */
+.control-action svg {
+    fill: var(--tele-gray-300);
+}
+
+.control-action svg:hover {
+    fill: var(--tele-pink);
+}
+
+/* ── Pagination ───────────────────────────────────────────────────────── */
+.page-link {
+    color: var(--tele-pink);
+    border-radius: var(--tele-radius-sm);
+}
+
+.page-item.active .page-link {
+    background-color: var(--tele-pink);
+    border-color: var(--tele-pink);
+}
+
+.page-link:hover {
+    color: var(--tele-pink-600);
+    background-color: var(--tele-gray-50);
+}
+
+/* ── Dropdowns ────────────────────────────────────────────────────────── */
+.dropdown-menu {
+    border-color: var(--tele-gray-100);
+    box-shadow: 0 4px 12px rgb(18 19 26 / 0.08);
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background-color: var(--tele-gray-50);
+    color: var(--tele-pink);
+}
+
+/* ── Form controls ────────────────────────────────────────────────────── */
+.form-control {
+    border-color: var(--tele-gray-200);
+}
+
+.form-control:focus {
+    border-color: var(--tele-pink);
+}
+
+::selection {
+    background: var(--tele-pink-100);
+}

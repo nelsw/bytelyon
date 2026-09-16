@@ -2,24 +2,27 @@
 
 namespace App\Services;
 
-use App\Data\Rss\BingRssItem;
-use App\Data\Rss\GoogleRssItem;
+use App\Support\Rss\BaseRssItem;
+use App\Support\Rss\BingRssItem;
+use App\Support\Rss\GoogleRssItem;
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 
-readonly class RssService
+#[Singleton]
+class RssService
 {
-    private function items(string $class, string $url, array $query): array
+    /** @return BaseRssItem[] */
+    public function news(string $query): array
     {
-        try {
-            $body = Http::get($url, $query)->throw()->body();
-        } catch (RequestException|ConnectionException $e) {
-            return [];
-        }
-        return (array) simplexml_load_string($body, $class)->xpath('//item');
+        return array_merge(
+            $this->bing($query),
+            $this->google($query),
+        );
     }
 
+    /** @return BingRssItem[] */
     protected function bing(string $query): array
     {
         return $this->items(BingRssItem::class, 'https://www.bing.com/news/search', [
@@ -28,6 +31,7 @@ readonly class RssService
         ]);
     }
 
+    /** @return GoogleRssItem[] */
     protected function google(string $query): array
     {
         return $this->items(GoogleRssItem::class, 'https://news.google.com/rss/search', [
@@ -36,5 +40,15 @@ readonly class RssService
             'gl' => 'US',
             'ceid' => 'US:en',
         ]);
+    }
+
+    private function items(string $class, string $url, array $query): array
+    {
+        try {
+            $body = Http::get($url, $query)->throw()->body();
+        } catch (RequestException|ConnectionException $e) {
+            return [];
+        }
+        return (array) simplexml_load_string($body, $class)->xpath('//item');
     }
 }

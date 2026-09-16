@@ -5,52 +5,41 @@ namespace Tests\Feature\Controller;
 use App\Enums\BotType;
 use App\Enums\FrequencyType;
 use App\Models\Bot;
-use App\Models\User;
 use Tests\TestCase;
 
 class BotControllerTest extends TestCase
 {
     public function test_store_rejects_a_duplicate_query_for_the_same_type(): void
     {
-        $user = User::factory()->verified()->create();
+        $bot = Bot::factory()->news()->createOneQuietly();
 
-        Bot::factory()->for($user)->create([
-            'type' => BotType::News,
-            'query' => 'laravel release notes',
-        ]);
-
-        $response = $this->actingAs($user)->post(route('bots.store'), [
+        $response = $this->actingAs($bot->user)->post(route('bots.store'), [
             'blacklist' => null,
             'enabled' => true,
             'headless' => true,
             'frequency' => FrequencyType::values()[0],
-            'type' => BotType::News->value,
-            'query' => 'laravel release notes',
+            'type' => $bot->type->value,
+            'query' => $bot->query,
         ]);
 
         $response->assertSessionHasErrors('query');
-        $this->assertSame(1, Bot::where('user_id', $user->id)->count());
+        $this->assertSame(1, Bot::where('user_id', $bot->user_id)->count());
     }
 
     public function test_store_allows_the_same_query_for_a_different_type(): void
     {
-        $user = User::factory()->verified()->create();
+        $bot = Bot::factory()->news()->createOneQuietly();
 
-        Bot::factory()->for($user)->create([
-            'type' => BotType::News,
-            'query' => 'laravel release notes',
-        ]);
-
-        $response = $this->actingAs($user)->post(route('bots.store'), [
+        $response = $this->actingAs($bot->user)->post(route('bots.store'), [
             'blacklist' => null,
             'enabled' => true,
             'headless' => true,
             'frequency' => FrequencyType::values()[0],
             'type' => BotType::Search->value,
-            'query' => 'laravel release notes',
+            'query' => $bot->query,
         ]);
 
         $response->assertSessionDoesntHaveErrors();
-        $this->assertSame(2, Bot::where('user_id', $user->id)->count());
+        $this->assertSame(2, Bot::where('user_id', $bot->user_id)->count());
     }
 }

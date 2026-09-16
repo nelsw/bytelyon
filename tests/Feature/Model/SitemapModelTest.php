@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Model;
 
+use App\Models\Bot;
 use App\Models\Page;
 use App\Models\Sitemap;
 use Tests\TestCase;
@@ -10,8 +11,11 @@ class SitemapModelTest extends TestCase
 {
     public function test_observer(): void
     {
-        /** @var Sitemap $sitemap */
-        $sitemap = Sitemap::factory()->hasPages(3)->create();
+        $bot = Bot::factory()
+            ->sitemap('bytelyon.com')
+            ->enabled()
+            ->createQuietly();
+        $sitemap = $bot->sitemap;
 
         $this->assertDatabaseHas($sitemap);
         foreach ($sitemap->pages as $page) {
@@ -22,7 +26,7 @@ class SitemapModelTest extends TestCase
             ]);
         }
 
-        $sitemap->bot->delete();
+        $bot->delete();
 
         $this->assertDatabaseMissing($sitemap);
         $this->assertSoftDeleted($sitemap->pages);

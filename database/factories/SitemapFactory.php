@@ -15,6 +15,7 @@ class SitemapFactory extends Factory
         return [
             'bot_id' => Bot::factory()
                 ->sitemap()
+                ->query($domain)
                 ->headless()
                 ->enabled()
                 ->lastRunAt(now()->subYear()),
@@ -28,20 +29,18 @@ class SitemapFactory extends Factory
         ];
     }
 
+    public function domain(string $domain): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'domain' => $domain,
+            'urls' => [],
+        ]);
+    }
+
     public function deleted(): static
     {
         return $this->state(fn (array $attributes) => [
             'deleted_at' => now(),
         ]);
-    }
-
-    public function configure(): static
-    {
-        return $this->afterCreating(function (Sitemap $sitemap) {
-            Sitemap::withTrashed()
-                ->where('bot_id', $sitemap->bot_id)
-                ->whereKeyNot($sitemap->id)
-                ->forceDelete();
-        });
     }
 }

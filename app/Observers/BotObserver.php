@@ -21,12 +21,12 @@ class BotObserver
             case BotType::News:
                 break;
         }
-        BotJob::dispatchIf($bot->isRunnable(), $bot);
+        BotJob::dispatchAfterResponse($bot);
     }
 
     public function updated(Bot $bot): void
     {
-        BotJob::dispatchIf($bot->isRunnable(), $bot);
+        BotJob::dispatchAfterResponse($bot);
     }
 
     public function deleting(Bot $bot): void

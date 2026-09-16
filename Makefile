@@ -1,9 +1,4 @@
 sail := @vendor/bin/sail
-qty := 1
-
-help:
-	echo $(qty)
-	$(sail) --help
 
 #
 # Server
@@ -60,17 +55,8 @@ scan:
 # Test
 #
 test: clear
-	@rm -rf reports/*
+	@rm -rf ./reports/*
 	$(sail) pint --parallel
-	$(sail) test --compact --coverage --coverage-html=reports
+	$(sail) test --compact --coverage --coverage-html=./reports
 	@sleep 3
 	@open ./reports/index.html
-
-
-#
-# Workers
-#
-scale:
-	$(sail) up -d --scale worker=$(q)
-kill:
-	$(sail) ps -q --filter "name=^worker" | xargs -r sail stop

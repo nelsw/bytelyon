@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\UpdateArticle;
 use App\Actions\UpdateOrCreateSitemapPage;
-use App\Actions\UpdateSitemap;
-use App\Concerns\ScrapeValidationRules;
+use App\Actions\UpdateSitemapUrls;
 use App\Facades\Sqs;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\PageSaveRequest;
@@ -19,7 +19,6 @@ use Illuminate\Support\Facades\Log;
 
 class ScrapeJobController extends Controller
 {
-    use ScrapeValidationRules;
 
     public function serp(PageSaveRequest $request, Serp $serp): Response
     {
@@ -51,7 +50,14 @@ class ScrapeJobController extends Controller
             $request->input('content_key'),
         );
 
-        $article->update($page->toArray());
+        (new UpdateArticle)(
+            $article,
+            $page->body(),
+            $page->description(),
+            $page->imgAlt(),
+            $page->imgSrc(),
+            $page->keywords(),
+        );
 
         return response()->noContent();
     }
@@ -71,20 +77,43 @@ class ScrapeJobController extends Controller
             $page->meta(),
         );
 
-        /** @var array<string, bool> $known */
-        $known = $bot->sitemap?->pages()->pluck('url')->mapWithKeys(fn (string $u) => [$u => true])->all() ?? [];
-
-        (new UpdateSitemap)($bot, $known);
-
-        $depth = $request->integer('depth', 0);
-        if ($depth > 0) {
-            foreach (array_keys($page->links()) as $link) {
-                if (isset($known[$link])) {
-                    continue;
-                }
-                Sqs::enqueueScrape('sitemap', $bot->id, ['url' => $link, 'depth' => $depth - 1]);
-            }
+        /*
+         * Update the sitemap with this url if not set
+         */
+        if (!isset($bot->sitemap->urls[$page->url])) {
+            // insert url as TRUE because it's been scraped
+            $bot->sitemap->urls[$page->url] = true;
+            (new UpdateSitemapUrls)($bot->sitemap);
         }
+
+        /*
+         * FIRST - check if we can fail fast
+         */
+        $links = $page->links();
+        if ($links->isEmpty()) {
+            return response()->noContent();
+        }
+
+        /*
+         * SECOND - check if permitted to crawl links
+         */
+        if ($request->integer('depth') < 0) {
+            // add these links to the sitemap as FALSE
+            $links->each(fn(string $link) => $bot->sitemap->urls[$link] = false);
+            // and update before returning home
+            (new UpdateSitemapUrls)($bot->sitemap);
+            return response()->noContent();
+        }
+
+        /*
+         * LAST - transform link into a generic payload as add to end of queue
+         */
+        $links->transform(fn(string $link) => [
+            'type' => $bot->type,
+            'id' => $bot->id,
+            'url' => $link,
+            'depth' => $request->integer('depth') - 1,
+        ])->each(Sqs::enqueueFN());
 
         return response()->noContent();
     }

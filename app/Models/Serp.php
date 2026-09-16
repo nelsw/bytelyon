@@ -32,7 +32,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property CarbonImmutable|null $deleted_at
  * @property int $bot_id
  * @property string|null $content_key
- * @property-read Bot|null $bot
  * @property-read Collection<int, Page> $pages
  * @property-read int|null $pages_count
  *

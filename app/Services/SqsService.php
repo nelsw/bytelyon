@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App;
 use Aws\Sqs\SqsClient;
+use Closure;
 use Illuminate\Container\Attributes\Singleton;
 
 #[Singleton]
@@ -19,18 +20,22 @@ class SqsService
         $this->queueUrl = config('services.sqs.scrape_jobs_queue_url');
     }
 
-    public function enqueueScrape(string $type, int $id, array $fields = []): void
+    public function enqueueFN(): Closure
     {
-        if (App::runningUnitTests() || !App::isLocal()) {
-            return;
+        if (App::runningUnitTests()) {
+            return fn () => [];
         }
-        $this->client->sendMessage([
+
+        /** @param array<string, mixed> $payload */
+        return fn(array $payload = []) => $this->client->sendMessage([
             'QueueUrl' => $this->queueUrl,
-            'MessageBody' => json_encode([
-                'type' => $type,
-                'id' => $id,
-                ...$fields,
-            ]),
+            'MessageBody' => json_encode($payload),
         ]);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function enqueue(array $payload = []): void
+    {
+        $this->enqueueFN()($payload);
     }
 }

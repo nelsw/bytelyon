@@ -14,9 +14,7 @@ use IteratorAggregate;
 
 abstract class Html
 {
-    use HasBody,
-        HasLinks,
-        HasMeta;
+    use HasBody, HasMeta;
 
     protected HTMLDocument $document;
 

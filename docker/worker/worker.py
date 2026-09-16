@@ -92,11 +92,62 @@ import boto3
 import requests
 from handlers import generic, serp
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s %(message)s",
-    stream=sys.stdout,
+
+class _ColorFormatter(logging.Formatter):
+    """Colors just the level name, so INFO/WARNING/ERROR/etc. are easy to
+    pick out at a glance in a terminal, without touching the message itself
+    (so it stays plain, greppable text). Falls back to no color at all when
+    stdout isn't a TTY (e.g. piped to a file or a log collector), since ANSI
+    codes would just show up as garbage escape sequences there.
+    """
+
+    _COLORS = {
+        logging.DEBUG: "\033[36m",  # cyan
+        logging.INFO: "\033[32m",  # green
+        logging.WARNING: "\033[33m",  # yellow
+        logging.ERROR: "\033[31m",  # red
+        logging.CRITICAL: "\033[1;37;41m",  # bold white on red bg
+    }
+    _ABBREVIATIONS = {
+        logging.DEBUG: "DBG",
+        logging.INFO: "INF",
+        logging.WARNING: "WAR",
+        logging.ERROR: "ERR",
+        logging.CRITICAL: "FAT",
+    }
+    _RESET = "\033[0m"
+
+    def __init__(self, fmt: str, *, colorize: bool) -> None:
+        super().__init__(fmt, datefmt="%H:%M")
+        self._colorize = colorize
+
+    def format(self, record: logging.LogRecord) -> str:
+        levelname = self._ABBREVIATIONS.get(record.levelno, record.levelname)
+        if self._colorize:
+            color = self._COLORS.get(record.levelno, "")
+            if color:
+                levelname = f"{color}{levelname}{self._RESET}"
+        if levelname != record.levelname:
+            record = logging.makeLogRecord(record.__dict__)
+            record.levelname = levelname
+        return super().format(record)
+
+
+# Not gated on sys.stdout.isatty(): this worker normally runs inside a
+# plain (non-tty) Docker container, piping stdout straight to the log
+# driver — isatty() would be False there even though whoever's actually
+# reading the logs (`docker compose logs -f`, a terminal) is a real,
+# color-capable TTY on the *other* end of that pipe. Default to color on;
+# respect the standard NO_COLOR convention (https://no-color.org/) for
+# anyone piping logs somewhere that can't render ANSI codes.
+_handler = logging.StreamHandler(stream=sys.stdout)
+_handler.setFormatter(
+    _ColorFormatter(
+        "%(asctime)s %(levelname)s %(message)s",
+        colorize=not os.environ.get("NO_COLOR"),
+    )
 )
+logging.basicConfig(level=logging.INFO, handlers=[_handler])
 logger = logging.getLogger("worker")
 
 _HANDLERS = {

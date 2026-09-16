@@ -44,7 +44,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Sitemap extends Model
 {
     /** @use HasFactory<SitemapFactory> */
-    use HasBot, HasFactory, HasPages, SoftDeletes;
+    use HasBot,
+        HasFactory,
+        HasPages,
+        SoftDeletes;
 
     /** @return array<string, string> */
     protected function casts(): array

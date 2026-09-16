@@ -3,11 +3,11 @@
 namespace App\Facades;
 
 use App\Services\RssService;
-use App\Support\Rss\BaseRssItem;
+use App\Support\Rss\RssItem;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @method static BaseRssItem[] news(string $query)
+ * @method static RssItem[] news(string $query)
  */
 class Rss extends Facade
 {

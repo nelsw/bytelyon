@@ -4,7 +4,7 @@ namespace App\Support\Rss;
 
 use Illuminate\Support\Arr;
 
-class BingRssItem extends BaseRssItem
+class BingRssItem extends RssItem
 {
     public function publisher(): string
     {

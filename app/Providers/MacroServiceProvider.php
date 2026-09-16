@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -20,6 +21,7 @@ class MacroServiceProvider extends ServiceProvider
         $this->configureHttp();
         $this->configureUri();
         $this->configureURL();
+        $this->configureContext();
     }
 
     private function configureArr(): void
@@ -60,9 +62,9 @@ class MacroServiceProvider extends ServiceProvider
 
         URL::macro('domain', function (?string $url): string {
             return $url === null ? '' : parse_url($url, PHP_URL_HOST)
-                |> (fn ($x) => explode('.', (string) $x))
-                |> (fn ($x) => array_slice($x, -2))
-                |> (fn ($x) => implode('.', $x));
+                    |> (fn ($x) => explode('.', (string) $x))
+                    |> (fn ($x) => array_slice($x, -2))
+                    |> (fn ($x) => implode('.', $x));
         });
 
         URL::macro('toFavicon', function (?string $url, int $size = 64) {
@@ -96,5 +98,10 @@ class MacroServiceProvider extends ServiceProvider
                     |> (fn ($x) => array_slice($x, -2))
                     |> (fn ($x) => implode('.', $x));
         });
+    }
+
+    private function configureContext(): void
+    {
+        Context::macro('id', fn (): string => rescue(fn () => collect(Context::all())->join(':'), Str::ulid()));
     }
 }

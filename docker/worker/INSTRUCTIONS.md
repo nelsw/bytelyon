@@ -44,6 +44,76 @@ main Laravel app, in PHP, not scattered across Python handlers — one place,
 one language, easy to test and iterate on without rebuilding/redeploying a
 worker image.
 
+### What actually gets POSTed back to Laravel
+
+```mermaid
+sequenceDiagram
+    participant Bot as SearchBotJob / NewsBotJob / SitemapBotJob
+    participant SQS as SQS queue
+    participant Worker as worker.py
+    participant Handler as handler (serp.py / generic.py)
+    participant S3 as S3 (bytelyon-private)
+    participant Api as ScrapeJobController
+
+    Bot->>SQS: enqueueScrape(type, id, fields)
+    SQS-->>Worker: receive_message (long-poll)
+    Worker->>Handler: run(job)
+    Handler->>S3: put_object(html)
+    Handler->>S3: put_object(screenshot png)
+    Handler-->>Worker: {url, screenshot_key, content_key}
+    Worker->>Api: POST /api/scrape-jobs/{type}/{id}/complete
+    Note right of Worker: body = {...passthrough, url,
+    screenshot_key, content_key}
+    Api-->>Worker: 204 No Content
+    Worker->>SQS: delete_message
+```
+
+The POST body is `{**passthrough, **result}` (see `_handle_message` /
+`_report_result` in `worker.py`) — every SQS message field _except_
+`type`/`id`/`headless`, merged with the handler's `{url, screenshot_key,
+content_key}`. Note `result` is spread last, so its `url` (the page's
+final, post-navigation/redirect URL) always wins over any `url` the
+original SQS message carried. Concretely, per job type:
+
+```jsonc
+// POST /api/scrape-jobs/serp/42/complete
+// SQS message was {"type": "serp", "id": 42, "query": "sailing blocks"}
+{
+    "query": "sailing blocks", // passthrough — untouched by this worker
+    "url": "https://www.google.com/search?q=sailing+blocks",
+    "screenshot_key": "worker-scrapes/serp/3f9e.../www.google.com/search-a1b2c3d4e5.png",
+    "content_key": "worker-scrapes/serp/3f9e.../www.google.com/search-a1b2c3d4e5.html"
+}
+```
+
+```jsonc
+// POST /api/scrape-jobs/news/17/complete
+// SQS message was {"type": "news", "id": 17, "url": "https://www.bbc.com/news/some-article"}
+{
+    "url": "https://www.bbc.com/news/some-article", // handler's result.url overrides passthrough's
+    "screenshot_key": "worker-scrapes/news/7c1d.../www.bbc.com/news/some-article-5f6a7b8c9d.png",
+    "content_key": "worker-scrapes/news/7c1d.../www.bbc.com/news/some-article-5f6a7b8c9d.html"
+}
+```
+
+```jsonc
+// POST /api/scrape-jobs/sitemap/5/complete
+// SQS message was {"type": "sitemap", "id": 5, "url": "https://bytelyon.com/about", "depth": 4}
+{
+    "depth": 4, // passthrough — read by ScrapeJobController::sitemap() to gate re-enqueueing discovered links
+    "url": "https://bytelyon.com/about",
+    "screenshot_key": "worker-scrapes/sitemap/9a2b.../bytelyon.com/about-1a2b3c4d5e.png",
+    "content_key": "worker-scrapes/sitemap/9a2b.../bytelyon.com/about-1a2b3c4d5e.html"
+}
+```
+
+All three routes validate against the same rules
+(`app/Concerns/ScrapeValidationRules.php`, used by
+`app/Http/Requests/Api/PageSaveRequest.php`): `url` (required, valid URL),
+`screenshot_key`/`content_key` (required strings), `depth` (nullable
+integer, sitemap-only in practice but not type-restricted at the
+validation layer).
+
 ### Two browser providers, one image
 
 CloakBrowser Pro's license caps concurrent sessions at **5 seats**.

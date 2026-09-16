@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\BotType;
 use App\Models\Bot;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Attributes\Controllers\Authorize;
 use Inertia\Inertia;
 use Inertia\Response;
 

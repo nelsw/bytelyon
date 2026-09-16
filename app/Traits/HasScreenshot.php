@@ -24,7 +24,7 @@ trait HasScreenshot
 
     public function deleteScreenshot(): void
     {
-        if ($this->screenshot_key !== null && !App::runningUnitTests()) {
+        if ($this->screenshot_key !== null && ! App::runningUnitTests()) {
             Storage::disk('s3')->delete($this->screenshot_key);
         }
     }

@@ -40,11 +40,15 @@ class RssService
         ]);
     }
 
+    /** @return RssItem[] */
     private function items(string $class, string $url, array $query): array
     {
-        return (array) simplexml_load_string(
-            data: rescue(fn () => Http::get($url, $query)->throw()->body(), []),
-            class_name: $class,
-        )->xpath('//item');
+        return rescue(function () use ($class, $url, $query) {
+            $xml = simplexml_load_string(
+                data: Http::get($url, $query)->body(),
+                class_name: $class,
+            )->xpath('//item');
+            return ! is_bool($xml) ? (array) $xml : [];
+        }, [], false);
     }
 }

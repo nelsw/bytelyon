@@ -23,7 +23,7 @@ class PageTest extends TestCase
 
         $this->assertSame('My Great Article - Site Name', $page->title());
         $this->assertSame('https://www.example.com/articles/1', $page->url);
-        $this->assertSame('example.com', $page->domain());
+        $this->assertSame('example.com', $page->domain);
     }
 
     public function test_meta_extracts_name_and_property_and_skips_invalid_tags(): void
@@ -109,7 +109,7 @@ class PageTest extends TestCase
         $this->assertSame('Only body paragraph.', $page->body());
     }
 
-    public function test_links_keeps_only_same_domain_links(): void
+    public function test_links_can_be_relative(): void
     {
         $page = new Page('https://www.example.com/article', $this->html('', <<<'HTML'
             <a href="https://www.example.com/other-page">Internal with www</a>
@@ -118,7 +118,15 @@ class PageTest extends TestCase
             <a href="/relative/path">Relative path</a>
             HTML));
 
-        $this->assertSame(['https://www.example.com/other-page'], $page->links());
+        $exp = [
+            'https://www.example.com/other-page',
+            'https://www.example.com/article/relative/path',
+        ];
+        $act = $page->links()->all();
+        $this->assertSameSize($exp, $act);
+        for ($i = 0; $i < count($exp); $i++) {
+            $this->assertSame($exp[$i], $act[$i]);
+        }
     }
 
     public function test_to_array_contains_all_expected_keys(): void

@@ -14,7 +14,7 @@ use JsonException;
 use RuntimeException;
 use Throwable;
 
-class GoogleRssItem extends BaseRssItem
+class GoogleRssItem extends RssItem
 {
     private const int LIBXML_NOERROR = 32;
 

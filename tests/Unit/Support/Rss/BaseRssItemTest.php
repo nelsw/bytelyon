@@ -2,12 +2,12 @@
 
 namespace Tests\Unit\Support\Rss;
 
-use App\Support\Rss\BaseRssItem;
+use App\Support\Rss\RssItem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
-class ConcreteRssItem extends BaseRssItem
+class ConcreteRssItem extends RssItem
 {
     public function imageSrc(): string
     {

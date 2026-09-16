@@ -39,6 +39,6 @@ return Application::configure(basePath: dirname(__DIR__))
         );
     })
     ->withSchedule(function (Schedule $schedule): void {
-        $schedule->command('run:bots')->everyFifteenMinutes();
+        $schedule->command('run:bots')->everyMinute();
     })
     ->create();

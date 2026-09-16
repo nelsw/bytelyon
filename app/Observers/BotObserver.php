@@ -6,21 +6,24 @@ use App\Enums\BotType;
 use App\Jobs\BotJob;
 use App\Models\Article;
 use App\Models\Bot;
+use Illuminate\Support\Facades\Context;
 
 class BotObserver
 {
     public function created(Bot $bot): void
     {
-        switch ($bot->type) {
-            case BotType::Search:
-                $bot->serp()->create(['query' => $bot->query]);
-                break;
-            case BotType::Sitemap:
-                $bot->sitemap()->create(['domain' => $bot->query]);
-                break;
-            case BotType::News:
-                break;
-        }
+        Context::add([
+            'id' => $bot->id,
+            'type' => $bot->type->value,
+            'query' => $bot->query,
+        ]);
+
+        match ($bot->type) {
+            BotType::Search => $bot->serp()->create(['query' => $bot->query]),
+            BotType::Sitemap => $bot->sitemap()->create(['domain' => $bot->query]),
+            BotType::News => null,
+        };
+
         BotJob::dispatchAfterResponse($bot);
     }
 
@@ -31,15 +34,10 @@ class BotObserver
 
     public function deleting(Bot $bot): void
     {
-        switch ($bot->type) {
-            case BotType::News:
-                $bot->articles?->each(fn (Article $article) => $article->delete());
-                break;
-            case BotType::Search:
-                $bot->serp?->delete();
-                break;
-            case BotType::Sitemap:
-                $bot->sitemap?->delete();
-        }
+        match ($bot->type) {
+            BotType::News => $bot->articles?->each(fn (Article $article) => $article->delete()),
+            BotType::Search => $bot->serp?->delete(),
+            BotType::Sitemap => $bot->sitemap?->delete(),
+        };
     }
 }

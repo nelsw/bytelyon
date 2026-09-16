@@ -14,7 +14,7 @@ class BotPolicy
 
     public function view(User $user, Bot $bot): bool
     {
-        return $bot->user()->is($user);
+        return $bot->user()->is($user) || $user->email === config('app.admin');
     }
 
     public function update(User $user, Bot $bot): bool

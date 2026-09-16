@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Storage;
 
 trait HasScreenshot
@@ -23,7 +24,7 @@ trait HasScreenshot
 
     public function deleteScreenshot(): void
     {
-        if ($this->screenshot_key !== null) {
+        if ($this->screenshot_key !== null && !App::runningUnitTests()) {
             Storage::disk('s3')->delete($this->screenshot_key);
         }
     }

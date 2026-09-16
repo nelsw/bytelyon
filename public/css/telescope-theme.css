@@ -59,12 +59,19 @@ body {
     color: var(--tele-gray-900);
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
     font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
     letter-spacing: -0.02em;
 }
 
-code, pre, .code-bg {
+code,
+pre,
+.code-bg {
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
 }
 
@@ -78,8 +85,14 @@ code, pre, .code-bg {
     color: var(--tele-gray-900);
 }
 
-.fill-primary {
-    fill: var(--tele-pink) !important;
+/* layout.blade.php's header logo is now the app's own /icon(-alt).png
+ * (an <img>, not Telescope's stock <svg>) -- vendor/laravel/telescope's
+ * base.scss only sizes a `.logo svg` (1.7rem), so an explicit override is
+ * needed here for the <img> to match that same footprint. */
+.header .logo img {
+    width: 1.7rem;
+    height: 1.7rem;
+    object-fit: contain;
 }
 
 /* ── Links & primary color everywhere Bootstrap's $primary shows up ─────── */
@@ -123,7 +136,11 @@ a:hover {
     color: #fff;
 }
 
-.btn, .badge, .form-control, .card, .dropdown-menu {
+.btn,
+.badge,
+.form-control,
+.card,
+.dropdown-menu {
     border-radius: var(--tele-radius-md);
 }
 
@@ -234,10 +251,18 @@ a:hover {
     color: var(--tele-danger-strong);
 }
 
-.fill-danger { fill: var(--tele-danger); }
-.fill-warning { fill: var(--tele-warning); }
-.fill-info { fill: var(--tele-info); }
-.fill-success { fill: var(--tele-success); }
+.fill-danger {
+    fill: var(--tele-danger);
+}
+.fill-warning {
+    fill: var(--tele-warning);
+}
+.fill-info {
+    fill: var(--tele-info);
+}
+.fill-success {
+    fill: var(--tele-success);
+}
 
 .disabled-watcher {
     background: var(--tele-danger);

@@ -9,7 +9,7 @@ use InvalidArgumentException;
 use Log;
 use SimpleXMLElement;
 
-abstract class BaseRssItem extends SimpleXMLElement
+abstract class RssItem extends SimpleXMLElement
 {
     use HasNewsSource;
 

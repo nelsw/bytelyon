@@ -2,27 +2,32 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\BotType;
+use App\Models\Bot;
 use App\Models\Page;
 use App\Models\Sitemap;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Routing\Attributes\Controllers\Authorize;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SitemapController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         return Inertia::render('sitemaps/Index', [
-            'sitemaps' => Sitemap::query()
-                ->notDeleted()
-                ->byDomain()
-                ->with('bot')
-                ->withCount('pages')
-                ->get(),
+            'sitemaps' => Bot::query()
+                ->user($request->user())
+                ->type(BotType::Sitemap)
+                ->get()
+                ->map(fn (Bot $bot) => $bot->sitemap)
+                ->sortBy('domain'),
         ]);
     }
 
+    #[Authorize('delete', 'sitemap')]
     public function destroy(Sitemap $sitemap): RedirectResponse
     {
         $sitemap->delete();
@@ -30,6 +35,7 @@ class SitemapController extends Controller
         return to_route('sitemaps.index');
     }
 
+    #[Authorize('view', 'sitemap')]
     public function show(Sitemap $sitemap): Response
     {
         return Inertia::render('sitemaps/Show', [

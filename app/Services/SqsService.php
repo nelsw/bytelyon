@@ -2,16 +2,19 @@
 
 namespace App\Services;
 
+use AllowDynamicProperties;
 use App;
 use Aws\Sqs\SqsClient;
+use Closure;
 use Illuminate\Container\Attributes\Singleton;
 
+#[AllowDynamicProperties]
 #[Singleton]
 class SqsService
 {
     protected SqsClient $client;
 
-    protected string $queueUrl = '';
+    protected string $queueUrl;
 
     public function __construct()
     {
@@ -19,18 +22,22 @@ class SqsService
         $this->queueUrl = config('services.sqs.scrape_jobs_queue_url');
     }
 
-    public function enqueueScrape(string $type, int $id, array $fields = []): void
+    /** @param array<string, mixed> $payload */
+    public function enqueue(array $payload = []): void
     {
-        if (App::runningUnitTests() || !App::isLocal()) {
-            return;
+        $this->enqueueFN()($payload);
+    }
+
+    public function enqueueFN(): Closure
+    {
+        if (App::runningUnitTests()) {
+            return fn () => [];
         }
-        $this->client->sendMessage([
+
+        /** @param array<string, mixed> $payload */
+        return fn (array $payload = []) => $this->client->sendMessage([
             'QueueUrl' => $this->queueUrl,
-            'MessageBody' => json_encode([
-                'type' => $type,
-                'id' => $id,
-                ...$fields,
-            ]),
+            'MessageBody' => json_encode($payload),
         ]);
     }
 }

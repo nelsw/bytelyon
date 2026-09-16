@@ -16,13 +16,12 @@ class ProxyResource extends JsonResource
             'scheme' => $this->scheme,
             'host' => $this->host,
             'port' => $this->port,
-            'user' => $this->user,
+            'user' => $this->username,
             'pass' => $this->pass,
             'bypass' => $this->bypass,
             'name' => $this->name,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
-
             'user_id' => $this->user_id,
         ];
     }

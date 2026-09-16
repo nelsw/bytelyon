@@ -3,7 +3,6 @@
 namespace App\Support\Sqs;
 
 use App\Traits\HasBody;
-use App\Traits\HasLinks;
 use App\Traits\HasMeta;
 use Dom\Element;
 use Dom\HTMLDocument;
@@ -14,9 +13,7 @@ use IteratorAggregate;
 
 abstract class Html
 {
-    use HasBody,
-        HasLinks,
-        HasMeta;
+    use HasBody, HasMeta;
 
     protected HTMLDocument $document;
 

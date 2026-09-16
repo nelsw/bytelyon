@@ -17,6 +17,7 @@ type NewsBot = {
     frequency: string;
     blacklist: string;
     headless: boolean;
+    proxies: number[];
     processedAt: string | null;
     createdAt: string;
     updatedAt: string;

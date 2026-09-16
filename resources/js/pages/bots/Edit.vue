@@ -16,6 +16,11 @@ type Option = {
     label: string;
 };
 
+type ProxyOption = {
+    value: number;
+    label: string;
+};
+
 type Bot = {
     id: number;
     query: string;
@@ -24,6 +29,7 @@ type Bot = {
     blacklist: string;
     enabled: boolean;
     headless: boolean;
+    proxies: number[];
 };
 
 defineOptions({
@@ -49,6 +55,7 @@ defineProps<{
     bot: Bot;
     typeOptions: Option[];
     frequencyOptions: Option[];
+    proxyOptions: ProxyOption[];
 }>();
 </script>
 
@@ -82,6 +89,7 @@ defineProps<{
                     :bot="bot"
                     :type-options="typeOptions"
                     :frequency-options="frequencyOptions"
+                    :proxy-options="proxyOptions"
                     show-cancel
                     @cancel="router.visit(`/bots/${bot.id}`)"
                 />

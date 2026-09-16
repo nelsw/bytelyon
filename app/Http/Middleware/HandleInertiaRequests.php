@@ -43,6 +43,13 @@ class HandleInertiaRequests extends Middleware
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'typeOptions' => BotType::options(),
             'frequencyOptions' => FrequencyType::options(),
+            'proxyOptions' => $request->user()
+                ? $request->user()->proxies()
+                    ->orderBy('name')
+                    ->get()
+                    ->map(fn ($proxy) => ['value' => $proxy->id, 'label' => $proxy->name])
+                    ->all()
+                : [],
         ];
     }
 }

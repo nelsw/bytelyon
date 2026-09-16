@@ -19,6 +19,7 @@ type Bot = {
     frequency: string;
     enabled: boolean;
     headless: boolean;
+    proxies: number[];
     lastRunAt: string | null;
     createdAt: string;
     updatedAt: string;

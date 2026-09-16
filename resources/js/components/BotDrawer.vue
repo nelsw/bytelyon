@@ -29,6 +29,7 @@ const open = ref(false);
 const page = usePage();
 const typeOptions = computed(() => page.props.typeOptions ?? []);
 const frequencyOptions = computed(() => page.props.frequencyOptions ?? []);
+const proxyOptions = computed(() => page.props.proxyOptions ?? []);
 
 const isEditing = computed(() => props.bot.id !== undefined);
 const title = computed(() => (isEditing.value ? 'Edit bot' : 'Create bot'));
@@ -77,6 +78,7 @@ defineExpose({ open });
                     :bot="bot"
                     :type-options="typeOptions"
                     :frequency-options="frequencyOptions"
+                    :proxy-options="proxyOptions"
                     show-cancel
                     @success="open = false"
                     @cancel="open = false"

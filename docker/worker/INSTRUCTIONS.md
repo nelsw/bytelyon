@@ -18,15 +18,26 @@ message at a time).
 ## Architecture
 
 ```
-SearchBotJob / NewsBotJob / SitemapBotJob  (Laravel)
-  -> Sqs::enqueueScrape($type, $id, $fields)
+BotJob  (Laravel)
+  -> picks one of the bot's configured proxies at random, if it has any
+     (App\Models\Bot::randomProxy(), configured per-bot from one-to-many
+     proxies created in Settings > Proxies)
+  -> Sqs::enqueueScrape($type, $id, $fields)  -- $fields includes a `proxy`
+     field (`{scheme, host, port, username, pass, bypass}`) whenever a
+     proxy was picked
   -> SQS queue: bytelyon-scrape-jobs[-dev]  (DLQ: ...-dlq, maxReceive=3)
        one queue pair per environment -- see "One-time setup" below
   -> worker.py (any number of machines, long-polling)
-       -> handlers/serp.py    (type=serp)     launch+navigate w/ DataImpulse proxy
-       -> handlers/generic.py (type=news|sitemap)  plain page.goto(url)
+       -> handlers/serp.py    (type=serp)     launch+navigate, using the
+            job's `proxy` if present, else falling back to a hardcoded
+            DataImpulse SOCKS5 proxy (Google needs *some* trusted-geo
+            egress; see the module docstring)
+       -> handlers/generic.py (type=news|sitemap)  plain page.goto(url),
+            using the job's `proxy` if present, else no proxy at all
        -> both return {url, screenshot_key, content_key} — nothing else.
-          No parsing happens in Python at all.
+          No parsing happens in Python at all. `proxy` itself is consumed
+          by the handler and never forwarded past this point (see
+          common.proxy_settings() and worker.py's passthrough filter).
        -> uploads html/screenshot to s3://bytelyon-private/worker-scrapes/<type>/...
        -> POST {LARAVEL_BASE_URL}/api/scrape-jobs/{type}/{id}/complete
             Authorization: Bearer <worker-ability Sanctum token>

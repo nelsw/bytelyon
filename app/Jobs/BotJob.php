@@ -11,6 +11,8 @@ use App\Models\Article;
 use App\Models\Bot;
 use App\Support\Rss\RssItem;
 use Illuminate\Bus\Batchable;
+use App\Models\Proxy;
+use App\Support\Rss\BaseRssItem;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -68,6 +70,45 @@ class BotJob implements ShouldBeUnique, ShouldQueue
                     });
         }
         (new UpdateBotRunTimestamp)($this->bot);
+    }
+
+    public function handleSearch(): void
+    {
+        Sqs::enqueueScrape('serp', $this->bot->serp->id, ['query' => $this->bot->query]);
+    }
+
+    public function handleSitemap(): void
+    {
+        $root = "https://{$this->bot->query}";
+
+        Sqs::enqueueScrape('sitemap', $this->bot->id, ['url' => $root, 'depth' => 5]);
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    protected function proxyFields(): array
+    {
+        $proxy = $this->bot->randomProxy();
+
+        if ($proxy === null) {
+            return [];
+        }
+
+        return ['proxy' => $this->proxyPayload($proxy)];
+    }
+
+    /** @return array<string, mixed> */
+    protected function proxyPayload(Proxy $proxy): array
+    {
+        return [
+            'scheme' => $proxy->scheme,
+            'host' => $proxy->host,
+            'port' => $proxy->port,
+            'username' => $proxy->username,
+            'pass' => $proxy->pass,
+            'bypass' => $proxy->bypass,
+        ];
     }
 
     public function failed(?Throwable $e): void

@@ -22,11 +22,14 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property-read Collection<int, Article> $articles
+ * @property-read Collection<int, Proxy> $proxies
+ * @property-read int|null $proxies_count
  * @property-read Serp|null $serp
  * @property-read Sitemap|null $sitemap
  * @property-read User|null $user
@@ -99,6 +102,12 @@ class Bot extends Model
         return $this->hasMany(Article::class);
     }
 
+    /** @return BelongsToMany<Proxy, $this> */
+    public function proxies(): BelongsToMany
+    {
+        return $this->belongsToMany(Proxy::class);
+    }
+
     /** @return HasOne<Serp, $this> */
     public function serp(): HasOne
     {
@@ -122,6 +131,7 @@ class Bot extends Model
             'blacklist' => $this->blacklist,
             'after' => $this->blacklist(),
             'headless' => $this->headless,
+            'proxies' => $this->proxies->pluck('id'),
             'processedAt' => $this->last_run_at,
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
@@ -156,6 +166,11 @@ class Bot extends Model
     public function lastRunAt(): CarbonInterface
     {
         return $this->last_run_at ?? now()->subYear();
+    }
+
+    public function randomProxy(): ?Proxy
+    {
+        return $this->proxies()->inRandomOrder()->first();
     }
 
     public function blacklisted(string ...$args): bool

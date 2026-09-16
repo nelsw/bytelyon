@@ -15,6 +15,11 @@ type Option = {
     label: string;
 };
 
+type ProxyOption = {
+    value: number;
+    label: string;
+};
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -33,6 +38,7 @@ defineOptions({
 defineProps<{
     typeOptions: Option[];
     frequencyOptions: Option[];
+    proxyOptions: ProxyOption[];
 }>();
 </script>
 
@@ -61,6 +67,7 @@ defineProps<{
                 <BotForm
                     :type-options="typeOptions"
                     :frequency-options="frequencyOptions"
+                    :proxy-options="proxyOptions"
                     show-cancel
                     @cancel="router.visit('/bots')"
                 />

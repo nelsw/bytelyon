@@ -31,29 +31,34 @@ class BotController extends Controller
         return Inertia::render('bots/Show', ['bot' => $bot]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('bots/Create', [
             'typeOptions' => BotType::options(),
             'frequencyOptions' => FrequencyType::options(),
+            'proxyOptions' => $this->proxyOptions($request),
         ]);
     }
 
     #[Authorize('update', 'bot')]
-    public function edit(Bot $bot): Response
+    public function edit(Request $request, Bot $bot): Response
     {
         return Inertia::render('bots/Edit', [
             'bot' => $bot,
             'typeOptions' => BotType::options(),
             'frequencyOptions' => FrequencyType::options(),
+            'proxyOptions' => $this->proxyOptions($request),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $request->user()->bots()->create($request->validate($this->createRules(), [
+        $validated = $request->validate($this->createRules(), [
             'query.unique' => __('You already have a bot with this query and type.'),
-        ]));
+        ]);
+
+        $bot = $request->user()->bots()->create($validated);
+        $bot->proxies()->sync($validated['proxies'] ?? []);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot created.')]);
 
@@ -63,11 +68,24 @@ class BotController extends Controller
     #[Authorize('update', 'bot')]
     public function update(Request $request, Bot $bot): RedirectResponse
     {
-        $bot->update($request->validate($this->updateRules()));
+        $validated = $request->validate($this->updateRules());
+
+        $bot->update($validated);
+        $bot->proxies()->sync($validated['proxies'] ?? []);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot updated.')]);
 
         return to_route('dashboard');
+    }
+
+    /** @return array<int, array{value: int, label: string}> */
+    protected function proxyOptions(Request $request): array
+    {
+        return $request->user()->proxies()
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($proxy) => ['value' => $proxy->id, 'label' => $proxy->name])
+            ->all();
     }
 
     #[Authorize('delete', 'bot')]

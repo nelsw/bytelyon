@@ -38,6 +38,12 @@ trait BotValidationRules
             'enabled' => ['required', 'boolean'],
             'headless' => ['required', 'boolean'],
             'frequency' => ['required', Rule::enum(FrequencyType::class)],
+            'proxies' => ['nullable', 'array'],
+            'proxies.*' => [
+                'integer',
+                Rule::exists('proxies', 'id')->where(fn ($query) => $query
+                    ->where('user_id', request()->user()?->id)),
+            ],
         ];
     }
 }

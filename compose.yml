@@ -1,5 +1,4 @@
-name: bytelyon
-
+name: ByteLyon
 services:
     server:
         build:
@@ -26,6 +25,7 @@ services:
         depends_on:
             - pgsql
             - redis
+            - worker
     pgsql:
         image: 'postgres:18-alpine'
         ports:
@@ -64,6 +64,22 @@ services:
             test: ['CMD', 'redis-cli', 'ping']
             retries: 3
             timeout: 5s
+    worker:
+        build:
+            context: './docker/worker'
+            dockerfile: Dockerfile
+        image: 'bytelyon-worker/app'
+        environment:
+            SCRAPE_JOBS_QUEUE_URL: '${SQS_SCRAPE_JOBS_QUEUE_URL}'
+            LARAVEL_BASE_URL: '${LARAVEL_BASE_URL:-http://server}'
+            LARAVEL_WORKER_TOKEN: '${LARAVEL_WORKER_TOKEN}'
+            AWS_ACCESS_KEY_ID: '${AWS_ACCESS_KEY_ID}'
+            AWS_SECRET_ACCESS_KEY: '${AWS_SECRET_ACCESS_KEY}'
+            AWS_DEFAULT_REGION: '${AWS_DEFAULT_REGION:-us-east-1}'
+        networks:
+            - sail
+        deploy:
+            replicas: '${APP_WORKER_REPLICAS:-3}'
 networks:
     sail:
         driver: bridge

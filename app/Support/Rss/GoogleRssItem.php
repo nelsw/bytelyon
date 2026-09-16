@@ -2,7 +2,6 @@
 
 namespace App\Support\Rss;
 
-use App\Enums\NewsSource;
 use Dom\Element;
 use Dom\HTMLDocument;
 use Illuminate\Http\Client\ConnectionException;
@@ -42,12 +41,7 @@ class GoogleRssItem extends BaseRssItem
 
     public function title(): string
     {
-        return explode(' - ', $this->title)[0];
-    }
-
-    public function source(): string
-    {
-        return NewsSource::GoogleNews->value;
+        return rescue(fn () => explode(' - ', $this->title)[0], (string) $this->title);
     }
 
     public function url(): string

@@ -4,20 +4,18 @@ namespace App\Services;
 
 use App\Support\Rss\BingRssItem;
 use App\Support\Rss\GoogleRssItem;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\RequestException;
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Facades\Http;
 
-readonly class RssService
+#[Singleton]
+class RssService
 {
-    private function items(string $class, string $url, array $query): array
+    public function news(string $query): array
     {
-        try {
-            $body = Http::get($url, $query)->throw()->body();
-        } catch (RequestException|ConnectionException $e) {
-            return [];
-        }
-        return (array) simplexml_load_string($body, $class)->xpath('//item');
+        return array_merge(
+            $this->bing($query),
+            $this->google($query),
+        );
     }
 
     protected function bing(string $query): array
@@ -38,11 +36,14 @@ readonly class RssService
         ]);
     }
 
-    public function news(string $query): array
+    private function items(string $class, string $url, array $query): array
     {
-        return array_merge(
-            $this->bing($query),
-            $this->google($query),
-        );
+
+        return rescue(function() use ($class, $url, $query) {
+            return (array) simplexml_load_string(
+                data: Http::get($url, $query)->throw()->body(),
+                class_name: $class,
+            )->xpath('//item');
+        }, []);
     }
 }

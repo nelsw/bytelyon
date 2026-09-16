@@ -3,7 +3,6 @@
 namespace App\Support\Sqs;
 
 use App\Traits\HasBody;
-use App\Traits\HasElement;
 use App\Traits\HasLinks;
 use App\Traits\HasMeta;
 use Dom\Element;
@@ -15,7 +14,9 @@ use IteratorAggregate;
 
 abstract class Html
 {
-    use HasBody, HasElement, HasLinks, HasMeta;
+    use HasBody,
+        HasLinks,
+        HasMeta;
 
     protected HTMLDocument $document;
 
@@ -30,7 +31,7 @@ abstract class Html
                 options: LIBXML_NOERROR | LIBXML_HTML_NOIMPLIED,
             ), HTMLDocument::createEmpty(),
         );
-        $this->emptyElement = $this->document->createElement('null');
+        $this->emptyElement = $this->document->createElement('div');
     }
 
     public function title(): string

@@ -10,16 +10,17 @@ class BingRssItemTest extends TestCase
 {
     private function makeItem(string $link, string $sourceTag = ''): BingRssItem
     {
-        $xml = "<?xml version=\"1.0\"?>
-<item >
-<title>Bing Article Title</title>
-<link>$link</link>
-<description>Bing description</description>
-<pubDate>Mon, 01 Jan 2024 10:00:00 GMT</pubDate>
-{$sourceTag}
-</item>";
-
-        return new BingRssItem($xml);
+        return new BingRssItem(<<<XML
+<?xml version="1.0"?>
+<item xmlns:News="http://schemas.microsoft.com/HealthVault/2007/thing/News">
+    <title>Bing Article Title</title>
+    <link>$link</link>
+    <description>Bing description</description>
+    <pubDate>Mon, 01 Jan 2024 10:00:00 GMT</pubDate>
+    <News:Image>SomeImage</News:Image>
+    {$sourceTag}
+</item>
+XML);
     }
 
     public function test_publisher_and_image_src_return_first_news_source_node(): void
@@ -30,7 +31,7 @@ class BingRssItemTest extends TestCase
         );
 
         $this->assertSame('Example Publisher', $item->publisher());
-        $this->assertSame('Example Publisher', $item->imageSrc());
+        $this->assertSame('SomeImage', $item->imageSrc());
     }
 
     public function test_publisher_and_image_src_default_to_empty_string_when_missing(): void
@@ -40,7 +41,7 @@ class BingRssItemTest extends TestCase
         );
 
         $this->assertSame('', $item->publisher());
-        $this->assertSame('', $item->imageSrc());
+        $this->assertSame('SomeImage', $item->imageSrc());
     }
 
     public function test_source_returns_bing_news_enum_value(): void

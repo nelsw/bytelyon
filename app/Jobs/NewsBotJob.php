@@ -2,10 +2,10 @@
 
 namespace App\Jobs;
 
-use App\Contracts\RssItem;
 use App\Events\BotResultsPersisted;
 use App\Facades\Rss;
 use App\Facades\Sqs;
+use App\Support\Rss\BaseRssItem;
 use Illuminate\Support\Facades\Log;
 
 class NewsBotJob extends BaseBotJob
@@ -13,8 +13,8 @@ class NewsBotJob extends BaseBotJob
     public function handle(): void
     {
         $items = collect(Rss::news($this->bot->query))
-            ->filter(fn (RssItem $item) => $this->bot->lastRunAt()->isBefore($item->publishedAt()))
-            ->reject(fn (RssItem $item) => $this->bot->blacklisted($item->title(), $item->description()));
+            ->filter(fn (BaseRssItem $item) => $this->bot->lastRunAt()->isBefore($item->publishedAt()))
+            ->reject(fn (BaseRssItem $item) => $this->bot->blacklisted($item->title(), $item->description()));
 
         foreach ($items as $item) {
             $article = $this->bot->articles()->updateOrCreate(['url' => $item->url()], $item->toArray());

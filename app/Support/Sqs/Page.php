@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Storage;
 
 class Page extends Html
 {
-    use HasUrl, HasLinks;
+    use HasLinks, HasUrl;
 
     public function __construct(
         public readonly string $url = '',

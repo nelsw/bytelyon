@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App;
 use Aws\Sqs\SqsClient;
 use Illuminate\Container\Attributes\Singleton;
 
@@ -20,6 +21,9 @@ class SqsService
 
     public function enqueueScrape(string $type, int $id, array $fields = []): void
     {
+        if (App::runningUnitTests()) {
+            return;
+        }
         $this->client->sendMessage([
             'QueueUrl' => $this->queueUrl,
             'MessageBody' => json_encode([

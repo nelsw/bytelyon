@@ -219,6 +219,18 @@ docker buildx build --platform linux/arm64 --provenance=false --sbom=false \
   -t bytelyon-worker:arm64 --load .
 ```
 
+After any change to this worker fleet's Python code (`common.py`,
+`worker.py`, `handlers/*.py`), run `./update.sh` instead of the above --
+it refreshes the ECR auth token (which expires periodically and otherwise
+fails the build partway through with a bare 403), then rebuilds _both_
+tags this repo actually uses in one shot: the standalone
+`bytelyon-worker:arm64` above, and `worker-1.0/app:latest` (the tag
+`../../compose.yml`'s `worker` service runs, via `docker compose build
+worker`) -- easy to update one and forget the other otherwise. Neither
+command restarts an already-running container; recreate whichever one you
+actually run afterward to pick up the change (`update.sh`'s own output
+prints the exact command either way).
+
 **Local dev** (points at `bytelyon-scrape-jobs-dev` + this machine's own Sail app):
 
 ```bash

@@ -70,3 +70,5 @@ rest:
 	$(sail) stop worker
 queues:
 	$(sail) artisan queue:work -v
+update:
+	(cd docker/worker && ./update.sh)

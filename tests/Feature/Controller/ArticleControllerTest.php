@@ -16,7 +16,7 @@ class ArticleControllerTest extends TestCase
 
     public function test_index()
     {
-        $bot = Bot::factory()->createOneQuietly();
+        $bot = Bot::factory()->enabled()->news()->createOneQuietly();
         $article = Article::factory()->for($bot)->count(3)->createQuietly();
 
         $response = $this->actingAs($bot->user)

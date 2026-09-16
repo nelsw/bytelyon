@@ -36,7 +36,7 @@ class BotControllerTest extends TestCase
             'headless' => true,
             'frequency' => FrequencyType::values()[0],
             'type' => BotType::Search->value,
-            'query' => 'laravel release notes',
+            'query' => $bot->query,
         ]);
 
         $response->assertSessionDoesntHaveErrors();

@@ -21,7 +21,7 @@ class SqsService
 
     public function enqueueScrape(string $type, int $id, array $fields = []): void
     {
-        if (App::runningUnitTests()) {
+        if (App::runningUnitTests() || !App::isLocal()) {
             return;
         }
         $this->client->sendMessage([

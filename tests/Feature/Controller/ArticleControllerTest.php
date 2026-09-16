@@ -16,7 +16,7 @@ class ArticleControllerTest extends TestCase
 
     public function test_index()
     {
-        $article = Article::factory()->count(3)->createOneQuietly();
+        $article = Article::factory()->count(3)->createQuietly();
 
         $response = $this->actingAs($article->bot->user)
             ->get(route('articles.index', $article->bot));
@@ -121,13 +121,14 @@ class ArticleControllerTest extends TestCase
 
     public function test_cannot_access_other_users_bot_articles()
     {
+        $user = User::factory()->createQuietly();
         $bot = Bot::factory()->createOneQuietly();
 
-        $this->actingAs($bot->user)
+        $this->actingAs($user)
             ->get(route('articles.index', Article::factory()->createOneQuietly()))
             ->assertForbidden();
 
-        $this->actingAs($bot->user)
+        $this->actingAs($user)
             ->get(route('articles.show', ['bot' => $bot, 'article' => Article::factory()->createOneQuietly()]))
             ->assertForbidden();
     }

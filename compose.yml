@@ -70,8 +70,8 @@ services:
             dockerfile: Dockerfile
         image: 'bytelyon-worker/app'
         environment:
-            SCRAPE_JOBS_QUEUE_URL: '${SQS_SCRAPE_JOBS_QUEUE_URL}'
-            LARAVEL_BASE_URL: '${LARAVEL_BASE_URL:-http://server}'
+            SCRAPE_JOBS_QUEUE_URL: '${SCRAPE_JOBS_QUEUE_URL}'
+            LARAVEL_BASE_URL: '${LARAVEL_BASE_URL:-http://0.0.0.0}'
             LARAVEL_WORKER_TOKEN: '${LARAVEL_WORKER_TOKEN}'
             AWS_ACCESS_KEY_ID: '${AWS_ACCESS_KEY_ID}'
             AWS_SECRET_ACCESS_KEY: '${AWS_SECRET_ACCESS_KEY}'

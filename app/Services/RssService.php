@@ -2,14 +2,18 @@
 
 namespace App\Services;
 
+use App\Support\Rss\BaseRssItem;
 use App\Support\Rss\BingRssItem;
 use App\Support\Rss\GoogleRssItem;
 use Illuminate\Container\Attributes\Singleton;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 
 #[Singleton]
 class RssService
 {
+    /** @return BaseRssItem[] */
     public function news(string $query): array
     {
         return array_merge(
@@ -18,6 +22,7 @@ class RssService
         );
     }
 
+    /** @return BingRssItem[] */
     protected function bing(string $query): array
     {
         return $this->items(BingRssItem::class, 'https://www.bing.com/news/search', [
@@ -26,6 +31,7 @@ class RssService
         ]);
     }
 
+    /** @return GoogleRssItem[] */
     protected function google(string $query): array
     {
         return $this->items(GoogleRssItem::class, 'https://news.google.com/rss/search', [
@@ -38,12 +44,11 @@ class RssService
 
     private function items(string $class, string $url, array $query): array
     {
-
-        return rescue(function() use ($class, $url, $query) {
-            return (array) simplexml_load_string(
-                data: Http::get($url, $query)->throw()->body(),
-                class_name: $class,
-            )->xpath('//item');
-        }, []);
+        try {
+            $body = Http::get($url, $query)->throw()->body();
+        } catch (RequestException|ConnectionException $e) {
+            return [];
+        }
+        return (array) simplexml_load_string($body, $class)->xpath('//item');
     }
 }

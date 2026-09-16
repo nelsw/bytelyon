@@ -11,7 +11,7 @@ class PageModelTest extends TestCase
 {
     public function test_sitemap_pages(): void
     {
-        $sitemap = Sitemap::factory()->create();
+        $sitemap = Sitemap::factory()->createOneQuietly();
 
         $this->assertEmpty($sitemap->pages()->get());
 
@@ -21,7 +21,7 @@ class PageModelTest extends TestCase
         $pages = Page::factory()
             ->withRelation(Sitemap::class, $sitemap->getKey())
             ->count($count)
-            ->create();
+            ->createQuietly();
 
         $this->assertCount($count, $pages);
 
@@ -38,7 +38,7 @@ class PageModelTest extends TestCase
 
     public function test_serp_pages(): void
     {
-        $serp = Serp::factory()->create();
+        $serp = Serp::factory()->createOneQuietly();
 
         $this->assertEmpty($serp->pages()->get());
 
@@ -48,7 +48,7 @@ class PageModelTest extends TestCase
         $pages = Page::factory()
             ->withRelation(Serp::class, $serp->getKey())
             ->count($count)
-            ->create();
+            ->createQuietly();
 
         $this->assertCount($count, $pages);
 

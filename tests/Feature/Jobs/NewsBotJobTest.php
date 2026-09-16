@@ -11,11 +11,11 @@ class NewsBotJobTest extends TestCase
 {
     public function test_handle(): void
     {
-        $bot = Bot::factory()->news()->create();
+        $bot = Bot::factory()->news()->createOneQuietly();
 
         Sqs::shouldReceive('enqueueScrape')->zeroOrMoreTimes();
 
-        (new NewsBotJob($bot))->handle();
+        new NewsBotJob($bot)->handle();
 
         $this->assertNotNull($bot->refresh()->last_run_at);
     }

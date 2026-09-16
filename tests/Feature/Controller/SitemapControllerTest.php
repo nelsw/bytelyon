@@ -15,9 +15,9 @@ class SitemapControllerTest extends TestCase
 
         $user = User::factory()->verified()->create();
 
-        $sitemap = Sitemap::factory()->create();
+        $sitemap = Sitemap::factory()->createQuietly();
 
-        Sitemap::factory()->deleted()->create();
+        Sitemap::factory()->deleted()->createQuietly();
 
         $response = $this->actingAs($user)->get(route('sitemaps.index'));
 
@@ -34,7 +34,7 @@ class SitemapControllerTest extends TestCase
 
     public function test_authenticated_verified_users_can_delete_a_sitemap(): void
     {
-        $sitemap = Sitemap::factory()->create();
+        $sitemap = Sitemap::factory()->createQuietly();
 
         $response = $this->actingAs($sitemap->bot->user)
             ->delete(route('sitemaps.destroy', $sitemap));
@@ -45,7 +45,7 @@ class SitemapControllerTest extends TestCase
 
     public function test_authenticated_verified_users_can_view_sitemap_urls_as_tree_data(): void
     {
-        $sitemap = Sitemap::factory()->create();
+        $sitemap = Sitemap::factory()->createQuietly();
 
         $response = $this->actingAs($sitemap->bot->user)
             ->get(route('sitemaps.show', $sitemap));

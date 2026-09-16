@@ -15,9 +15,9 @@ class SerpControllerTest extends TestCase
 
         $user = User::factory()->verified()->create();
 
-        Serp::factory()->create();
+        Serp::factory()->createQuietly();
 
-        Serp::factory()->deleted()->create();
+        Serp::factory()->deleted()->createQuietly();
 
         $response = $this->actingAs($user)->get(route('serps.index'));
 

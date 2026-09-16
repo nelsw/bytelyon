@@ -11,7 +11,7 @@ class SearchBotJobTest extends TestCase
 {
     public function test_handle(): void
     {
-        $bot = Bot::factory()->search()->create();
+        $bot = Bot::factory()->search()->createOneQuietly();
 
         Sqs::shouldReceive('enqueueScrape')
             ->once()

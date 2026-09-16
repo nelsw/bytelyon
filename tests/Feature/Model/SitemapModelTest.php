@@ -11,7 +11,7 @@ class SitemapModelTest extends TestCase
     public function test_observer(): void
     {
         /** @var Sitemap $sitemap */
-        $sitemap = Sitemap::factory()->hasPages(3)->create();
+        $sitemap = Sitemap::factory()->count(3)->createQuietly();
 
         $this->assertDatabaseHas($sitemap);
         foreach ($sitemap->pages as $page) {

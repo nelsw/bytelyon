@@ -2,18 +2,16 @@
 
 namespace App\Services;
 
-use App\Support\Rss\BaseRssItem;
 use App\Support\Rss\BingRssItem;
 use App\Support\Rss\GoogleRssItem;
+use App\Support\Rss\RssItem;
 use Illuminate\Container\Attributes\Singleton;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 
 #[Singleton]
 class RssService
 {
-    /** @return BaseRssItem[] */
+    /** @return RssItem[] */
     public function news(string $query): array
     {
         return array_merge(
@@ -42,13 +40,15 @@ class RssService
         ]);
     }
 
+    /** @return RssItem[] */
     private function items(string $class, string $url, array $query): array
     {
-        try {
-            $body = Http::get($url, $query)->throw()->body();
-        } catch (RequestException|ConnectionException $e) {
-            return [];
-        }
-        return (array) simplexml_load_string($body, $class)->xpath('//item');
+        return rescue(function () use ($class, $url, $query) {
+            $xml = simplexml_load_string(
+                data: Http::get($url, $query)->body(),
+                class_name: $class,
+            )->xpath('//item');
+            return ! is_bool($xml) ? (array) $xml : [];
+        }, [], false);
     }
 }

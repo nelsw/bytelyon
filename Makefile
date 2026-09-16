@@ -1,9 +1,4 @@
 sail := @vendor/bin/sail
-qty := 1
-
-help:
-	echo $(qty)
-	$(sail) --help
 
 #
 # Server
@@ -60,17 +55,20 @@ scan:
 # Test
 #
 test: clear
-	@rm -rf reports/*
+	@rm -rf ./reports/*
 	$(sail) pint --parallel
-	$(sail) test --compact --coverage --coverage-html=reports
+	$(sail) test --compact --coverage --coverage-html=./reports
 	@sleep 3
 	@open ./reports/index.html
 
-
 #
-# Workers
+# Bots
 #
-scale:
-	$(sail) up -d --scale worker=$(q)
-kill:
-	$(sail) ps -q --filter "name=^worker" | xargs -r sail stop
+work:
+	$(sail) start worker
+rest:
+	$(sail) stop worker
+queues:
+	$(sail) artisan queue:work -v
+update:
+	(cd docker/worker && ./update.sh)

@@ -15,8 +15,7 @@ class SerpController extends Controller
     {
         return Inertia::render('serps/Index', [
             'serps' => Serp::query()
-                ->notDeleted()
-                ->byQuery()
+                ->orderBy('query')
                 ->withCount('pages')
                 ->with('bot')
                 ->get(),

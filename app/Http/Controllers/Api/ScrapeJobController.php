@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Actions\UpdateOrCreateSitemapPage;
-use App\Actions\UpdateSitemap;
-use App\Concerns\ScrapeValidationRules;
+use App\Actions\Model\UpdateArticle;
+use App\Actions\Model\UpdateOrCreateSitemapPage;
+use App\Actions\Model\UpdateSitemapUrls;
 use App\Facades\Sqs;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\PageSaveRequest;
@@ -19,8 +19,6 @@ use Illuminate\Support\Facades\Log;
 
 class ScrapeJobController extends Controller
 {
-    use ScrapeValidationRules;
-
     public function serp(PageSaveRequest $request, Serp $serp): Response
     {
         $parsed = new SearchPage(
@@ -51,7 +49,14 @@ class ScrapeJobController extends Controller
             $request->input('content_key'),
         );
 
-        $article->update($page->toArray());
+        (new UpdateArticle)(
+            $article,
+            $page->body(),
+            $page->description(),
+            $page->imgAlt(),
+            $page->imgSrc(),
+            $page->keywords(),
+        );
 
         return response()->noContent();
     }
@@ -71,20 +76,28 @@ class ScrapeJobController extends Controller
             $page->meta(),
         );
 
-        /** @var array<string, bool> $known */
-        $known = $bot->sitemap?->pages()->pluck('url')->mapWithKeys(fn (string $u) => [$u => true])->all() ?? [];
-
-        (new UpdateSitemap)($bot, $known);
-
-        $depth = $request->integer('depth', 0);
-        if ($depth > 0) {
-            foreach (array_keys($page->links()) as $link) {
-                if (isset($known[$link])) {
-                    continue;
-                }
-                Sqs::enqueueScrape('sitemap', $bot->id, ['url' => $link, 'depth' => $depth - 1]);
-            }
+        if (! isset($bot->sitemap->urls[$page->url])) {
+            $bot->sitemap->urls[$page->url] = true;
+            (new UpdateSitemapUrls)($bot->sitemap);
         }
+
+        $links = $page->links();
+        if ($links->isEmpty()) {
+            return response()->noContent();
+        }
+
+        if ($request->integer('depth') < 0) {
+            $links->each(fn (string $link) => $bot->sitemap->urls[$link] = false);
+            (new UpdateSitemapUrls)($bot->sitemap);
+            return response()->noContent();
+        }
+
+        $links->transform(fn (string $link) => [
+            'type' => $bot->type,
+            'id' => $bot->id,
+            'url' => $link,
+            'depth' => $request->integer('depth') - 1,
+        ])->each(Sqs::enqueueFN());
 
         return response()->noContent();
     }

@@ -48,13 +48,35 @@ const method = computed<'post' | 'put'>(() =>
 );
 const submitLabel = computed(() => (isEditing.value ? 'Save' : 'Create bot'));
 
+// Type-specific listing pages (news/serps/sitemaps) only ever deal with one
+// bot type, so a bot created from one of those pages should default to that
+// same type rather than making the user re-pick it from the dropdown. Falls
+// back to '' (the "Select a type" placeholder) anywhere else, e.g. the
+// generic /bots list or /bots/create, where the type genuinely is a choice.
+const TYPE_BY_PATH_PREFIX: Record<string, string> = {
+    '/news': 'news',
+    '/serps': 'search',
+    '/sitemaps': 'sitemap',
+};
+
+function inferTypeFromPath(): string {
+    const path = window.location.pathname;
+    const prefix = Object.keys(TYPE_BY_PATH_PREFIX).find((p) =>
+        path.startsWith(p),
+    );
+
+    return prefix ? TYPE_BY_PATH_PREFIX[prefix] : '';
+}
+
 const params = new URLSearchParams(window.location.search);
 const query = ref(props.bot.query ?? params.get('query') ?? '');
-const type = ref(props.bot.type ?? params.get('type') ?? '');
+const type = ref(props.bot.type ?? params.get('type') ?? inferTypeFromPath());
 const frequency = ref(props.bot.frequency ?? params.get('frequency') ?? '');
 const blacklist = ref(props.bot.blacklist ?? '');
 const enabled = ref(props.bot.enabled ?? true);
-const headless = ref(props.bot.headless ? '1' : '0');
+// Defaults to headless ('1') for new bots -- only an explicit `headless:
+// false` (an existing bot being edited) opts into a visible browser window.
+const headless = ref(props.bot.headless === false ? '0' : '1');
 const proxies = ref<number[]>(props.bot.proxies ?? []);
 
 const textareaClass =

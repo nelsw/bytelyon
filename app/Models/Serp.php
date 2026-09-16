@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Builders\SerpBuilder;
 use App\Observers\SerpObserver;
 use App\Traits\HasBot;
 use App\Traits\HasPages;
@@ -12,7 +11,6 @@ use Database\Factories\SerpFactory;
 use Eloquent;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
-use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -21,8 +19,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @method static SerpBuilder query()
- *
  * @property int $id
  * @property string $query
  * @property string|null $screenshot_key
@@ -32,33 +28,27 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property CarbonImmutable|null $deleted_at
  * @property int $bot_id
  * @property string|null $content_key
- * @property-read Bot|null $bot
  * @property-read Collection<int, Page> $pages
  * @property-read int|null $pages_count
  *
- * @method static SerpBuilder<static>|Serp byQuery()
  * @method static SerpFactory factory($count = null, $state = [])
- * @method static SerpBuilder<static>|Serp newModelQuery()
- * @method static SerpBuilder<static>|Serp newQuery()
- * @method static SerpBuilder<static>|Serp notDeleted()
- * @method static Builder<static>|Serp onlyTrashed()
- * @method static SerpBuilder<static>|Serp whereBotId($value)
- * @method static SerpBuilder<static>|Serp whereContentKey($value)
- * @method static SerpBuilder<static>|Serp whereCreatedAt($value)
- * @method static SerpBuilder<static>|Serp whereData($value)
- * @method static SerpBuilder<static>|Serp whereDeletedAt($value)
- * @method static SerpBuilder<static>|Serp whereId($value)
- * @method static SerpBuilder<static>|Serp whereQuery($value)
- * @method static SerpBuilder<static>|Serp whereScreenshotKey($value)
- * @method static SerpBuilder<static>|Serp whereUpdatedAt($value)
- * @method static Builder<static>|Serp withTrashed(bool $withTrashed = true)
- * @method static Builder<static>|Serp withoutTrashed()
+ * @method static Builder<Serp|static> byQuery()
+ * @method static Builder<Serp|static> newModelQuery()
+ * @method static Builder<Serp|static> newQuery()
+ * @method static Builder<Serp|static> notDeleted()
+ * @method static Builder<Serp|static> onlyTrashed()
+ * @method static Builder<Serp|static> query()
+ * @method static Builder<Serp|static> whereBotId($value)
+ * @method static Builder<Serp|static> whereQuery($value)
+ * @method static Builder<Serp|static> whereScreenshotKey($value)
+ * @method static Builder<Serp|static> whereUpdatedAt($value)
+ * @method static Builder<Serp|static> withoutTrashed()
+ * @method static Builder<Serp|static> withTrashed(bool $withTrashed = true)
  *
  * @mixin Eloquent
  */
 #[Fillable('query', 'data', 'screenshot_key', 'content_key')]
 #[ObservedBy(SerpObserver::class)]
-#[UseEloquentBuilder(SerpBuilder::class)]
 #[UseFactory(SerpFactory::class)]
 class Serp extends Model
 {

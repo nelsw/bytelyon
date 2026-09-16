@@ -4,40 +4,32 @@ namespace App\Console\Commands;
 
 use App\Jobs\BotJob;
 use App\Models\Bot;
-use Bus;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Bus;
+use Throwable;
 
 #[Signature('run:bots')]
 #[Description('Dispatch runnable (enabled & ready) bots.')]
 class RunBots extends Command
 {
+    /**
+     * @throws Throwable
+     */
     public function handle(): void
     {
         $jobs = Bot::query()
             ->enabled()
             ->ready()
             ->get()
-            ->map(fn (Bot $bot) => new BotJob($bot));
+            ->map(fn (Bot $bot) => new BotJob($bot))
+            ->all();
 
-        if ($jobs->isEmpty()) {
-            $this->info('nothing to run');
-            return;
+        $count = count($jobs);
+        $this->info("jobs to run [$count]");
+        if ($count > 0) {
+            Bus::batch($jobs)->name('run-bots')->dispatch();
         }
-
-        $batchId = Bus::batch($jobs)
-            ->then(fn () => $this->info('bots dispatched'))
-            ->catch(fn () => $this->error('bots failed'))
-            ->finally(fn () => $this->info('bots finished'))
-            ->name('run-bots')
-            ->dispatch()
-            ->id;
-
-        $batch = Bus::findBatch($batchId);
-        do {
-            $progress = $batch->progress();
-            $this->info("%$progress complete");
-        } while ($progress < 100);
     }
 }

@@ -6,7 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <link rel="shortcut icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAIKADAAQAAAABAAAAIAAAAACshmLzAAADQ0lEQVRYCbVXXXLaMBCWaGfIW+kNdIPCS9v0BeUEhRMEThByAuAEDSconCDkBJiX/jxBTxDfoDwm04mVb72WbbBkTIGdEZJ3V7ufdlc/SFGRtF41hHjqCCHbaE0hjMJU8GLa4HeNFoK/FOJiHgQt4u0luU9D659KiDc3QkQ96FqH+6aRfAow4yC4DOnDR14AvOJ/Qzge+CZX48tREHwa+3SdAHjVcoFJyjfxQH6IaFy5olEAcAbnFqsTRM1KqT/SORXdFC1Ec5FC8S7YRyZOAXDOjwo7Cu5zH05uM/OFUQKCdhRTCkAIKrhjcm4oAqAo6fnL8auEeCZfMcUAOCy+apdrq1zeWwDeFOSnD2wqkgjIFFFeC5XbxxZqgTfZ5he+wiD4MicuV7qZFTQKDDkgVo1zL3r0UaR0Ve92ZAizGRNAbnUCmRJA9FALXZZFtxCEqTAbXJNviVD0oPw94++OKAWmuc2NHrDizjbP/+X3Yfpv4bztn0qSXefEq7VhVNMIhPAXj1uO7BOA1xrQwVFuYuXtH9lGDdDFcjDBKG3ZuD1q/etb3oLWv4eo9L8sN/fuRcQzmgAQ32r5+f8zpqrWNJFXbkY0rkCKdgGF6BSk2AiFvTI1km1YacIGWmElzQOUUISCDFeJArZdfcq5dXmQQ61/wE7t2l1wrjligwjI0CkqMCNUe+krR8E5itG1awrGLCMEgOiP/SrpAwBds5wOoJPRes9BREfx5dTljqv9+RGyKulzmQDP9AGArkavoTmUHvAmXAfBxzgCyQHTAR/zKOQF2oAzR9NoCq2E6u9rSV5nHi04omM6Wtl9DrAr5jmdw4xp8bsgvh8IjI+m5Bs1QGTuuC/9VYnU9h7li9gpL6yswLmWpLWC45RA3NhvRw+5XALsvUOWZ82hM0Havpa8qCeI0oAm5QDEtYDwCkWCM1KI8wRp4i2dpIAeEsQwV3AMhbMRbNPzPDtPUgDkkq/Vly6GUDw5weZLd/fqTlOQd4eKV8jOAjz0J6GQV158N2xFwLpilPE2QjEdTbBBOS86J8vOCORdcjTECKq4ZCoT6knMsOo7n2NraS8Aq5idgELjBPwA4wqyRiKHQ9rzZo22POTv+Suv7yMtDTWEQwAAAABJRU5ErkJggg==">
+    @if(app()->isProduction())
+        <link rel="icon" href="/favicon.ico" sizes="any">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    @else
+        <link rel="icon" href="/favicon-alt.ico" sizes="any">
+        <link rel="icon" href="/favicon-alt.svg" type="image/svg+xml">
+    @endif
 
     <meta name="robots" content="noindex, nofollow">
 
@@ -17,7 +23,8 @@
         (Laravel's standard resources/views/vendor/{package} override
         mechanism -- no artisan publish needed) purely to reskin Telescope to
         match the app's own look. The Vue app/markup below is byte-for-byte
-        identical to the vendor original; only the <head> changed:
+        identical to the vendor original; only the <head> and the header's
+        logo/title changed:
           1. Bunny Fonts swapped from Telescope's default Figtree to the same
              families the app itself uses (Manrope/Space Grotesk/JetBrains
              Mono) -- see resources/css/app.css's own font comment. Loaded
@@ -30,6 +37,19 @@
              frontend is Bootstrap 4 under the hood -- see
              vendor/laravel/telescope/resources/sass/base.scss) without
              needing !important everywhere.
+          3. Favicon swapped from Telescope's default base64-inlined PNG for
+             the same environment-aware pair the main app uses (see
+             resources/views/app.blade.php) -- production gets
+             /favicon.ico + /favicon.svg, every other environment gets the
+             /favicon-alt.* pair, so a Telescope tab is visually
+             distinguishable from a production one at a glance.
+          4. Header logo swapped from Telescope's own stock SVG mark for the
+             same environment-aware app icon Welcome.vue uses (/icon.png in
+             production, /icon-alt.png otherwise -- see .header .logo img in
+             telescope-theme.css for the size override this needs, since
+             Telescope's own base.scss only sizes a `.logo svg`, not an
+             `img`), and "Laravel" dropped from the title so the header
+             reads as this app's own brand, not Laravel's.
         Re-diff against the vendor file after any `composer update
         laravel/telescope` in case the upstream markup changes.
     --}}
@@ -52,11 +72,13 @@
     <div class="container mb-5">
         <div class="d-flex align-items-stretch py-4 header">
             <router-link to="/" class="logo d-flex align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
-                    <path class="fill-primary" d="M0 40a39.87 39.87 0 0 1 11.72-28.28A40 40 0 1 1 0 40zm34 10a4 4 0 0 1-4-4v-2a2 2 0 1 0-4 0v2a4 4 0 0 1-4 4h-2a2 2 0 1 0 0 4h2a4 4 0 0 1 4 4v2a2 2 0 1 0 4 0v-2a4 4 0 0 1 4-4h2a2 2 0 1 0 0-4h-2zm24-24a6 6 0 0 1-6-6v-3a3 3 0 0 0-6 0v3a6 6 0 0 1-6 6h-3a3 3 0 0 0 0 6h3a6 6 0 0 1 6 6v3a3 3 0 0 0 6 0v-3a6 6 0 0 1 6-6h3a3 3 0 0 0 0-6h-3zm-4 36a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM21 28a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"></path>
-                </svg>
+                @if(app()->isProduction())
+                    <img src="/icon.png" alt="{{ config('app.name') }}">
+                @else
+                    <img src="/icon-alt.png" alt="{{ config('app.name') }}">
+                @endif
 
-                <h4 class="mb-0 ml-3"><strong>Laravel</strong> Telescope{{ config('app.name') ? ' - ' . config('app.name') : '' }}</h4>
+                <h4 class="mb-0 ml-3">Telescope{{ config('app.name') ? ' - ' . config('app.name') : '' }}</h4>
             </router-link>
 
             <button class="btn btn-muted ml-auto mr-3 d-flex align-items-center py-2" v-on:click.prevent="toggleRecording" :title="recording ? 'Pause recording' : 'Resume recording'">

@@ -10,6 +10,7 @@ use App\Facades\Sqs;
 use App\Models\Article;
 use App\Models\Bot;
 use App\Support\Rss\RssItem;
+use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -21,7 +22,7 @@ use Throwable;
 
 class BotJob implements ShouldBeUnique, ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Batchable, Queueable, SerializesModels;
 
     public function __construct(
         public readonly Bot $bot,

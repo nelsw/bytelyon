@@ -4,7 +4,6 @@ namespace App\Services;
 
 use AllowDynamicProperties;
 use App;
-use App\Traits\Services\HasSqsClient;
 use Aws\Sqs\SqsClient;
 use Closure;
 use Illuminate\Container\Attributes\Singleton;
@@ -13,11 +12,15 @@ use Illuminate\Container\Attributes\Singleton;
 #[Singleton]
 class SqsService
 {
-    use HasSqsClient;
-
     protected SqsClient $client;
 
     protected string $queueUrl;
+
+    public function __construct()
+    {
+        $this->client = new SqsClient(config('services.sqs'));
+        $this->queueUrl = config('services.sqs.scrape_jobs_queue_url');
+    }
 
     /** @param array<string, mixed> $payload */
     public function enqueue(array $payload = []): void

@@ -77,8 +77,9 @@ class ScrapeJobController extends Controller
         );
 
         if (! isset($bot->sitemap->urls[$page->url])) {
-            $urls[$page->url] = true;
-            $bot->sitemap->setAttribute('urls', $urls);
+            $urls = $bot->sitemap->urls;
+            $urls[] = [$page->url => true];
+            $bot->sitemap->urls = $urls;
             (new UpdateSitemapUrls)($bot->sitemap);
         }
 
@@ -90,9 +91,9 @@ class ScrapeJobController extends Controller
         if ($request->integer('depth') < 0) {
             $urls = $bot->sitemap->urls;
             foreach ($links->all() as $link) {
-                $urls[$link] = false;
+                $urls[] = [$link => false];
             }
-            $bot->sitemap->setAttribute('urls', $urls);
+            $bot->sitemap->urls = $urls;
             (new UpdateSitemapUrls)($bot->sitemap);
             return response()->noContent();
         }

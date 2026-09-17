@@ -9,7 +9,9 @@ class UpdateSitemapUrls
 {
     public function __invoke(Sitemap $sitemap): void
     {
-        ksort($sitemap->urls);
+        $urls = $sitemap->urls;
+        ksort($urls);
+        $sitemap->urls = $urls;
 
         $sitemap->save();
 

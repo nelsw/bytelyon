@@ -19,7 +19,7 @@ stop:
 down: stop
 	$(sail) down --remove-orphans --rmi local
 destroy: stop
-	$(sail) down server -v --remove-orphans --rmi all
+	$(sail) down laravel.testing -v --remove-orphans --rmi all
 
 #
 # DB

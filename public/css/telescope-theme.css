@@ -52,6 +52,55 @@
     --tele-radius-lg: 10px;
 }
 
+/*
+ * Dark mode — active when resources/views/vendor/telescope/layout.blade.php
+ * puts a `dark` class on <html> (driven by the `appearance` cookie via
+ * TelescopeServiceProvider::configureDarkMode(), which is what picks
+ * Telescope's own dark dist for this same request). Every rule below this
+ * point that uses one of these --tele-* variables re-themes for free; the
+ * values aren't a literal inversion of the light scale above, they're
+ * hand-picked per actual usage (see the numbered usage list in each
+ * variable's comment) so the *role* each step plays (page bg, surface,
+ * border, muted text, strong text…) stays correct once the ramp flips.
+ * Copied by hand from resources/css/app.css's own `.dark` block, same as
+ * the light values above — re-copy if the app's dark palette changes.
+ */
+.dark {
+    --tele-gray-0: #22252f; /* header / .card surface (was white) */
+    --tele-gray-25: #12131a; /* page background (was near-white) */
+    --tele-gray-50: #2a2e3a; /* subtle hover/secondary bg (was near-white) */
+    --tele-gray-100: #363b4d; /* borders, badge-secondary bg (was near-white) */
+    --tele-gray-200: #4b5268; /* header/form-control border (was light gray) */
+    --tele-gray-300: #666e85; /* control-action icon fill (was light gray) */
+    --tele-gray-400: #8c93a8; /* default sidebar icon fill (unchanged — already mid-tone) */
+    --tele-gray-500: #b7bccb; /* nav-pills default text (was mid gray) */
+    --tele-gray-600: #d7dae3; /* sidebar/btn-muted/badge default text (was mid gray) */
+    --tele-gray-800: #eaecf2; /* nav-pills hover text (was near-black) */
+    --tele-gray-900: #f5f6f9; /* body text, logo, btn-muted hover text (was near-black) */
+
+    /* Pale tints unreadable on a dark surface — same fix app.css's .dark
+       block applies to the semantic tints, just for our one pink tint
+       (sidebar active state, new-entry flash, ::selection, focus ring). */
+    --tele-pink-100: rgb(228 5 111 / 0.28);
+
+    --tele-success-tint: #0b3a24;
+    --tele-success-strong: #6ee7b0;
+    --tele-warning-tint: #3d2a06;
+    --tele-warning-strong: #fbcf7a;
+    --tele-danger-tint: #45140f;
+    --tele-danger-strong: #f8a49c;
+    --tele-info-tint: #0d2a4d;
+    --tele-info-strong: #93c5fd;
+}
+
+/* Bootstrap's own $card-border-color isn't parameterised per-theme by
+   Telescope (resources/sass/styles(-dark).scss), so it stays a translucent
+   black in both dists — invisible against a dark card. Give dark cards a
+   visible edge using our own (already re-themed) border step instead. */
+.dark .card {
+    border-color: var(--tele-gray-100);
+}
+
 /* ── Type ─────────────────────────────────────────────────────────────── */
 body {
     font-family: Manrope, ui-sans-serif, system-ui, sans-serif;

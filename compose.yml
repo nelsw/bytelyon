@@ -1,8 +1,8 @@
 name: ByteLyon
 services:
-    server:
+    laravel.testing:
         build:
-            context: './docker/server/8.5'
+            context: './docker/8.5'
             dockerfile: Dockerfile
             args:
                 WWWGROUP: '${WWWGROUP:-1000}'
@@ -35,7 +35,7 @@ services:
             POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
         volumes:
             - 'sail-pgsql:/var/lib/postgresql'
-            - './docker/server/pgsql/create-testing-database.sql:/docker-entrypoint-initdb.d/10-create-testing-database.sql'
+            - './docker/pgsql/create-testing-database.sql:/docker-entrypoint-initdb.d/10-create-testing-database.sql'
         networks:
             - sail
         healthcheck:
@@ -63,22 +63,6 @@ services:
             test: ['CMD', 'redis-cli', 'ping']
             retries: 3
             timeout: 5s
-    worker:
-        build:
-            context: './docker/worker'
-            dockerfile: Dockerfile
-        image: 'worker-1.0/app'
-        environment:
-            AWS_ACCESS_KEY_ID: '${AWS_ACCESS_KEY_ID}'
-            AWS_DEFAULT_REGION: '${AWS_DEFAULT_REGION:-us-east-1}'
-            AWS_SECRET_ACCESS_KEY: '${AWS_SECRET_ACCESS_KEY}'
-            LARAVEL_BASE_URL: 'http://server'
-            LARAVEL_WORKER_TOKEN: '${API_TOKEN}'
-            SCRAPE_JOBS_QUEUE_URL: '${SQS_PREFIX}/${SQS_QUEUE}'
-        networks:
-            - sail
-        deploy:
-            replicas: ${WORKER_REPLICAS:-10}
 networks:
     sail:
         driver: bridge

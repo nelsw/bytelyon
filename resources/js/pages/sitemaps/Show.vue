@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { ChevronsDownUp, ChevronsUpDown } from '@lucide/vue';
+import { computed, provide, ref } from 'vue';
 import UrlTreeNode from '@/components/sitemaps/UrlTreeNode.vue';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { dashboard } from '@/routes';
 
@@ -64,6 +66,18 @@ defineOptions({
         ],
     },
 });
+
+const expandSignal = ref({ open: false, version: 0 });
+
+provide('sitemapExpandSignal', expandSignal);
+
+function setAllOpen(open: boolean): void {
+    expandSignal.value = { open, version: expandSignal.value.version + 1 };
+}
+
+const capturedCount = computed(
+    () => props.sitemap.urls.filter((url) => pagesByUrl.value.has(url)).length,
+);
 
 function toTreeNodes(nodes: Map<string, MutableTreeNode>): UrlTreeNode[] {
     return Array.from(nodes.values())
@@ -146,16 +160,34 @@ const treeNodes = computed<UrlTreeNode[]>(() => {
 <template>
     <Head :title="`Sitemap tree: ${sitemap.domain}`" />
 
-    <div class="flex h-full flex-1 flex-col gap-5 overflow-x-auto p-6">
-        <div class="flex gap-2">
-            <img :src="sitemap.faviconUrl" :alt="sitemap.domain" size="32" />
-            <h1 class="text-xl font-bold">
+    <div class="flex h-full flex-1 flex-col gap-3 overflow-x-auto p-4">
+        <div class="flex flex-wrap items-center gap-2">
+            <img
+                :src="sitemap.faviconUrl"
+                :alt="sitemap.domain"
+                class="size-5"
+            />
+            <h1 class="text-lg font-bold">
                 {{ sitemap.domain }}
             </h1>
+            <span class="text-xs text-muted-foreground">
+                {{ sitemap.urls.length }} URLs · {{ capturedCount }} captured
+            </span>
+
+            <div v-if="treeNodes.length > 0" class="ml-auto flex gap-1">
+                <Button variant="ghost" size="sm" @click="setAllOpen(true)">
+                    <ChevronsUpDown />
+                    Expand all
+                </Button>
+                <Button variant="ghost" size="sm" @click="setAllOpen(false)">
+                    <ChevronsDownUp />
+                    Collapse all
+                </Button>
+            </div>
         </div>
 
-        <Card class="gap-0">
-            <CardContent>
+        <Card class="gap-0 py-2">
+            <CardContent class="px-2">
                 <div
                     v-if="treeNodes.length === 0"
                     class="rounded-lg border border-dashed p-8 text-center"
@@ -168,7 +200,7 @@ const treeNodes = computed<UrlTreeNode[]>(() => {
                     </p>
                 </div>
 
-                <ul v-else class="space-y-2">
+                <ul v-else class="text-sm">
                     <UrlTreeNode
                         v-for="node in treeNodes"
                         :key="node.id"

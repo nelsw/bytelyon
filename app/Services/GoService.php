@@ -36,7 +36,7 @@ class GoService
             'headless' => $bot->headless,
             'query' => $bot->query,
             'last_run_at' => $bot->lastRunAt(),
-            'blacklist' => $bot->blacklist(),
+            'blacklist' => $bot->blacklist,
         ]));
     }
 

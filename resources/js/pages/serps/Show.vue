@@ -15,25 +15,22 @@ import {
 } from '@/components/ui/dialog';
 import { dashboard } from '@/routes';
 
-type Page = {
-    id: number;
-    kind: string | null;
+type Result = {
+    id: string;
+    kind: string;
     index: number | null;
     title: string;
-    url: string;
-    domain: string;
-    created_at: string | null;
+    url: string | null;
+    domain: string | null;
     meta: Record<string, unknown>;
-    faviconUrl: string;
-    screenshotUrl: string | null;
+    faviconUrl: string | null;
 };
 
 type Serp = {
     id: number;
     query: string;
-    data: Record<string, unknown>;
     screenshotUrl: string | null;
-    pages: Page[];
+    results: Result[];
     similarQueries: string[];
 };
 
@@ -79,13 +76,14 @@ function compareValues(
     return String(left).localeCompare(String(right));
 }
 
-const sortedPages = computed<Page[]>(() => {
+const sortedResults = computed<Result[]>(() => {
     const direction = sortDir.value === 'asc' ? 1 : -1;
+    const tieKey: SortKey = sortKey.value === 'kind' ? 'index' : 'kind';
 
-    return [...props.serp.pages].sort(
+    return [...props.serp.results].sort(
         (left, right) =>
             compareValues(left[sortKey.value], right[sortKey.value]) *
-            direction,
+                direction || compareValues(left[tieKey], right[tieKey]),
     );
 });
 
@@ -102,10 +100,10 @@ function openScreenshot(url: string | null): void {
 }
 
 const metaDialogOpen = ref(false);
-const activeMetaPage = ref<Page | null>(null);
+const activeMetaResult = ref<Result | null>(null);
 
-function openMeta(page: Page): void {
-    activeMetaPage.value = page;
+function openMeta(result: Result): void {
+    activeMetaResult.value = result;
     metaDialogOpen.value = true;
 }
 
@@ -177,6 +175,7 @@ function dataEntries(
         </div>
 
         <hr />
+
         <div v-if="serp.similarQueries.length > 0">
             <div class="flex flex-col align-middle md:flex-row">
                 <div class="flex w-full items-center text-center md:w-1/12">
@@ -210,12 +209,12 @@ function dataEntries(
 
         <Card class="gap-0 py-0">
             <div
-                v-if="serp.pages.length === 0"
+                v-if="serp.results.length === 0"
                 class="rounded-lg border border-dashed p-8 text-center"
             >
-                <h2 class="text-lg font-semibold">No pages yet</h2>
+                <h2 class="text-lg font-semibold">No results yet</h2>
                 <p class="mt-2 text-sm text-muted-foreground">
-                    There are no pages recorded for this search.
+                    There are no results recorded for this search.
                 </p>
             </div>
 
@@ -286,40 +285,44 @@ function dataEntries(
                     </thead>
                     <tbody>
                         <tr
-                            v-for="page in sortedPages"
-                            :key="page.id"
-                            class="cursor-pointer border-b transition-colors last:border-b-0 hover:bg-muted/30"
-                            @click="openScreenshot(page.screenshotUrl)"
+                            v-for="result in sortedResults"
+                            :key="result.id"
+                            class="border-b transition-colors last:border-b-0 hover:bg-muted/30"
                         >
                             <td class="px-4 py-3 align-middle font-medium">
-                                {{ page.kind ?? '—' }}
+                                {{ result.kind }}
                             </td>
                             <td class="px-4 py-3">
-                                {{ page.index ?? '—' }}
+                                {{ result.index ?? '—' }}
                             </td>
                             <td
                                 class="px-4 py-3 align-middle text-muted-foreground"
                             >
-                                <div class="flex items-center gap-2">
+                                <div
+                                    v-if="result.domain"
+                                    class="flex items-center gap-2"
+                                >
                                     <img
-                                        :src="page.faviconUrl"
-                                        :alt="page.domain"
+                                        v-if="result.faviconUrl"
+                                        :src="result.faviconUrl"
+                                        :alt="result.domain"
                                         class="size-5 object-cover"
                                     />
-                                    <span class="">
-                                        {{ page.domain }}
-                                    </span>
+                                    <span>{{ result.domain }}</span>
                                 </div>
+                                <span v-else>—</span>
                             </td>
                             <td class="px-4 py-3 align-middle">
                                 <a
-                                    :href="page.url"
+                                    v-if="result.url"
+                                    :href="result.url"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     class="hover:underline"
                                 >
-                                    {{ page.title }}
+                                    {{ result.title }}
                                 </a>
+                                <span v-else>{{ result.title }}</span>
                             </td>
                             <td
                                 class="px-4 py-3 text-right align-middle"
@@ -330,7 +333,7 @@ function dataEntries(
                                         type="button"
                                         variant="outline"
                                         size="icon-sm"
-                                        @click="openMeta(page)"
+                                        @click="openMeta(result)"
                                         class="cursor-pointer"
                                     >
                                         <Code
@@ -338,7 +341,7 @@ function dataEntries(
                                             style="color: var(--info)"
                                         />
                                         <span class="sr-only"
-                                            >View page metadata</span
+                                            >View result metadata</span
                                         >
                                     </Button>
                                 </div>
@@ -371,21 +374,23 @@ function dataEntries(
             class="max-h-[90vh] max-w-[90vw] overflow-auto sm:max-w-[90vw]"
         >
             <DialogHeader>
-                <DialogTitle>{{ activeMetaPage?.title ?? 'Page' }}</DialogTitle>
+                <DialogTitle>{{
+                    activeMetaResult?.title ?? 'Result'
+                }}</DialogTitle>
                 <DialogDescription>
-                    Metadata captured for this page.
+                    Metadata captured for this result.
                 </DialogDescription>
             </DialogHeader>
 
             <dl
                 v-if="
-                    activeMetaPage &&
-                    dataEntries(activeMetaPage.meta).length > 0
+                    activeMetaResult &&
+                    dataEntries(activeMetaResult.meta).length > 0
                 "
                 class="grid gap-x-4 gap-y-1 sm:grid-cols-[minmax(0,15rem)_1fr]"
             >
                 <template
-                    v-for="entry in dataEntries(activeMetaPage.meta)"
+                    v-for="entry in dataEntries(activeMetaResult.meta)"
                     :key="entry.key"
                 >
                     <dt class="font-medium break-all text-muted-foreground">
@@ -396,7 +401,7 @@ function dataEntries(
             </dl>
 
             <p v-else class="text-xs text-muted-foreground">
-                No metadata recorded for this page.
+                No metadata recorded for this result.
             </p>
         </DialogContent>
     </Dialog>

@@ -4,24 +4,18 @@ namespace App\Providers;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Context;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Fluent;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
-use Illuminate\Support\Stringable;
-use Illuminate\Support\Uri;
-use Ramsey\Uuid\Uuid;
 
 class MacroServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
         $this->configureArr();
-        $this->configureHttp();
-        $this->configureUri();
         $this->configureURL();
-        $this->configureContext();
+        $this->configureFluent();
     }
 
     private function configureArr(): void
@@ -48,17 +42,7 @@ class MacroServiceProvider extends ServiceProvider
 
     private function configureURL(): void
     {
-        URL::macro('toDomain', function (?string $url) {
-            if (str($url)->substrCount('.') === 1) {
-                return $url;
-            }
-            return $url !== null
-                ? parse_url($url, PHP_URL_HOST)
-                    |> (fn ($x) => explode('.', (string) $x))
-                    |> (fn ($x) => array_slice($x, -2))
-                    |> (fn ($x) => implode('.', $x))
-                : '';
-        });
+        URL::macro('clean', fn (?string $url): string => str($url)->trim()->rtrim('/')->toString());
 
         URL::macro('domain', function (?string $url): string {
             return $url === null ? '' : parse_url($url, PHP_URL_HOST)
@@ -71,37 +55,14 @@ class MacroServiceProvider extends ServiceProvider
             if ($url === null) {
                 $url = 'bytelyon.com';
             } else {
-                $url = URL::toDomain($url);
+                $url = URL::domain($url);
             }
             return "https://www.google.com/s2/favicons?domain=$url&sz=$size";
         });
-
-        URL::macro('toUuid5', function (?string $url): ?string {
-            if ($url === null) {
-                return null;
-            }
-            return Uuid::uuid5(Uuid::NAMESPACE_URL, $url)->toString();
-        });
     }
 
-    private function configureHttp(): void
+    private function configureFluent(): void
     {
-        Http::macro('withProxy', fn (Stringable $proxy) => $this->withOptions(['proxy' => (string) $proxy]));
-    }
-
-    private function configureUri(): void
-    {
-        Uri::macro('clean', fn (?string $url): string => str($url)->trim()->rtrim('/')->toString());
-        Uri::macro('domain', function (?string $url): string {
-            return $url === null ? '' : parse_url($url, PHP_URL_HOST)
-                    |> (fn ($x) => explode('.', (string) $x))
-                    |> (fn ($x) => array_slice($x, -2))
-                    |> (fn ($x) => implode('.', $x));
-        });
-    }
-
-    private function configureContext(): void
-    {
-        Context::macro('id', fn (): string => rescue(fn () => collect(Context::all())->join(':'), Str::ulid()));
+        Fluent::macro('of', fn(string $value): Fluent => new Fluent(json_decode($value, true)));
     }
 }

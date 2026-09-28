@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\BotType;
-use App\Models\Bot;
 use App\Models\Page;
 use App\Models\Sitemap;
 use Illuminate\Http\RedirectResponse;
@@ -18,12 +17,11 @@ class SitemapController extends Controller
     public function index(Request $request): Response
     {
         return Inertia::render('sitemaps/Index', [
-            'sitemaps' => Bot::query()
-                ->user($request->user())
-                ->type(BotType::Sitemap)
-                ->get()
-                ->map(fn (Bot $bot) => $bot->sitemap)
-                ->sortBy('domain'),
+            'sitemaps' => Sitemap::query()
+                ->whereHas('bot', fn ($query) => $query->user($request->user())->type(BotType::Sitemap))
+                ->with('bot')
+                ->orderBy('domain')
+                ->get(),
         ]);
     }
 

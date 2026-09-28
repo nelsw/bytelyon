@@ -101,6 +101,113 @@
     border-color: var(--tele-gray-100);
 }
 
+/*
+ * Surfaces that stay white regardless of Telescope::night() /
+ * TelescopeServiceProvider::configureDarkMode() picking the dark dist —
+ * search inputs, filter dropdowns/menus, and native <select> filters. Some
+ * of Telescope's newer markup applies its own literal Tailwind-style
+ * utility classes (e.g. bg-white) alongside the Bootstrap 4 chrome, which
+ * bypass Bootstrap's $input-bg/$dropdown-bg Sass variables entirely, so
+ * swapping dist alone doesn't touch them. These are pinned with
+ * !important so they win over a hardcoded utility class or inline style
+ * regardless of which dist ends up loaded.
+ */
+.dark .form-control,
+.dark .custom-select,
+.dark input.form-control,
+.dark select.form-control,
+.dark textarea.form-control {
+    background-color: var(--tele-gray-0) !important;
+    color: var(--tele-gray-900) !important;
+}
+
+.dark .form-control::placeholder {
+    color: var(--tele-gray-400);
+    opacity: 1;
+}
+
+.dark .form-control:disabled,
+.dark .form-control[readonly] {
+    background-color: var(--tele-gray-50) !important;
+}
+
+.dark .dropdown-menu {
+    background-color: var(--tele-gray-0) !important;
+    color: var(--tele-gray-900) !important;
+}
+
+.dark .dropdown-item {
+    color: var(--tele-gray-900) !important;
+}
+
+.dark .dropdown-divider {
+    border-top-color: var(--tele-gray-100);
+}
+
+.dark .modal-content {
+    background-color: var(--tele-gray-0);
+    color: var(--tele-gray-900);
+}
+
+.dark .close {
+    color: var(--tele-gray-900);
+    text-shadow: none;
+}
+
+.dark .text-muted {
+    color: var(--tele-gray-400) !important;
+}
+
+.dark hr {
+    border-top-color: var(--tele-gray-100);
+}
+
+.dark .custom-control-label::before {
+    background-color: var(--tele-gray-0);
+    border-color: var(--tele-gray-200);
+}
+
+/* Top banner ("recording paused", clear-entries confirmation…) rendered by
+   layout.blade.php's <alert> component -- Bootstrap's stock .alert-* pairs
+   are pastel bg + dark text, unreadable on a dark page. Reuse the same
+   semantic tint/strong pairs the badges already use above. */
+.dark .alert {
+    border-color: transparent;
+}
+
+.dark .alert-success {
+    background-color: var(--tele-success-tint);
+    color: var(--tele-success-strong);
+}
+
+.dark .alert-warning {
+    background-color: var(--tele-warning-tint);
+    color: var(--tele-warning-strong);
+}
+
+.dark .alert-danger {
+    background-color: var(--tele-danger-tint);
+    color: var(--tele-danger-strong);
+}
+
+.dark .alert-info {
+    background-color: var(--tele-info-tint);
+    color: var(--tele-info-strong);
+}
+
+/* Bootstrap's own $pagination-bg isn't re-pointed to a themed variable by
+   Telescope's styles(-dark).scss either, so pin it the same way as the
+   form controls above. */
+.dark .page-link {
+    background-color: var(--tele-gray-0);
+    border-color: var(--tele-gray-100);
+}
+
+.dark .page-item.disabled .page-link {
+    background-color: var(--tele-gray-50);
+    color: var(--tele-gray-400);
+}
+
 /* ── Type ─────────────────────────────────────────────────────────────── */
 body {
     font-family: Manrope, ui-sans-serif, system-ui, sans-serif;

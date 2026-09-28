@@ -20,17 +20,22 @@ class BotBuilder extends Builder
         return $this->where('user_id', $user->id);
     }
 
-    public function enabled(): static
+    public function enabled(bool $enabled = true): static
     {
-        return $this->where('enabled', true);
+        return $this->where('enabled', $enabled);
+    }
+
+    public function headless(bool $headless = true): static
+    {
+        return $this->where('headless', $headless);
     }
 
     public function ready(): static
     {
-        return $this->whereRaw("last_run_at IS NULL
+        return $this->whereRaw("(last_run_at IS NULL
 OR (frequency = 'hourly' AND (last_run_at + interval '1 hour') < NOW())
 OR (frequency = 'daily' AND (last_run_at + interval '1 day') < NOW())
 OR (frequency = 'weekly' AND (last_run_at + interval '7 day') < NOW())
-OR (frequency = 'monthly' AND (last_run_at + interval '30 day') < NOW())");
+OR (frequency = 'monthly' AND (last_run_at + interval '30 day') < NOW()))");
     }
 }

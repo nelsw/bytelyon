@@ -10,6 +10,22 @@ use Tests\TestCase;
 
 class SecurityTest extends TestCase
 {
+    public function test_security_page_lists_passkeys(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->get(route('security.edit'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('settings/Security')
+                ->where('canManagePasskeys', true)
+                ->where('passkeys', [])
+                ->has('passwordRules'),
+            );
+    }
+
     public function test_security_page_is_displayed(): void
     {
         $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());

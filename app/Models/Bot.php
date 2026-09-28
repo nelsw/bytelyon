@@ -180,7 +180,7 @@ class Bot extends Model
         }
         $str = implode(' ', $args);
         $arr = explode(' ', $str);
-        $map = array_map(fn (string $item) => [trim($item) => true], $arr);
+        $map = array_flip(array_map('trim', $arr));
         return array_any($this->blacklist(), fn (string $key) => isset($map[$key]));
     }
 

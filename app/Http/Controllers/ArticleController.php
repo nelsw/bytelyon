@@ -90,7 +90,8 @@ class ArticleController extends Controller
             ], 422);
         }
 
-        $system = $validated['system'];
+        $system = $validated['system'] ?? null;
+        $body = $validated['body'] ?? '';
         if ($system !== null) {
             $system = trim($system);
         }
@@ -102,7 +103,7 @@ class ArticleController extends Controller
                     'role' => 'user',
                     'content' => trim(
                         "Instruction: {$validated['prompt']}\n\n".
-                        "Current article body (HTML):\n{$validated['body']}"
+                        "Current article body (HTML):\n$body"
                     ),
                 ]],
                 model: $anthropic->default_model ?: AnthropicModel::CLAUDE_FABLE_5,

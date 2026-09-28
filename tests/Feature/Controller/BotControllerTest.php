@@ -7,6 +7,7 @@ use App\Enums\FrequencyType;
 use App\Models\Bot;
 use App\Models\Proxy;
 use App\Models\User;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class BotControllerTest extends TestCase
@@ -120,5 +121,93 @@ class BotControllerTest extends TestCase
 
         $response->assertSessionDoesntHaveErrors();
         $this->assertSame(0, $bot->proxies()->count());
+    }
+
+    public function test_index_filters_and_sorts(): void
+    {
+        $user = User::factory()->verified()->create();
+        Bot::factory()->for($user)->news('alpha news')->enabled()->headless()->createOneQuietly();
+        Bot::factory()->for($user)->news('beta news')->createOneQuietly(['enabled' => false, 'headless' => false]);
+
+        $this->actingAs($user)
+            ->get(route('bots.index', ['query' => 'ALPHA', 'type' => 'news', 'status' => 'enabled', 'mode' => 'headless', 'sort' => 'query_desc', 'perPage' => 25]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Dashboard')
+                ->has('bots.data', 1)
+                ->where('bots.data.0.query', 'alpha news')
+                ->where('filters.perPage', 25)
+            );
+
+        $this->actingAs($user)
+            ->get(route('bots.index', ['status' => 'disabled', 'mode' => 'headed']))
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('bots.data', 1)
+                ->where('bots.data.0.query', 'beta news')
+            );
+    }
+
+    public function test_index_falls_back_to_default_sort_and_page_size(): void
+    {
+        $user = User::factory()->verified()->create();
+
+        $this->actingAs($user)
+            ->get(route('bots.index', ['sort' => 'bogus', 'perPage' => 7]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.sort', 'created_at_desc')
+                ->where('filters.perPage', 10)
+            );
+    }
+
+    public function test_index_accepts_every_sort(): void
+    {
+        $user = User::factory()->verified()->create();
+        Bot::factory()->for($user)->news()->count(2)->createQuietly();
+
+        foreach (['created_at_asc', 'query_asc', 'query_desc', 'type_asc', 'type_desc', 'enabled_desc', 'enabled_asc', 'headless_desc', 'headless_asc', 'processed_at_desc', 'processed_at_asc', 'updated_at_desc', 'updated_at_asc'] as $sort) {
+            $this->actingAs($user)
+                ->get(route('bots.index', ['sort' => $sort]))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page->where('filters.sort', $sort)->has('bots.data', 2));
+        }
+    }
+
+    public function test_show_create_and_edit(): void
+    {
+        $bot = Bot::factory()->news()->createOneQuietly();
+        Proxy::factory()->create(['user_id' => $bot->user_id]);
+
+        $this->actingAs($bot->user)
+            ->get(route('bots.show', $bot))
+            ->assertInertia(fn (Assert $page) => $page->component('bots/Show')->where('bot.id', $bot->id));
+
+        $this->actingAs($bot->user)
+            ->get(route('bots.create'))
+            ->assertInertia(fn (Assert $page) => $page->component('bots/Create')->has('typeOptions')->has('frequencyOptions')->has('proxyOptions', 1));
+
+        $this->actingAs($bot->user)
+            ->get(route('bots.edit', $bot))
+            ->assertInertia(fn (Assert $page) => $page->component('bots/Edit')->where('bot.id', $bot->id)->has('proxyOptions', 1));
+    }
+
+    public function test_other_users_cannot_view_edit_or_delete(): void
+    {
+        $bot = Bot::factory()->news()->createOneQuietly();
+        $stranger = User::factory()->verified()->create();
+
+        $this->actingAs($stranger)->get(route('bots.show', $bot))->assertForbidden();
+        $this->actingAs($stranger)->get(route('bots.edit', $bot))->assertForbidden();
+        $this->actingAs($stranger)->delete(route('bots.destroy', $bot))->assertForbidden();
+    }
+
+    public function test_destroy(): void
+    {
+        $bot = Bot::factory()->news()->createOneQuietly();
+
+        $this->actingAs($bot->user)
+            ->delete(route('bots.destroy', $bot))
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertModelMissing($bot);
     }
 }

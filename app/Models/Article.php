@@ -108,7 +108,7 @@ class Article extends Model
             }
 
             if (blank($source)) {
-                $source = URL::toDomain($article->url);
+                $source = URL::domain($article->url);
             }
 
             return [

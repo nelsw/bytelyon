@@ -2,30 +2,17 @@
 
 namespace App\Traits;
 
-use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Storage;
+use App\Facades\S3;
 
 trait HasScreenshot
 {
     public function screenshotUrl(): ?string
     {
-        if ($this->screenshot_key === null) {
-            return null;
-        }
-
-        $ttl = now()->addMinutes(15);
-
-        return cache()->remember(
-            $this->screenshot_key,
-            $ttl,
-            fn () => Storage::disk('s3')->temporaryUrl($this->screenshot_key, $ttl),
-        );
+        return S3::url($this->screenshot_key);
     }
 
     public function deleteScreenshot(): void
     {
-        if ($this->screenshot_key !== null && ! App::runningUnitTests()) {
-            Storage::disk('s3')->delete($this->screenshot_key);
-        }
+        S3::del($this->screenshot_key);
     }
 }

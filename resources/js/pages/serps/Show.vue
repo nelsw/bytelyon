@@ -22,6 +22,7 @@ type Result = {
     title: string;
     url: string | null;
     domain: string | null;
+    imageUrl: string | null;
     meta: Record<string, unknown>;
     faviconUrl: string | null;
 };
@@ -313,16 +314,34 @@ function dataEntries(
                                 <span v-else>—</span>
                             </td>
                             <td class="px-4 py-3 align-middle">
-                                <a
-                                    v-if="result.url"
-                                    :href="result.url"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="hover:underline"
-                                >
-                                    {{ result.title }}
-                                </a>
-                                <span v-else>{{ result.title }}</span>
+                                <div class="flex items-center gap-3">
+                                    <button
+                                        v-if="result.imageUrl"
+                                        type="button"
+                                        class="shrink-0 cursor-pointer overflow-hidden rounded-md border bg-white"
+                                        @click="openScreenshot(result.imageUrl)"
+                                    >
+                                        <img
+                                            :src="result.imageUrl"
+                                            :alt="result.title"
+                                            loading="lazy"
+                                            class="size-12 object-contain"
+                                        />
+                                        <span class="sr-only"
+                                            >View result image</span
+                                        >
+                                    </button>
+                                    <a
+                                        v-if="result.url"
+                                        :href="result.url"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="hover:underline"
+                                    >
+                                        {{ result.title }}
+                                    </a>
+                                    <span v-else>{{ result.title }}</span>
+                                </div>
                             </td>
                             <td
                                 class="px-4 py-3 text-right align-middle"
@@ -358,13 +377,13 @@ function dataEntries(
             class="max-h-[95vh] max-w-[95vw] overflow-auto p-2 sm:max-w-[95vw]"
         >
             <DialogTitle class="sr-only">
-                Screenshot: {{ serp.query }}
+                Preview: {{ serp.query }}
             </DialogTitle>
             <img
                 v-if="activeScreenshotUrl"
                 :src="activeScreenshotUrl"
-                :alt="`Screenshot of search: ${serp.query}`"
-                class="w-full rounded-md"
+                :alt="`Preview for search: ${serp.query}`"
+                class="mx-auto max-w-full rounded-md"
             />
         </DialogContent>
     </Dialog>

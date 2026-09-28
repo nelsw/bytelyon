@@ -52,7 +52,8 @@ class SerpController extends Controller
                         'title' => $item['title'] ?? '',
                         'url' => $item['url'] ?? null,
                         'domain' => $item['domain'] ?? null,
-                        'meta' => Arr::except($item, ['kind', 'index', 'title', 'url', 'domain']),
+                        'imageUrl' => filled($item['image'] ?? null) ? $item['image'] : null,
+                        'meta' => Arr::except($item, ['kind', 'index', 'title', 'url', 'domain', 'image']),
                     ]))
                     ->values()
                     ->all(),

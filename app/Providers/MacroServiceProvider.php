@@ -45,7 +45,16 @@ class MacroServiceProvider extends ServiceProvider
         URL::macro('clean', fn (?string $url): string => str($url)->trim()->rtrim('/')->toString());
 
         URL::macro('domain', function (?string $url): string {
-            return $url === null ? '' : parse_url($url, PHP_URL_HOST)
+            if ($url === null) {
+                return '';
+            }
+
+            // parse_url only finds a host when a scheme is present (e.g. bare "example.com").
+            if (! str_contains($url, '://')) {
+                $url = "https://$url";
+            }
+
+            return parse_url($url, PHP_URL_HOST)
                     |> (fn ($x) => explode('.', (string) $x))
                     |> (fn ($x) => array_slice($x, -2))
                     |> (fn ($x) => implode('.', $x));

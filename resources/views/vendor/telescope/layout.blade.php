@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" @class(['dark' => ($appearance ?? 'system') === 'dark'])>
+<html lang="en">
 <head>
     <!-- Meta Information -->
     <meta charset="utf-8">
@@ -50,14 +50,10 @@
              Telescope's own base.scss only sizes a `.logo svg`, not an
              `img`), and "Laravel" dropped from the title so the header
              reads as this app's own brand, not Laravel's.
-          5. `<html>` gets a `dark` class when the `appearance` cookie is
-             `dark`, matching the exact condition TelescopeServiceProvider's
-             configureDarkMode() uses to pick Telescope's own dark dist (see
-             that method for why `system` can't be resolved server-side).
-             This class doesn't drive any Bootstrap styling itself -- it
-             only gates the dark-specific variable overrides in
-             telescope-theme.css, which must stay in lockstep with whichever
-             dist got loaded or the two layers of styling will fight.
+          5. Telescope's dashboard is always rendered dark -- see
+             TelescopeServiceProvider::register()'s unconditional
+             Telescope::night() call and telescope-theme.css, which no
+             longer has a light variant to switch between.
         Re-diff against the vendor file after any `composer update
         laravel/telescope` in case the upstream markup changes.
     --}}

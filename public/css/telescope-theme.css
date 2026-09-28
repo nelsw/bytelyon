@@ -6,163 +6,127 @@
  * resources/views/vendor/telescope/layout.blade.php), so equal-specificity
  * rules here win the cascade without needing !important everywhere —
  * !important is only used where Telescope's own SCSS already used it
- * (box-shadow resets) or where an inline/JS-set style would otherwise win.
+ * (box-shadow resets), where an inline/JS-set style would otherwise win, or
+ * where a literal Tailwind-style utility class ships alongside the
+ * Bootstrap 4 chrome and bypasses Telescope's own Sass variables entirely
+ * (see the form-control/dropdown/page-link rules below).
  *
- * Values below are copied from resources/css/app.css's :root block rather
- * than referenced as CSS custom properties — Telescope's own compiled CSS
- * doesn't define those variables, and this file is static (served straight
- * from /public, not part of the Vite build), so there's no build step here
- * to resolve them either. Re-copy by hand if the app's palette changes.
+ * Telescope's dashboard is always dark here (TelescopeServiceProvider
+ * unconditionally calls Telescope::night(), which inlines Telescope's own
+ * dist/styles-dark.css instead of dist/styles.css) — there's no light
+ * variant to switch between, so every value below is a fixed dark-mode
+ * value, not a CSS custom property with a light/dark pair. Copied by hand
+ * from resources/css/app.css's own `.dark` block (the same palette the
+ * rest of the app uses in dark mode); re-copy if that palette changes.
  */
 
 :root {
     --tele-pink: #e4056f;
     --tele-pink-600: #c2005d;
     --tele-pink-700: #9b0049;
-    --tele-pink-100: #fde3ef;
+    --tele-pink-100: rgb(
+        228 5 111 / 0.28
+    ); /* pale pink tint, made translucent since it's read the same as ::selection/active-nav/focus-ring is a dark surface, not a white one */
 
-    --tele-gray-0: #ffffff;
-    --tele-gray-25: #fbfbfd;
-    --tele-gray-50: #f5f6f9;
-    --tele-gray-100: #eaecf2;
-    --tele-gray-200: #d7dae3;
-    --tele-gray-300: #b7bccb;
-    --tele-gray-400: #8c93a8;
-    --tele-gray-500: #666e85;
-    --tele-gray-600: #4b5268;
-    --tele-gray-700: #363b4d;
-    --tele-gray-800: #22252f;
-    --tele-gray-900: #12131a;
+    --tele-gray-0: #22252f; /* header / .card surface */
+    --tele-gray-25: #12131a; /* page background */
+    --tele-gray-50: #2a2e3a; /* subtle hover/secondary bg */
+    --tele-gray-100: #363b4d; /* borders, badge-secondary bg */
+    --tele-gray-200: #4b5268; /* header/form-control border */
+    --tele-gray-300: #666e85; /* control-action icon fill */
+    --tele-gray-400: #8c93a8; /* default sidebar icon fill */
+    --tele-gray-500: #b7bccb; /* nav-pills default text */
+    --tele-gray-600: #d7dae3; /* sidebar/btn-muted/badge default text */
+    --tele-gray-800: #eaecf2; /* nav-pills hover text */
+    --tele-gray-900: #f5f6f9; /* body text, logo, btn-muted hover text */
 
     --tele-success: #12b76a;
-    --tele-success-tint: #d8f6e7;
-    --tele-success-strong: #0a7a46;
+    --tele-success-tint: #0b3a24;
+    --tele-success-strong: #6ee7b0;
     --tele-warning: #f5a524;
-    --tele-warning-tint: #fdf0d5;
-    --tele-warning-strong: #9a6300;
+    --tele-warning-tint: #3d2a06;
+    --tele-warning-strong: #fbcf7a;
     --tele-danger: #e4362b;
-    --tele-danger-tint: #fce1de;
-    --tele-danger-strong: #a11f17;
+    --tele-danger-tint: #45140f;
+    --tele-danger-strong: #f8a49c;
     --tele-info: #2e90fa;
-    --tele-info-tint: #dcebff;
-    --tele-info-strong: #1a5aa8;
+    --tele-info-tint: #0d2a4d;
+    --tele-info-strong: #93c5fd;
 
     --tele-radius-sm: 4px;
     --tele-radius-md: 6px;
     --tele-radius-lg: 10px;
 }
 
-/*
- * Dark mode — active when resources/views/vendor/telescope/layout.blade.php
- * puts a `dark` class on <html> (driven by the `appearance` cookie via
- * TelescopeServiceProvider::configureDarkMode(), which is what picks
- * Telescope's own dark dist for this same request). Every rule below this
- * point that uses one of these --tele-* variables re-themes for free; the
- * values aren't a literal inversion of the light scale above, they're
- * hand-picked per actual usage (see the numbered usage list in each
- * variable's comment) so the *role* each step plays (page bg, surface,
- * border, muted text, strong text…) stays correct once the ramp flips.
- * Copied by hand from resources/css/app.css's own `.dark` block, same as
- * the light values above — re-copy if the app's dark palette changes.
- */
-.dark {
-    --tele-gray-0: #22252f; /* header / .card surface (was white) */
-    --tele-gray-25: #12131a; /* page background (was near-white) */
-    --tele-gray-50: #2a2e3a; /* subtle hover/secondary bg (was near-white) */
-    --tele-gray-100: #363b4d; /* borders, badge-secondary bg (was near-white) */
-    --tele-gray-200: #4b5268; /* header/form-control border (was light gray) */
-    --tele-gray-300: #666e85; /* control-action icon fill (was light gray) */
-    --tele-gray-400: #8c93a8; /* default sidebar icon fill (unchanged — already mid-tone) */
-    --tele-gray-500: #b7bccb; /* nav-pills default text (was mid gray) */
-    --tele-gray-600: #d7dae3; /* sidebar/btn-muted/badge default text (was mid gray) */
-    --tele-gray-800: #eaecf2; /* nav-pills hover text (was near-black) */
-    --tele-gray-900: #f5f6f9; /* body text, logo, btn-muted hover text (was near-black) */
-
-    /* Pale tints unreadable on a dark surface — same fix app.css's .dark
-       block applies to the semantic tints, just for our one pink tint
-       (sidebar active state, new-entry flash, ::selection, focus ring). */
-    --tele-pink-100: rgb(228 5 111 / 0.28);
-
-    --tele-success-tint: #0b3a24;
-    --tele-success-strong: #6ee7b0;
-    --tele-warning-tint: #3d2a06;
-    --tele-warning-strong: #fbcf7a;
-    --tele-danger-tint: #45140f;
-    --tele-danger-strong: #f8a49c;
-    --tele-info-tint: #0d2a4d;
-    --tele-info-strong: #93c5fd;
-}
-
 /* Bootstrap's own $card-border-color isn't parameterised per-theme by
-   Telescope (resources/sass/styles(-dark).scss), so it stays a translucent
-   black in both dists — invisible against a dark card. Give dark cards a
-   visible edge using our own (already re-themed) border step instead. */
-.dark .card {
+   Telescope (resources/sass/styles-dark.scss), so it stays a translucent
+   black — invisible against a dark card. Give cards a visible edge using
+   our own border step instead. */
+.card {
     border-color: var(--tele-gray-100);
 }
 
 /*
- * Surfaces that stay white regardless of Telescope::night() /
- * TelescopeServiceProvider::configureDarkMode() picking the dark dist —
- * search inputs, filter dropdowns/menus, and native <select> filters. Some
- * of Telescope's newer markup applies its own literal Tailwind-style
- * utility classes (e.g. bg-white) alongside the Bootstrap 4 chrome, which
- * bypass Bootstrap's $input-bg/$dropdown-bg Sass variables entirely, so
- * swapping dist alone doesn't touch them. These are pinned with
- * !important so they win over a hardcoded utility class or inline style
- * regardless of which dist ends up loaded.
+ * Surfaces that stay white regardless of Telescope::night() picking the
+ * dark dist — search inputs, filter dropdowns/menus, and native <select>
+ * filters. Some of Telescope's newer markup applies its own literal
+ * Tailwind-style utility classes (e.g. bg-white) alongside the Bootstrap 4
+ * chrome, which bypass Bootstrap's $input-bg/$dropdown-bg Sass variables
+ * entirely, so loading the dark dist alone doesn't touch them. These are
+ * pinned with !important so they win over a hardcoded utility class or
+ * inline style either way.
  */
-.dark .form-control,
-.dark .custom-select,
-.dark input.form-control,
-.dark select.form-control,
-.dark textarea.form-control {
+.form-control,
+.custom-select,
+input.form-control,
+select.form-control,
+textarea.form-control {
     background-color: var(--tele-gray-0) !important;
     color: var(--tele-gray-900) !important;
 }
 
-.dark .form-control::placeholder {
+.form-control::placeholder {
     color: var(--tele-gray-400);
     opacity: 1;
 }
 
-.dark .form-control:disabled,
-.dark .form-control[readonly] {
+.form-control:disabled,
+.form-control[readonly] {
     background-color: var(--tele-gray-50) !important;
 }
 
-.dark .dropdown-menu {
+.dropdown-menu {
     background-color: var(--tele-gray-0) !important;
     color: var(--tele-gray-900) !important;
 }
 
-.dark .dropdown-item {
+.dropdown-item {
     color: var(--tele-gray-900) !important;
 }
 
-.dark .dropdown-divider {
+.dropdown-divider {
     border-top-color: var(--tele-gray-100);
 }
 
-.dark .modal-content {
+.modal-content {
     background-color: var(--tele-gray-0);
     color: var(--tele-gray-900);
 }
 
-.dark .close {
+.close {
     color: var(--tele-gray-900);
     text-shadow: none;
 }
 
-.dark .text-muted {
+.text-muted {
     color: var(--tele-gray-400) !important;
 }
 
-.dark hr {
+hr {
     border-top-color: var(--tele-gray-100);
 }
 
-.dark .custom-control-label::before {
+.custom-control-label::before {
     background-color: var(--tele-gray-0);
     border-color: var(--tele-gray-200);
 }
@@ -170,40 +134,40 @@
 /* Top banner ("recording paused", clear-entries confirmation…) rendered by
    layout.blade.php's <alert> component -- Bootstrap's stock .alert-* pairs
    are pastel bg + dark text, unreadable on a dark page. Reuse the same
-   semantic tint/strong pairs the badges already use above. */
-.dark .alert {
+   semantic tint/strong pairs the badges below use. */
+.alert {
     border-color: transparent;
 }
 
-.dark .alert-success {
+.alert-success {
     background-color: var(--tele-success-tint);
     color: var(--tele-success-strong);
 }
 
-.dark .alert-warning {
+.alert-warning {
     background-color: var(--tele-warning-tint);
     color: var(--tele-warning-strong);
 }
 
-.dark .alert-danger {
+.alert-danger {
     background-color: var(--tele-danger-tint);
     color: var(--tele-danger-strong);
 }
 
-.dark .alert-info {
+.alert-info {
     background-color: var(--tele-info-tint);
     color: var(--tele-info-strong);
 }
 
 /* Bootstrap's own $pagination-bg isn't re-pointed to a themed variable by
-   Telescope's styles(-dark).scss either, so pin it the same way as the
-   form controls above. */
-.dark .page-link {
+   Telescope's styles-dark.scss either, so pin it the same way as the form
+   controls above. */
+.page-link {
     background-color: var(--tele-gray-0);
     border-color: var(--tele-gray-100);
 }
 
-.dark .page-item.disabled .page-link {
+.page-item.disabled .page-link {
     background-color: var(--tele-gray-50);
     color: var(--tele-gray-400);
 }

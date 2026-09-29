@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1790639463">
-  <project timestamp="1790639463" name="Clover Coverage">
+<coverage generated="1790641189">
+  <project timestamp="1790641189" name="Clover Coverage">
     <package name="App\Actions\Fortify">
       <file name="/var/www/html/app/Actions/Fortify/CreateNewUser.php">
         <class name="App\Actions\Fortify\CreateNewUser" namespace="App\Actions\Fortify">

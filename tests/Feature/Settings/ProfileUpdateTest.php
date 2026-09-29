@@ -3,10 +3,13 @@
 namespace Tests\Feature\Settings;
 
 use App\Models\User;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class ProfileUpdateTest extends TestCase
 {
+    use DatabaseTransactions;
+
     public function test_profile_page_is_displayed(): void
     {
         $user = User::factory()->create();

@@ -2,7 +2,7 @@
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
-import { dashboard, login, register } from '@/routes';
+import { dashboard, login, privacy, register } from '@/routes';
 
 const page = usePage();
 const iconSrc = computed(() =>
@@ -83,7 +83,11 @@ const iconSrc = computed(() =>
                 </div>
             </main>
         </div>
-        <div class="hidden h-14.5 lg:block"></div>
+        <footer class="mt-6 text-sm text-muted-foreground lg:h-14.5">
+            <Link :href="privacy()" class="hover:text-foreground">
+                Privacy Policy
+            </Link>
+        </footer>
     </div>
 </template>
 
